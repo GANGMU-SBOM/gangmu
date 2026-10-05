@@ -174,3 +174,21 @@ def test_a_malformed_elf_does_not_raise(tmp_path):
     (tmp_path / "bad.elf").write_bytes(b"\x7fELF\x02\x01" + b"\x00" * 100)
     blob = collect_binaries(tmp_path)[0]
     assert blob.kind == "firmware-image"
+
+
+def test_images_in_test_fixture_directories_are_not_inventoried(tmp_path):
+    # lwIP keeps fuzz inputs as .bin files under test/fuzz/inputs; they are packets, not firmware.
+    for rel in ("lwip/test/fuzz/inputs/arp_req.bin", "lib/tests/data/blob.elf",
+                "lib/fixtures/image.axf"):
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"\x00\x01\x02\x03")
+    assert collect_binaries(tmp_path) == []
+
+
+def test_images_outside_test_directories_and_libraries_inside_them_still_count(tmp_path):
+    for rel, data in (("out/app.bin", b"\x00\x01\x02\x03"), ("tests/libkept.a", PLAIN)):
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+    assert {b.path for b in collect_binaries(tmp_path)} == {"out/app.bin", "tests/libkept.a"}
