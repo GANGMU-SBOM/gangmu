@@ -145,5 +145,6 @@ def load_config(path: Optional[Path] = None) -> Config:
 
 def write_template(path: Path) -> Path:
     path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(TEMPLATE, encoding="utf-8")
     return path
