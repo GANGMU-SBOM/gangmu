@@ -101,3 +101,16 @@ def test_verify_treats_anchors_on_other_layouts_as_alternatives(upstream_dir, ru
     (tmp_path / "r.yaml").write_text(yaml.safe_dump(rule))
     assert main(["rules", "verify", "--rules", str(tmp_path),
                  "--rule", "test/tinynet", "--checkout", str(upstream_dir)]) == 1
+
+
+def test_init_creates_a_missing_directory(tmp_path):
+    target = tmp_path / "new" / "project"
+    assert main(["init", str(target)]) == 0
+    assert (target / "gangmu.yaml").is_file()
+
+
+def test_init_reports_an_unwritable_target_without_a_traceback(tmp_path, capsys):
+    blocker = tmp_path / "file"
+    blocker.write_text("not a directory")
+    assert main(["init", str(blocker / "project")]) == 1
+    assert "cannot write" in capsys.readouterr().err

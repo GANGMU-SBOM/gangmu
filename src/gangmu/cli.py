@@ -613,7 +613,11 @@ def cmd_init(args: argparse.Namespace) -> int:
     if target.exists() and not args.force:
         print(f"{target} already exists; pass --force to overwrite", file=sys.stderr)
         return 1
-    write_template(target)
+    try:
+        write_template(target)
+    except OSError as exc:
+        print(f"error: cannot write {target}: {exc.strerror or exc}", file=sys.stderr)
+        return 1
     print(f"wrote {target}")
     print("Fill in the REQUIRED fields, then run `gangmu cra-check` to see which "
           "obligations they unblock.")
