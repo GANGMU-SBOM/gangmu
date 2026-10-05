@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gangmu-sbom"
-version = "0.6.0"
+version = "0.6.1"
 description = "Build-time SBOM for embedded C/C++, with a community rule base for vendor SDK components"
 readme = "README.md"
 requires-python = ">=3.9"

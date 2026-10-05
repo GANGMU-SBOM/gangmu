@@ -2,6 +2,16 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
+## 0.6.1
+
+在干净环境里从 PyPI 验证 0.6.0 时发现并修复的问题。
+
+* **`gangmu init DIR` 在 `DIR` 不存在时不再崩溃。** 现在会自动创建目录；目标写不进去时只打印一行错误，不再抛
+  Python traceback。
+* **测试输入不再被当作固件。** 名为 `test`、`tests`、`testdata`、`test_data`、`fuzz`、`fixtures` 的目录之下的
+  `.bin`、`.elf`、`.axf` 文件（比如 lwIP 的 `test/fuzz/inputs/*.bin`，其实是模糊测试的数据包）不再被列为预编译镜像，
+  也就不会出现在 SBOM 里，或者变成 `gangmu vuln` 无法查询的组件。`.a`、`.lib`、`.so` 在任何目录里都照常列出。
+
 ## 0.6
 
 ### 快：整棵 SDK 十秒级，规则再多也不线性变慢

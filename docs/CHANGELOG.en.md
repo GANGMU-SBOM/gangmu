@@ -2,6 +2,20 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
+## 0.6.1
+
+Bug fixes found while verifying the 0.6.0 release from PyPI in a clean environment.
+
+* **`gangmu init DIR` no longer crashes when `DIR` does not exist.** It creates
+  the directory, and a target that cannot be written gives a one-line error
+  instead of a traceback.
+* **Test inputs are no longer reported as firmware.** `.bin`, `.elf` and `.axf`
+  files below directories named `test`, `tests`, `testdata`, `test_data`,
+  `fuzz` or `fixtures` (lwIP's `test/fuzz/inputs/*.bin` are fuzz packets) are not
+  inventoried as prebuilt images, so they no longer appear in the SBOM or as
+  components `gangmu vuln` cannot look up. Libraries (`.a`, `.lib`, `.so`) are
+  still listed wherever they are.
+
 ## 0.6
 
 * **Fast enough for every CI build.** Each file is analysed once per scan,
