@@ -1,0 +1,34 @@
+name: 缺陷报告 · Bug report
+description: 工具报错、崩溃或输出不正确。The tool fails, crashes or writes wrong output.
+title: "[缺陷] "
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: gangmu 版本 · Version
+      placeholder: "pip show gangmu-sbom"
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: 系统与 Python 版本 · OS and Python version
+  - type: textarea
+    id: command
+    attributes:
+      label: 执行的命令 · Command
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果 · What happened
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果 · What you expected

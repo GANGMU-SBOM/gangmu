@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use Gangmu or its rule base in research or a published report, please cite it as below."
+title: "Gangmu (纲目): build-time SBOM for embedded C/C++ with a community rule base for chip-vendor SDK components"
+type: software
+authors:
+  - name: "The gangmu-sbom authors"
+repository-code: "https://github.com/GANGMU-SBOM/gangmu"
+license: Apache-2.0
+version: 0.6.0
+abstract: >-
+  Gangmu identifies open-source components that chip-vendor SDKs have copied,
+  renamed and modified in embedded C/C++ firmware, using function-level
+  matching against a reproducible community rule base, and produces CycloneDX
+  and SPDX SBOMs, VEX, EU Cyber Resilience Act checks and vulnerability report
+  drafts.
+keywords:
+  - SBOM
+  - software bill of materials
+  - embedded systems
+  - firmware
+  - C/C++
+  - Cyber Resilience Act
+  - software composition analysis
+  - CycloneDX
+  - SPDX
+  - VEX
+  - vendored code
+  - code clone detection

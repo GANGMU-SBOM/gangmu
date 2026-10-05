@@ -1,0 +1,33 @@
+name: dco
+
+# Developer Certificate of Origin: every commit in a pull request from outside
+# the organisation must carry "Signed-off-by: Name <email>" (git commit -s).
+# Members and owners are exempt; merge commits are skipped.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  signoff:
+    if: ${{ !contains(fromJSON('["OWNER","MEMBER"]'), github.event.pull_request.author_association) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check Signed-off-by on every commit
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          bad=0
+          for sha in $(git rev-list --no-merges "$BASE..$HEAD"); do
+            if ! git show -s --format=%B "$sha" | grep -qiE '^Signed-off-by: .+ <.+@.+>'; then
+              echo "::error::commit $sha has no Signed-off-by line (use git commit -s)"
+              bad=1
+            fi
+          done
+          exit $bad

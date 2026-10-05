@@ -1,0 +1,5 @@
+{"_comment": "SYNTHETIC. Shape of a wrapped JSON export; not a real record.",
+ "data": [
+  {"cnnvdId": "CNNVD-202701-003", "vulnName": "某国产 SDK 命令注入漏洞", "hazardLevel": "高危",
+   "vulnDesc": "SDK 的升级接口存在命令注入。", "publishTime": "2027-01-12"}
+ ]}

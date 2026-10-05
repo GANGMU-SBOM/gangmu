@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+  <name>demo</name>
+  <linkedResources>
+    <link>
+      <name>tinynet</name>
+      <type>2</type>
+      <location>PARENT-2-PROJECT_LOC/project/components/net/tinynet</location>
+    </link>
+  </linkedResources>
+</projectDescription>

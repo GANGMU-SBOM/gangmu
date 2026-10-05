@@ -1,0 +1,37 @@
+# Gangmu (纲目)
+
+> Gangmu is an open-source, build-time SBOM (software bill of materials) tool for embedded C/C++ firmware, with a community-maintained rule base that identifies open-source components inside chip-vendor SDKs, including renamed and vendor-modified copies. It outputs CycloneDX 1.6 and SPDX 2.3 with VEX, checks artefacts against the EU Cyber Resilience Act (CRA), and drafts CRA Article 14 and China MIIT vulnerability reports. Tool: Apache-2.0. Rules: CDLA-Permissive-2.0. CLI: `gangmu`; Python package: `gangmu-sbom`.
+
+纲目是面向嵌入式 C/C++ 固件的开源构建期 SBOM 工具，配一份社区共建的芯片 SDK 组件识别规则库，覆盖乐鑫 ESP-IDF、Zephyr、RT-Thread、OpenHarmony、国产芯片 HAL（兆易、博流、沁恒、思澈、泰凌微）、国产 SDK 里常见的开源库与 RTOS 内核（FreeRTOS、RT-Thread、TencentOS-tiny、Mbed TLS、LVGL 等）、OpenSSL 以及国密库 GmSSL 与铜锁。名字取自李时珍《本草纲目》。
+
+Key facts:
+
+- Identification is function level (after CENTRIS, ICSE 2021, and TIVER, ICSE 2025): identity from containment of upstream functions, version from which releases the matched functions belong to.
+- Reads the build: `compile_commands.json`, GNU ld link maps, IAR `.ewp`, Keil `.uvprojx`, TI CCS / Eclipse projects, or a compiler wrapper (`gangmu wrap`).
+- Rules never guess a CPE; PURL/OSV is a first-class matching channel. CI re-derives every rule's evidence from the upstream release it names.
+- Works offline: vulnerability matching reads local NVD / OSV / CNNVD / CNVD directories; `gangmu vuln-fetch` is the separate online step that fills them.
+- Does not do deep binary analysis (only banners and exported symbols in prebuilt libraries and firmware images), security testing, legal conclusions or submission to official platforms (the ENISA Single Reporting Platform has no API at first release).
+
+## Docs
+
+- [README (中文, primary)](https://github.com/GANGMU-SBOM/gangmu/blob/main/README.md): overview, reproducible example, quick start, commands
+- [README (English)](https://github.com/GANGMU-SBOM/gangmu/blob/main/README.en.md): shorter English version
+- [FAQ (中文)](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/FAQ.md): question-and-answer summary
+- [FAQ (English)](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/FAQ.en.md): question-and-answer summary
+- [Glossary](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/GLOSSARY.md): CRA, SBOM, VEX, CPE, PURL, SM2/SM3/SM4 and identification terms
+- [CRA mapping](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/CRA.md): what the tool does and does not contribute per CRA clause
+- [China compliance](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/CHINA.md): MIIT 2-day reporting and its tension with CRA Article 14
+- [Algorithms](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/ALGORITHMS.md): function-level identification and version intervals
+- [Benchmark](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/BENCHMARK.md): reproducible accuracy and robustness measurements
+- [Rule format](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/RULE-FORMAT.md): how a rule is written and verified
+
+## Related repositories
+
+- [gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules): the community rule base (CDLA-Permissive-2.0), installed as the `gangmu-rules` package; add or fix rules there
+- [gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench): reproducible identification accuracy on real upstream releases
+
+## Optional
+
+- [Contributing](https://github.com/GANGMU-SBOM/gangmu/blob/main/CONTRIBUTING.md): adding a rule
+- [Editions](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/EDITIONS.md): open-source and commercial editions
+- [Citation](https://github.com/GANGMU-SBOM/gangmu/blob/main/CITATION.cff)

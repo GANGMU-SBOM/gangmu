@@ -1,0 +1,62 @@
+{
+  "_comment": "SYNTHETIC test data in NVD 2.0 shape. The identifiers are not real CVEs.",
+  "resultsPerPage": 2,
+  "vulnerabilities": [
+    {
+      "cve": {
+        "id": "TEST-2026-0001",
+        "descriptions": [
+          {"lang": "en", "value": "Synthetic: out-of-bounds read in the TCP input path."}
+        ],
+        "metrics": {
+          "cvssMetricV31": [
+            {"cvssData": {"baseScore": 8.1, "baseSeverity": "HIGH"}}
+          ]
+        },
+        "references": [{"url": "https://example.invalid/TEST-2026-0001"}],
+        "configurations": [
+          {"nodes": [{"cpeMatch": [
+            {"vulnerable": true,
+             "criteria": "cpe:2.3:a:lwip_project:lwip:*:*:*:*:*:*:*:*",
+             "versionStartIncluding": "2.0.0",
+             "versionEndExcluding": "2.2.1"}
+          ]}]}
+        ]
+      }
+    },
+    {
+      "cve": {
+        "id": "TEST-2026-0002",
+        "descriptions": [
+          {"lang": "en", "value": "Synthetic: fixed long before the version in this firmware."}
+        ],
+        "metrics": {
+          "cvssMetricV31": [
+            {"cvssData": {"baseScore": 5.3, "baseSeverity": "MEDIUM"}}
+          ]
+        },
+        "configurations": [
+          {"nodes": [{"cpeMatch": [
+            {"vulnerable": true,
+             "criteria": "cpe:2.3:a:lwip_project:lwip:*:*:*:*:*:*:*:*",
+             "versionEndExcluding": "2.0.0"}
+          ]}]}
+        ]
+      }
+    },
+    {
+      "cve": {
+        "id": "TEST-2026-0003",
+        "descriptions": [{"lang": "en", "value": "Synthetic: affects the TLSF allocator."}],
+        "metrics": {"cvssMetricV31": [{"cvssData": {"baseScore": 6.5, "baseSeverity": "MEDIUM"}}]},
+        "configurations": [
+          {"nodes": [{"cpeMatch": [
+            {"vulnerable": true,
+             "criteria": "cpe:2.3:a:tlsf_project:tlsf:*:*:*:*:*:*:*:*",
+             "versionEndExcluding": "3.2.0"}
+          ]}]}
+        ]
+      }
+    }
+  ]
+}

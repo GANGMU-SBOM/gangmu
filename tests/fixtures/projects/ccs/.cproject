@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<cproject>
+  <storageModule moduleId="org.eclipse.cdt.core.settings">
+    <cconfiguration id="Debug">
+      <configuration name="Debug">
+        <sourceEntries>
+          <entry excluding="**/legacy_port.c" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name=""/>
+        </sourceEntries>
+      </configuration>
+    </cconfiguration>
+  </storageModule>
+</cproject>

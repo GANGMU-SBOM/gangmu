@@ -1,0 +1,44 @@
+# Libraries for the binary-identification benchmark (docs/BINARY-VALIDATION.md).
+# Each is built for Cortex-M3 at several optimisation levels, once per release, and
+# every function is kept (no --gc-sections), so a library's whole code is in the image.
+# `sources` are globs relative to the checkout; `exclude` removes matches.
+zlib:
+  url: https://github.com/madler/zlib
+  tags: [v1.2.11, v1.2.13, v1.3.1]
+  sources: [adler32.c, compress.c, crc32.c, deflate.c, inffast.c, inflate.c, inftrees.c,
+            trees.c, uncompr.c, zutil.c]
+  include: ["."]
+cjson:
+  url: https://github.com/DaveGamble/cJSON
+  tags: [v1.7.12, v1.7.15, v1.7.18]
+  sources: [cJSON.c]
+  include: ["."]
+littlefs:
+  url: https://github.com/littlefs-project/littlefs
+  tags: [v2.4.0, v2.5.0, v2.9.0]
+  sources: [lfs.c, lfs_util.c]
+  include: ["."]
+  defines: [LFS_NO_DEBUG, LFS_NO_WARN, LFS_NO_ERROR]
+lz4:
+  url: https://github.com/lz4/lz4
+  tags: [v1.9.2, v1.9.3, v1.9.4]
+  sources: [lib/lz4.c, lib/lz4hc.c, lib/lz4frame.c, lib/xxhash.c]
+  include: [lib]
+inih:
+  url: https://github.com/benhoyt/inih
+  tags: [r53, r56, r58]
+  sources: [ini.c]
+  include: ["."]
+heatshrink:
+  url: https://github.com/atomicobject/heatshrink
+  tags: [v0.4.0, v0.4.1]
+  sources: [heatshrink_encoder.c, heatshrink_decoder.c]
+  include: ["."]
+mbedtls:
+  url: https://github.com/Mbed-TLS/mbedtls
+  tags: [v2.28.0, v2.28.8, v3.6.0]
+  sources: ["library/*.c"]
+  exclude: ["library/net_sockets.c", "library/timing.c", "library/threading.c",
+            "library/entropy_poll.c", "library/psa_*.c", "library/ssl_*.c",
+            "library/x509*.c", "library/pkcs*.c", "library/pem.c", "library/debug.c"]
+  include: [include, library]

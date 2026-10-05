@@ -1,0 +1,42 @@
+# Fixture rule for the CI end-to-end job. Generated from
+# tests/fixtures/upstream/tinynet exactly as tests/conftest.py does; regenerate
+# it the same way if that fixture changes. Not part of the rule base.
+id: test/tinynet
+component:
+  path_globs:
+  - '**/tinynet'
+  ships_as: tinynet
+upstream:
+  name: tinynet
+  purl: pkg:generic/tinynet
+  cpe: cpe:2.3:a:tinynet_project:tinynet:*:*:*:*:*:*:*:*
+  license: MIT
+  source:
+    kind: git
+    url: https://example.invalid/tinynet
+    ref: v1.4.2
+  supplier: tinynet fixture (gangmu test suite)
+identity:
+  include:
+  - src/**/*.c
+  - include/**/*.h
+  anchors:
+  - path: src/core.c
+    sha256:
+      1.4.2: b8956ea43a9b5d8a0ef75b06b4a8d6656c70f82b3c7c08d8d0dc2d784579e116
+  signature:
+    algo: winnow-bottomk
+    k: 16
+    window: 8
+    size: 256
+    reference_version: 1.4.2
+    fileset_sha256: ace673072149c9154dfe99b6074975096409ca4b2c46fca00d3e0155a8e063cd
+    values: 0179f3510a72d07b01af05869fb9bfa00208db19c1b9355a031c09a2b4296ed2039d975578b254c405704a481098cbda05fcbd114eabbbb3067bb908ee6b0c53072b55baffff6c2507b4d990ffb3b60e07df6a1cbb8a6d2308025f883193bc8308538ff950362cd308cc156ac24797de0917f9b9e9034950092286769dc190ba0a4593921bc26b940b51d5ded4a1a7b20b5f6b3a57e238160b63553a552526110bbfe5b1889ac6880ce1c55d30985ee00d29d189ba0c22c00d5cb4b0daaa089f0dadafa4fff8b33b0e04809c85ae5df90e911f8a567424dc0eb034948ba202dc0f18daa599e89eef0f35c00da8b33d830f87c01ea6225ac00f99a89510bd4d660fb0dee5fb27c0861058ff251d99342a108191411f18b3211123e2d7757f482f12a7200a3b48a9ec131a91b3312ebb5b134c588411305387136f5a0650c6d5a314b52e80c715409016442a541a6e8a0c16f5a9695e645c1b17711b574899559217bdd7c90530a0181857df57065bb34418a7a1933af599871914012e4abe2d5319b9e9ea77d1415119bf9fb1d265efd519d3ca410599fc061a694d2cc3f62a221a9035d8918c91321aa1e8898501521c1d64f3d8ab9e2ac71e0fd65bb5a0eccb1ea0fa59d3d09aa31fcd87f22486d9d8232ac6fce39c2b3d23df1abac7df737c242221820d3287de24bbc28566bfa27f24f738a0002a53a82525a97aad96e5c2253c6d4485ab5792258ae1ab9b0d533b259f83f332f56213261e3eb6b9bbb3be2671f238ae04c7d027d82ae363b3a4bd2920ba2ab9ee2bfb2ab3766c7a7f36742b6d50ecb91524382bf70ff0fe07fcaf2c21e9280b6b711a2e1df26ad03384742eb42fd13d69e43a2f0ff41aedc72165303f525b85bacf7b30b0bbe43ec27e5f30b6170be8ae48b3348898c65865286a358b9504d2145d5e3bd32cebecb81ab03bfad72acb1c2a8f3d2d0072fa7f4dc53d407156e4ac8a253fdd57d36e7e4c964092c5db272cf67740ec5f9a59535fed41c5c98449efd67d41ce770f8306487d42a4a19afe7aaf7a45426683111072c04723542cfae2390f479fea5d360ff3144a380da2d0a701c94c19ae7de81589f84d02bf8c299da76d51718be7d96dc83a522d1e8cce278e36524e31c46010ffb758db3a10b20b8bad5e1dd371558c3d745e624df82a6a4c215fae6f3eb8c67af867aa34946b346a31
+version:
+  probes:
+  - file: include/tinynet/version.h
+    patterns:
+      major: TINYNET_VERSION_MAJOR\s+(\d+)
+      minor: TINYNET_VERSION_MINOR\s+(\d+)
+      revision: TINYNET_VERSION_REVISION\s+(\d+)
+    template: '{major}.{minor}.{revision}'

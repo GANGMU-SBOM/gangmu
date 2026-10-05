@@ -1,0 +1,264 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  # The community rule base this revision of the tool is tested against
+  # (https://github.com/GANGMU-SBOM/gangmu-rules). Move it forward in its own
+  # pull request; benchmarks/perf-baseline.json is measured with it.
+  GANGMU_RULES_REF: main
+  # Tests that use the real rule base fail instead of skipping when it is missing.
+  GANGMU_REQUIRE_RULES: "1"
+
+jobs:
+  tool:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.9", "3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: ./.github/actions/install
+        with:
+          extras: "[dev]"
+      - run: pytest -q
+      # No --rules: the installed gangmu-rules pack must be found on its own.
+      - run: gangmu rules lint
+      # The end-to-end path a team actually runs, against this repo's fixtures.
+      - name: scan, match, self-check
+        run: |
+          gangmu scan tests/fixtures/project --rules tests/fixtures/rules \
+                 --format cyclonedx -o /tmp/sbom.json
+          gangmu vuln /tmp/sbom.json --db tests/fixtures/advisories \
+                 --format cyclonedx -o /tmp/vex.json
+          gangmu cra-check --sbom /tmp/sbom.json --vex /tmp/vex.json --no-fail
+          gangmu evidence --out /tmp/evidence --sbom /tmp/sbom.json --vex /tmp/vex.json
+          test -f /tmp/evidence/manifest.json
+      - name: minimum-element score must not regress
+        run: gangmu sbom-score /tmp/sbom.json --fail-under 9.0
+      - name: the Chinese reporting path still renders
+        run: gangmu report CVE-2027-10001 --regime cn-miit --vex /tmp/vex.json || true
+
+  tool-with-numpy:
+    # numpy is an optional accelerator. The matrix above runs the pure-Python
+    # path; this runs the suite again with the vector path switched on, and
+    # the tests compare the two value for value.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: ./.github/actions/install
+        with:
+          extras: "[dev,fast]"
+      - run: pytest -q
+
+  performance:
+    # A seeded synthetic SDK, scanned cold, warm (incremental cache) and with
+    # the rule base replicated 4x and 16x. Work counters must not grow, the
+    # findings must not change, and time (in calibration units) and memory
+    # must stay within a margin of benchmarks/perf-baseline.json. A change
+    # that makes scanning slower is fixed before it is merged; a change that
+    # makes it faster updates the baseline in the same pull request.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: ./.github/actions/install
+        with:
+          extras: "[fast]"
+      - name: scan cost must not regress
+        run: |
+          gangmu perf --rules .gangmu-rules/rules --rules tests/fixtures/rules \
+                 --embed tests/fixtures/upstream/tinynet --scale 1,4,16 \
+                 --check benchmarks/perf-baseline.json -o /tmp/perf.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: perf
+          path: /tmp/perf.json
+
+  wrap-windows:
+    # `gangmu wrap` on Windows: .cmd shims that call `python -m gangmu.build.shim`.
+    # Uses the MinGW gcc that ships on the runner.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: ./.github/actions/install
+        with:
+          extras: "[dev]"
+      - run: gcc --version
+      - run: pytest -q tests/test_wrap.py
+      - name: end to end, compiler launched through cmd.exe
+        shell: cmd
+        run: |
+          mkdir e2e && cd e2e
+          mkdir src
+          echo int a(void){return 1;}> src\a.c
+          echo int b(void){return 2;}> src\b.c
+          echo int never(void){return 3;}> src\never.c
+          gangmu wrap -o cc.json -- cmd /c "gcc -c src\a.c -o a.o && gcc -c src\b.c -o b.o"
+          python -c "import json,pathlib; e=json.load(open('cc.json')); n=sorted(pathlib.Path(x['file']).name for x in e); print(n); assert n==['a.c','b.c'], n"
+      - name: end to end, make recipes that go through cmd.exe
+        # GNU make hands a recipe line to the shell only if it contains shell
+        # syntax (here `&&`); then cmd.exe resolves `gcc` through PATH/PATHEXT
+        # and finds the .cmd shim.
+        shell: python {0}
+        run: |
+          import json, pathlib, subprocess
+          root = pathlib.Path("e2e")
+          (root / "Makefile").write_text(
+              "SHELL = cmd.exe\nCC = gcc\nall:\n"
+              "\t$(CC) -c src/a.c -o m_a.o && echo a\n"
+              "\t$(CC) -c src/b.c -o m_b.o && echo b\n")
+          subprocess.run(["gangmu", "wrap", "-o", "make.json", "--",
+                          "mingw32-make"], cwd=root, check=True)
+          names = sorted(pathlib.Path(e["file"]).name
+                         for e in json.loads((root / "make.json").read_text()))
+          print(names)
+          assert names == ["a.c", "b.c"], names
+      - name: end to end, plain make recipes (no shell involved)
+        # GNU make runs `gcc -c x.c` directly via CreateProcess, which only finds
+        # a real .exe, so this exercises the launcher-based gcc.exe shim.
+        shell: python {0}
+        run: |
+          import json, pathlib, subprocess
+          root = pathlib.Path("e2e")
+          (root / "Makefile").write_text(
+              "CC = gcc\nall:\n\t$(CC) -c src/a.c -o s_a.o\n"
+              "\t$(CC) -c src/b.c -o s_b.o\n")
+          subprocess.run(["gangmu", "wrap", "-o", "simple.json", "--",
+                          "mingw32-make"], cwd=root, check=True)
+          names = sorted(pathlib.Path(e["file"]).name
+                         for e in json.loads((root / "simple.json").read_text()))
+          print(names)
+          assert names == ["a.c", "b.c"], names
+
+      - name: end to end, MSVC cl.exe
+        # cl.exe needs the MSVC environment; load vcvars64.bat in the same
+        # cmd.exe that runs the wrap.
+        shell: python {0}
+        run: |
+          import json, os, pathlib, subprocess
+          vswhere = os.path.join(os.environ["ProgramFiles(x86)"],
+                                 "Microsoft Visual Studio", "Installer", "vswhere.exe")
+          vs = subprocess.check_output([vswhere, "-latest", "-property",
+                                        "installationPath"], text=True).strip()
+          vcvars = os.path.join(vs, "VC", "Auxiliary", "Build", "vcvars64.bat")
+          root = pathlib.Path("e2e")
+          inner = ('"%s" >nul && gangmu wrap --compiler cl -o cl-msvc.json -- '
+                   'cmd /c "cl /nologo /c src\\a.c /Foa_msvc.obj && '
+                   'cl /nologo /c src\\b.c /Fo:b_msvc.obj"' % vcvars)
+          subprocess.run('cmd /d /s /c "%s"' % inner, cwd=root, check=True)
+          entries = json.loads((root / "cl-msvc.json").read_text())
+          print(entries)
+          names = sorted(pathlib.Path(e["file"].replace("\\", "/")).name
+                         for e in entries)
+          assert names == ["a.c", "b.c"], names
+          assert sorted(e["output"] for e in entries) == ["a_msvc.obj", "b_msvc.obj"]
+          assert (root / "a_msvc.obj").is_file() and (root / "b_msvc.obj").is_file()
+
+      - name: install arm-none-eabi-gcc
+        # Not on the runner image. Chocolatey's bin directory (with the tool
+        # shims) is already on PATH, so no shell restart is needed.
+        shell: pwsh
+        run: |
+          choco install gcc-arm-embedded -y --no-progress
+          arm-none-eabi-gcc --version
+      - name: end to end, arm-none-eabi-gcc (cross compiler)
+        shell: python {0}
+        run: |
+          import json, pathlib, subprocess
+          root = pathlib.Path("e2e")
+          flags = "-mcpu=cortex-m4 -mthumb -ffreestanding"
+          subprocess.run(
+              ["gangmu", "wrap", "--compiler", "arm-none-eabi-gcc", "-o",
+               "arm-cmd.json", "--", "cmd", "/c",
+               f"arm-none-eabi-gcc {flags} -c src/a.c -o arm_a.o && "
+               f"arm-none-eabi-gcc {flags} -c src/b.c -o arm_b.o"],
+              cwd=root, check=True)
+          (root / "Makefile").write_text(
+              f"CC = arm-none-eabi-gcc\nall:\n"
+              f"\t$(CC) {flags} -c src/a.c -o m_arm_a.o\n"
+              f"\t$(CC) {flags} -c src/b.c -o m_arm_b.o\n")
+          subprocess.run(["gangmu", "wrap", "--compiler", "arm-none-eabi-gcc",
+                          "-o", "arm-make.json", "--", "mingw32-make"],
+                         cwd=root, check=True)
+          for name, outs in (("arm-cmd.json", ["arm_a.o", "arm_b.o"]),
+                             ("arm-make.json", ["m_arm_a.o", "m_arm_b.o"])):
+              entries = json.loads((root / name).read_text())
+              print(name, [(e["file"], e.get("output")) for e in entries])
+              assert sorted(pathlib.Path(e["file"]).name for e in entries) == \
+                  ["a.c", "b.c"], entries
+              assert sorted(e["output"] for e in entries) == outs, entries
+              assert all((root / o).is_file() for o in outs)
+
+      - name: end to end, clang (LLVM preinstalled on the runner)
+        shell: python {0}
+        run: |
+          import json, pathlib, shutil, subprocess
+          clang = shutil.which("clang")
+          assert clang, "clang is not on PATH on this runner image"
+          print(subprocess.check_output([clang, "--version"], text=True))
+          root = pathlib.Path("e2e")
+          subprocess.run(
+              ["gangmu", "wrap", "--compiler", "clang", "-o", "clang-cmd.json",
+               "--", "cmd", "/c",
+               "clang -c src/a.c -o cl_a.o && clang -c src/b.c -o cl_b.o"],
+              cwd=root, check=True)
+          (root / "Makefile").write_text(
+              "CC = clang\nall:\n\t$(CC) -c src/a.c -o m_cl_a.o\n"
+              "\t$(CC) -c src/b.c -o m_cl_b.o\n")
+          subprocess.run(["gangmu", "wrap", "--compiler", "clang", "-o",
+                          "clang-make.json", "--", "mingw32-make"],
+                         cwd=root, check=True)
+          for name, outs in (("clang-cmd.json", ["cl_a.o", "cl_b.o"]),
+                             ("clang-make.json", ["m_cl_a.o", "m_cl_b.o"])):
+              entries = json.loads((root / name).read_text())
+              print(name, [(e["file"], e.get("output")) for e in entries])
+              assert sorted(pathlib.Path(e["file"]).name for e in entries) == \
+                  ["a.c", "b.c"], entries
+              assert sorted(e["output"] for e in entries) == outs, entries
+              assert all((root / o).is_file() for o in outs)
+
+  wheel:
+    # What `pip install gangmu-sbom` users get: the tool wheel plus the
+    # gangmu-rules pack it depends on, found with no --rules and no env.
+    runs-on: ubuntu-latest
+    env:
+      GANGMU_REQUIRE_RULES: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: GANGMU-SBOM/gangmu-rules
+          ref: ${{ env.GANGMU_RULES_REF }}
+          path: .gangmu-rules
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install build twine
+      - run: python -m build
+      - run: python -m build .gangmu-rules --outdir rules-dist
+      - run: twine check dist/*
+      - name: install both wheels into a clean venv and scan with no --rules
+        run: |
+          python -m venv /tmp/venv
+          /tmp/venv/bin/pip install rules-dist/*.whl dist/*.whl
+          cd "$(mktemp -d)"
+          /tmp/venv/bin/gangmu rules lint | tee lint.txt
+          grep -q "pack:community" lint.txt
+          /tmp/venv/bin/gangmu scan "$GITHUB_WORKSPACE/tests/fixtures/project" \
+              --format cyclonedx -o /tmp/wheel-sbom.json

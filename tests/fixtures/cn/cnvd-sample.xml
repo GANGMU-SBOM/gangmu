@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC test data shaped after CNVD's weekly XML bulletin. Not a real export. -->
+<vulnerabilitys>
+  <vulnerability>
+    <number>CNVD-2027-00001</number>
+    <cves><cve><cveNumber>CVE-2027-10002</cveNumber></cve></cves>
+    <title>某国产组件缓冲区溢出漏洞</title>
+    <serverity>中</serverity>
+    <products><product>某国产组件 3.1</product><product>某国产组件 3.2</product></products>
+    <isEvent>通用型漏洞</isEvent>
+    <submitTime>2027-01-02</submitTime>
+    <openTime>2027-01-09</openTime>
+    <referenceLink>https://example.invalid/cnvd-1</referenceLink>
+    <formalWay>升级到 3.3</formalWay>
+    <description>该组件解析畸形报文时存在缓冲区溢出。</description>
+  </vulnerability>
+</vulnerabilitys>

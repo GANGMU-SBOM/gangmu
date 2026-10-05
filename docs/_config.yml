@@ -1,0 +1,23 @@
+# GitHub Pages site built from /docs. Enable in Settings → Pages → Branch: main, folder: /docs.
+title: 纲目 Gangmu
+description: >-
+  纲目（Gangmu）：面向嵌入式 C/C++ 固件的开源构建期 SBOM 工具与 CRA 合规工具链。
+  识别芯片 SDK 中被改名魔改的开源组件（含国产芯片与国密库），输出 CycloneDX / SPDX 与 VEX，
+  起草欧盟 CRA 与工信部漏洞报送。Open-source build-time SBOM for embedded C/C++ firmware.
+lang: zh-CN
+url: https://gangmu-sbom.github.io
+baseurl: /gangmu
+theme: jekyll-theme-minimal
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap
+  - jekyll-relative-links
+  - jekyll-optional-front-matter
+  - jekyll-titles-from-headings
+relative_links:
+  enabled: true
+  collections: false
+exclude:
+  - wiki/
+github:
+  repository_url: https://github.com/GANGMU-SBOM/gangmu

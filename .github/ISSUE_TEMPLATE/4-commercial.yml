@@ -1,0 +1,31 @@
+name: 商业版咨询 · Commercial edition
+description: 试用商业版、私有化部署、规则定制或技术支持。Trial, on-premises deployment, custom rules or support.
+title: "商业版："
+labels: ["commercial"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        商业版与开源版的区别见 [docs/EDITIONS.md](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/EDITIONS.md)。
+        这是公开 issue，请不要填写保密信息；我们会通过你留下的方式私下联系。
+        This is a public issue. Do not include confidential details; we will follow up privately.
+  - type: dropdown
+    id: interest
+    attributes:
+      label: 感兴趣的内容 · Interested in
+      multiple: true
+      options:
+        - 漏洞持续监测 · Continuous vulnerability monitoring
+        - 报送工作台 · Reporting workbench
+        - 规则库企业服务 · Enterprise rule service
+        - 私有化部署 · On-premises deployment
+        - 培训与咨询 · Training and consulting
+  - type: input
+    id: contact
+    attributes:
+      label: 联系方式（可选）· Preferred contact (optional)
+  - type: textarea
+    id: context
+    attributes:
+      label: 场景简述 · Your situation
+      description: 例如芯片平台、产品数量、出口市场。e.g. silicon platforms, number of products, export markets.

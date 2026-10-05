@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>  <cnnvd xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"  xmlns="http://www.cnnvd.org.cn/vuln/1.0"  xsi:schemaLocation="http://www.cnnvd.org.cn/vuln/1.0 http://www.cnnvd.org.cn/schema/vulnerability.xsd"  cnnvd_xml_version="1.0"  pub_date="2019-10-29">
+  <entry>
+    <name>OpenSSL 安全漏洞</name>  
+    <vuln-id>CNNVD-201701-225</vuln-id>  
+    <published>2017-01-11</published>  
+    <modified>2019-10-17</modified>  
+    <source></source>  
+    <severity>中危</severity>  
+    <vuln-type>加密问题</vuln-type>  
+    <thrtype>本地</thrtype>  
+    <vuln-descript>OpenSSL是OpenSSL团队开发的一个开源的能够实现安全套接层（SSL v2/v3）和安全传输层（TLS v1）协议的通用加密库，它支持多种加密算法，包括对称密码、哈希算法、安全散列算法等。 
+OpenSSL 1.0.1u及之前版本中存在安全漏洞。本地攻击者利用该漏洞实施时序攻击，恢复ECDSA P-256私钥。</vuln-descript>  
+    <vulnerable-configuration>
+      <cncpe operator="or" negate="false"> 
+        <cncpe-lang name="CPE:/a:openssl:openssl:1.0.1u:::"/> 
+      </cncpe> 
+    </vulnerable-configuration>  
+    <vulnerable-configuration>
+      <cncpe operator="or" negate="false"> 
+        <cncpe-lang name="CPE:/o:debian:debian_linux:9.0:::"/>  
+        <cncpe-lang name="CPE:/o:debian:debian_linux:8.0:::"/> 
+      </cncpe> 
+    </vulnerable-configuration>  
+    <vulnerable-configuration>
+      <cncpe operator="or" negate="false"> 
+        <cncpe-lang name="CPE:/o:redhat:enterprise_linux:7.0:::"/>  
+        <cncpe-lang name="CPE:/o:redhat:enterprise_linux:6:::"/> 
+      </cncpe> 
+    </vulnerable-configuration>  
+    <vulnerable-configuration>
+      <cncpe operator="or" negate="false"> 
+        <cncpe-lang name="CPE:/o:canonical:ubuntu_linux:14.04::~~lts~~~:"/>  
+        <cncpe-lang name="CPE:/o:canonical:ubuntu_linux:12.04::~~esm~~~:"/> 
+      </cncpe> 
+    </vulnerable-configuration>  
+    <vuln-software-list> 
+      <product>CPE:/o:canonical:ubuntu_linux:14.04::~~lts~~~:</product>  
+      <product>CPE:/o:canonical:ubuntu_linux:12.04::~~esm~~~:</product>  
+      <product>CPE:/o:redhat:enterprise_linux:7.0:::</product>  
+      <product>CPE:/o:redhat:enterprise_linux:6:::</product>  
+      <product>CPE:/o:debian:debian_linux:9.0:::</product>  
+      <product>CPE:/o:debian:debian_linux:8.0:::</product>  
+      <product>CPE:/a:openssl:openssl:1.0.1u:::</product> 
+    </vuln-software-list>  
+    <other-id> 
+      <cve-id>CVE-2016-7056</cve-id>  
+      <bugtraq-id></bugtraq-id>
+    </other-id>  
+    <refs> 
+      <ref> 
+        <ref-source>BID</ref-source>  
+        <ref-name></ref-name>  
+        <ref-url>http://www.securityfocus.com/bid/95375</ref-url> 
+      </ref>  
+      <ref> 
+        <ref-source>REDHAT</ref-source>  
+        <ref-name></ref-name>  
+        <ref-url>https://access.redhat.com/errata/RHSA-2017:1414</ref-url> 
+      </ref>  
+      <ref> 
+        <ref-source>REDHAT</ref-source>  
+        <ref-name></ref-name>  
+        <ref-url>https://access.redhat.com/errata/RHSA-2017:1413</ref-url> 
+      </ref>  
+      <ref> 
+        <ref-source>REDHAT</ref-source>  
+        <ref-name></ref-name>  
+        <ref-url>https://access.redhat.com/errata/RHSA-2017:1801</ref-url> 
+      </ref>  
+      <ref> 
+        <ref-source>MISC</ref-source>  
+        <ref-name></ref-name>  
+        <ref-url>https://eprint.iacr.org/2016/1195</ref-url> 
+      </ref>  
+      <ref> 
+        <ref-source>REDHAT</ref-source>  
+        <ref-name></ref-name>  
+        <ref-url>https://access.redhat.com/errata/RHSA-2017:1802</ref-url> 
+      </ref>  
+      <ref> 
+        <ref-source>CONFIRM</ref-source>  
+        <ref-name></ref-name>  
+        <ref-url>https://bugzilla.redhat.com/show_bug.cgi?id=CVE-2016-7056</ref-url> 
+      </ref>  
+      <ref> 
+        <ref-source>REDHAT</ref-source>  
+        <ref-name></ref-name>  
+        <ref-url>http://rhn.redhat.com/errata/RHSA-2017-1415.html</ref-url> 
+      </ref>  
+      <ref> 
+        <ref-source>CONFIRM</ref-source>  
+        <ref-name></ref-name>  
+        <ref-url>https://ftp.openbsd.org/pub/OpenBSD/patches/5.9/common/033_libcrypto.patch.sig</ref-url> 
+      </ref>  
+      <ref> 
+        <ref-source>DEBIAN</ref-source>  
+        <ref-name></ref-name>  
+        <ref-url>https://www.debian.org/security/2017/dsa-3773</ref-url> 
+      </ref>  
+      <ref> 
+        <ref-source>CONFIRM</ref-source>  
+        <ref-name></ref-name>  
+        <ref-url>https://git.openssl.org/?p=openssl.git;a=commit;h=8aed2a7548362e88e84a7feb795a3a97e8395008</ref-url> 
+      </ref>  
+      <ref> 
+        <ref-source>CONFIRM</ref-source>  
+        <ref-name></ref-name>  
+        <ref-url>https://security-tracker.debian.org/tracker/CVE-2016-7056</ref-url> 
+      </ref>  
+      <ref> 
+        <ref-source>CONFIRM</ref-source>  
+        <ref-name></ref-name>  
+        <ref-url>https://ftp.openbsd.org/pub/OpenBSD/patches/6.0/common/016_libcrypto.patch.sig</ref-url> 
+      </ref>  
+      <ref> 
+        <ref-source>CONFIRM</ref-source>  
+        <ref-name></ref-name>  
+        <ref-url>https://people.canonical.com/~ubuntu-security/cve/2016/CVE-2016-7056.html</ref-url> 
+      </ref>  
+      <ref> 
+        <ref-source>MLIST</ref-source>  
+        <ref-name></ref-name>  
+        <ref-url>https://seclists.org/oss-sec/2017/q1/52</ref-url> 
+      </ref>  
+      <ref> 
+        <ref-source>SECTRACK</ref-source>  
+        <ref-name></ref-name>  
+        <ref-url>http://www.securitytracker.com/id/1037575</ref-url> 
+      </ref>  
+      <ref> 
+        <ref-source>BID</ref-source>  
+        <ref-name></ref-name>  
+        <ref-url>https://www.securityfocus.com/bid/95375</ref-url> 
+      </ref> 
+    </refs>
+    <vuln-solution>目前厂商已发布升级补丁以修复漏洞，补丁获取链接： 
+https://git.openssl.org/?p=openssl.git;a=commit;h=8aed2a7548362e88e84a7feb795a3a97e8395008</vuln-solution>
+  </entry>
+  <entry>
+    <name>南瑞PCS9705测控装置安全漏洞</name>  
+    <vuln-id>CNNVD-201701-881</vuln-id>  
+    <published>2017-01-03</published>  
+    <modified>2017-06-27</modified>  
+    <source>北京威努特技术有限公司 王方立 黄敏</source>  
+    <severity>高危</severity>  
+    <vuln-type></vuln-type>  
+    <thrtype></thrtype>  
+    <vuln-descript>此编号已经被分配用于标识某安全漏洞，出于安全考虑，漏洞详情暂不公开。</vuln-descript>  
+    <vulnerable-configuration></vulnerable-configuration>  
+    <vuln-software-list></vuln-software-list>  
+    <other-id> 
+      <cve-id></cve-id>  
+      <bugtraq-id></bugtraq-id>
+    </other-id>  
+    <refs></refs>
+    <vuln-solution></vuln-solution>
+  </entry>
+</cnnvd>

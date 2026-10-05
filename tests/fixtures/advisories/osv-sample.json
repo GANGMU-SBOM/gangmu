@@ -1,0 +1,42 @@
+[
+  {
+    "_comment": "SYNTHETIC OSV record. Not a real advisory.",
+    "id": "TEST-OSV-0001",
+    "summary": "Synthetic: directory traversal in a component that has no CPE at all.",
+    "severity": [{"type": "CVSS_V3", "score": "7.5"}],
+    "references": [{"url": "https://example.invalid/TEST-OSV-0001"}],
+    "affected": [
+      {
+        "package": {"purl": "pkg:github/littlefs-project/littlefs", "ecosystem": "GitHub"},
+        "ranges": [
+          {"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "2.9.0"}]}
+        ]
+      }
+    ]
+  },
+  {
+    "id": "TEST-OSV-0002",
+    "summary": "Synthetic: affects the fixture component tinynet.",
+    "affected": [
+      {
+        "package": {"purl": "pkg:generic/tinynet"},
+        "ranges": [
+          {"type": "ECOSYSTEM", "events": [{"introduced": "1.0.0"}, {"fixed": "1.5.0"}]}
+        ]
+      }
+    ]
+  },
+  {
+    "id": "TEST-OSV-0003",
+    "summary": "Synthetic: affects cJSON before 1.7.20.",
+    "aliases": ["TEST-2026-0009"],
+    "affected": [
+      {
+        "package": {"purl": "pkg:github/DaveGamble/cJSON"},
+        "ranges": [
+          {"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "1.7.20"}]}
+        ]
+      }
+    ]
+  }
+]

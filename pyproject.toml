@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gangmu-sbom"
+version = "0.6.0.dev0"
+description = "Build-time SBOM for embedded C/C++, with a community rule base for vendor SDK components"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+dependencies = ["PyYAML>=6.0", "gangmu-rules>=2026.10.5"]
+keywords = [
+    "sbom", "software-bill-of-materials", "embedded", "firmware", "c", "cpp",
+    "cyclonedx", "spdx", "vex", "cyber-resilience-act", "cra",
+    "software-composition-analysis", "esp-idf", "zephyr", "rt-thread",
+    "openharmony", "gmssl", "tongsuo", "guomi",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Natural Language :: Chinese (Simplified)",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Topic :: Security",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Software Development :: Embedded Systems",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "cryptography>=41", "capstone>=5.0"]
+# Signing SBOMs and evidence bundles (gangmu sign / sign-verify).
+sign = ["cryptography>=41"]
+# Optional vector path for fingerprinting; results are identical without it.
+fast = ["numpy>=1.22"]
+# Function boundaries in stripped firmware images (gangmu binary-functions; ARM/Thumb,
+# AArch64, RISC-V, x86). Without it the rest of the binary inventory still works.
+disasm = ["capstone>=5.0"]
+
+[project.urls]
+Homepage = "https://github.com/GANGMU-SBOM/gangmu"
+Documentation = "https://github.com/GANGMU-SBOM/gangmu/tree/main/docs"
+Issues = "https://github.com/GANGMU-SBOM/gangmu/issues"
+Rules = "https://github.com/GANGMU-SBOM/gangmu-rules"
+FAQ = "https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/FAQ.md"
+
+[project.scripts]
+gangmu = "gangmu.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+gangmu = ["py.typed"]
+# The rule base is its own distribution, gangmu-rules
+# (https://github.com/GANGMU-SBOM/gangmu-rules), found through the
+# gangmu.rule_packs entry point.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

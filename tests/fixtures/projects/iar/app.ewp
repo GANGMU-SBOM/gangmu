@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<project>
+  <fileVersion>3</fileVersion>
+  <configuration>
+    <name>Debug</name>
+    <toolchain><name>ARM</name></toolchain>
+  </configuration>
+  <configuration>
+    <name>Release</name>
+    <toolchain><name>ARM</name></toolchain>
+  </configuration>
+  <group>
+    <name>Application</name>
+    <file><name>$PROJ_DIR$/../../project/src/main.c</name></file>
+    <file>
+      <name>$PROJ_DIR$/../../project/src/debug_only.c</name>
+      <excluded><configuration>Release</configuration></excluded>
+    </file>
+    <file>
+      <name>$PROJ_DIR$/../../project/src/never_built.c</name>
+      <excluded>
+        <configuration>Debug</configuration>
+        <configuration>Release</configuration>
+      </excluded>
+    </file>
+  </group>
+  <group>
+    <name>tinynet</name>
+    <file><name>$PROJ_DIR$/../../project/components/net/tinynet/src/core.c</name></file>
+    <file><name>$PROJ_DIR$/../../project/components/net/tinynet/src/buf.c</name></file>
+    <file><name>$TOOLKIT_DIR$/inc/c/DLib_Config_Normal.h</name></file>
+  </group>
+</project>

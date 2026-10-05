@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC test data shaped after the NVD-1.2-style XML that CNNVD has published.
+     Not a real export, ids are not real advisories. -->
+<cnnvd>
+  <entry>
+    <name>lwIP 越界读取漏洞</name>
+    <vuln-id>CNNVD-202701-001</vuln-id>
+    <published>2027-01-05</published>
+    <modified>2027-01-08</modified>
+    <source>CNNVD</source>
+    <severity>高危</severity>
+    <vuln-type>缓冲区错误</vuln-type>
+    <vuln-descript>lwIP 2.2.0 之前版本的 TCP 输入路径存在越界读取。</vuln-descript>
+    <other-id>
+      <cve-id>CVE-2027-10001</cve-id>
+      <bugtraq-id></bugtraq-id>
+    </other-id>
+    <vuln-software-list>
+      <product>lwIP 2.0.0 - 2.2.0</product>
+    </vuln-software-list>
+    <refs>
+      <ref><ref-source>vendor</ref-source><ref-url>https://example.invalid/lwip-advisory</ref-url></ref>
+    </refs>
+  </entry>
+  <entry>
+    <name>某国产 RTOS 内核整数溢出漏洞</name>
+    <vuln-id>CNNVD-202701-002</vuln-id>
+    <published>2027-01-06</published>
+    <severity>超危</severity>
+    <vuln-descript>某国产 RTOS 内核消息队列存在整数溢出。</vuln-descript>
+    <vuln-software-list><product>某国产 RTOS 1.0</product></vuln-software-list>
+  </entry>
+</cnnvd>

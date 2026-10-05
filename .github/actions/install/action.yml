@@ -1,0 +1,18 @@
+name: install gangmu with its rule base
+description: >
+  Check out gangmu-rules at the pinned revision and install it, then install
+  this checkout. gangmu depends on gangmu-rules, so the rules go in first.
+inputs:
+  extras:
+    description: "pip extras for gangmu, e.g. [dev,fast]"
+    default: ""
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: GANGMU-SBOM/gangmu-rules
+        ref: ${{ env.GANGMU_RULES_REF }}
+        path: .gangmu-rules
+    - shell: bash
+      run: pip install ./.gangmu-rules -e ".${{ inputs.extras }}"

@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 组件识别不对或缺少规则 · Wrong identification or missing rule
+    url: https://github.com/GANGMU-SBOM/gangmu-rules/issues/new/choose
+    about: 规则问题请提到规则库仓库。Rule problems go to the rule base repository.
+  - name: 常见问题 · FAQ
+    url: https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/FAQ.md
+    about: 提问前请先看常见问题。Please check the FAQ first.
+  - name: 报告纲目自身的安全漏洞 · Report a security vulnerability
+    url: https://github.com/GANGMU-SBOM/gangmu/security/advisories/new
+    about: 请私密报告，不要公开提 issue。Report privately, not as a public issue.
