@@ -54,7 +54,7 @@ gangmu 的核心能力全部开源，并会一直开源：识别引擎、构建�
 
 需要商业版、试用，或者想参与规则共建、认领某个芯片 SDK，可以发邮件到 64031875@qq.com，或者扫码加入「CRA 合规群」；也可以在 GitHub 提一个 issue，标题以「商业版」开头。技术咨询和商务合作都走这几个渠道。
 
-![CRA 合规群二维码](assets/cra-wechat-group.jpg)
+<img src="assets/cra-wechat-group.png" alt="CRA 合规群二维码" width="200">
 
 二维码有有效期，扫不出来或已过期请发邮件。
 
