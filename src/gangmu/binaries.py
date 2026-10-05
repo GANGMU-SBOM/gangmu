@@ -36,6 +36,10 @@ IMAGE_SUFFIXES = {".elf", ".axf", ".bin"} | UNPACK_SUFFIXES   # linked products,
 #                                      a link map has nothing to say about them
 BLOB_SUFFIXES = {".a", ".lib", ".so"} | IMAGE_SUFFIXES
 SKIP_DIRS = {".git", "node_modules", "__pycache__", "venv", ".venv"}
+# Directories that hold test inputs, not shipped products. A ``.bin`` or ``.elf`` in one of
+# them (lwIP's fuzz inputs are ``.bin`` packets) is fixture data, so it is not inventoried as
+# a firmware image. Libraries (``.a``, ``.lib``, ``.so``) are still listed wherever they are.
+FIXTURE_DIRS = {"test", "tests", "testdata", "test_data", "fuzz", "fixtures"}
 MAX_BANNER_BYTES = 64 * 1024 * 1024
 
 # (name, display name, banner pattern). The version is group 1. Each pattern is a
@@ -156,9 +160,13 @@ def collect_binaries(root: Path, linked_archives: Optional[Set[str]] = None,
     out: List[Binary] = []
     for here, dirs, files in os.walk(root):
         dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
+        in_fixtures = any(part.lower() in FIXTURE_DIRS
+                          for part in Path(here).relative_to(root).parts)
         for name in sorted(files):
             path = Path(here) / name
             if path.suffix.lower() not in BLOB_SUFFIXES or path.is_symlink():
+                continue
+            if in_fixtures and path.suffix.lower() in IMAGE_SUFFIXES:
                 continue
             try:
                 out.append(_inspect(path, root, linked_archives, string_signatures,
