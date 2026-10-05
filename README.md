@@ -325,7 +325,7 @@ ONEKEY、Finite State、Cybellum、NetRise 面向大型企业做固件二进制�
 
 联系方式：邮箱 64031875@qq.com，或扫码进「CRA 合规群」（二维码有有效期，扫不出来请发邮件）。
 
-![CRA 合规群二维码](docs/assets/cra-wechat-group.jpg)
+<img src="docs/assets/cra-wechat-group.png" alt="CRA 合规群二维码" width="200">
 
 你贡献的规则按 gangmu-rules 的许可证（CDLA-Permissive-2.0）授权；开源仓库里已有的内容不会撤回，也不会收费。
 

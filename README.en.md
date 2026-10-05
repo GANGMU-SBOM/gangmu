@@ -185,7 +185,7 @@ Rules are the most valuable part of this project and the part that needs the com
 
 Contact: email 64031875@qq.com, or join the WeChat "CRA compliance group" (the QR code expires; email if it does not scan).
 
-![WeChat group QR code](docs/assets/cra-wechat-group.jpg)
+<img src="docs/assets/cra-wechat-group.png" alt="WeChat group QR code" width="200">
 
 Rules you contribute are licensed under gangmu-rules' licence (CDLA-Permissive-2.0). What is already in the open-source repositories will not be withdrawn or put behind a fee.
 
