@@ -17,7 +17,7 @@ description: 纲目（Gangmu）是面向嵌入式 C/C++ 固件的开源构建期
 - 源码与安装：[GitHub](https://github.com/GANGMU-SBOM/gangmu)
 - [常见问题](FAQ.md) · [FAQ (English)](FAQ.en.md) · [术语表](GLOSSARY.md)
 - [CRA 对标](CRA.md) · [国内合规](CHINA.md) · [算法](ALGORITHMS.md) · [评测基准](BENCHMARK.md) · [规则格式](RULE-FORMAT.md)
-- [开源版与商业版](EDITIONS.md)
+- [更新记录](CHANGELOG.md) · [开源版与商业版](EDITIONS.md)
 - 相关仓库：[gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules)（免费规则库，识别不出通用组件去这里；厂商专属规则属于商业版）· [gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench)（识别准确率评测）
 
 ## 能做什么
