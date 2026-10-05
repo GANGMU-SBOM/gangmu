@@ -33,5 +33,7 @@ Key facts:
 ## Optional
 
 - [Contributing](https://github.com/GANGMU-SBOM/gangmu/blob/main/CONTRIBUTING.md): adding a rule
+- [Limits](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/LIMITS.en.md): what the tool does not do
+- [Changelog](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/CHANGELOG.en.md): what each release added
 - [Editions](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/EDITIONS.md): open-source and commercial editions
 - [Citation](https://github.com/GANGMU-SBOM/gangmu/blob/main/CITATION.cff)
