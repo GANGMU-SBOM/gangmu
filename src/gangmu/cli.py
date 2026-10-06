@@ -36,7 +36,7 @@ from .importers import (build_function_signature, dump_rule, import_gitmodules,
                         import_west, list_tags, pick_releases, tag_to_version)
 from .scan import POSSIBLE_BELOW, ScanOptions, scan
 from .vuln.model import VexState
-from .vuln import (candidates_from_cyclonedx, enrich as cn_enrich, load_cn_report,
+from .vuln import (apply_linkage, candidates_from_cyclonedx, enrich as cn_enrich, load_cn_report,
                    load_database, match as match_vulns, wanted_for, summary as vex_summary,
                    to_vex, unmatched_components, without_cpe)
 from .verify import verify_rule, verify_with_fetch
@@ -789,6 +789,15 @@ def cmd_vuln(args: argparse.Namespace) -> int:
 
     matches = match_vulns(candidates, advisories,
                           include_not_affected=args.include_not_affected)
+    if any(c.linked is False for c in candidates):
+        n = apply_linkage(matches, candidates, mark_not_affected=args.unlinked_vex)
+        print(f"{sum(1 for c in candidates if c.linked is False)} component(s) are in "
+              f"the tree but not linked into the image (link map); "
+              + (f"{n} finding(s) recorded as not_affected (code_not_present)"
+                 if args.unlinked_vex else
+                 f"{n} finding(s) lowered from exploitable to in_triage. "
+                 "--unlinked-vex records them as not_affected once you have confirmed"),
+              file=sys.stderr)
 
     threat = None
     if not args.no_threat:
@@ -1863,6 +1872,11 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("--cn-db",
                    help="目录：CNNVD / CNVD / 工信部 NVDB 的 JSON 导出。"
                         "NVD 与 OSV 都不收国内厂商自报的漏洞")
+    v.add_argument("--unlinked-vex", action="store_true",
+                   help="components the link map shows are not in the image: write "
+                        "their findings as not_affected (code_not_present) instead "
+                        "of leaving them in_triage. Off by default: a map cannot "
+                        "see LTO or code loaded another way")
     v.add_argument("--include-not-affected", action="store_true",
                    help="also report advisories ruled out by version")
     v.add_argument("--fail-on", action="append",

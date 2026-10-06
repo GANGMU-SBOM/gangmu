@@ -148,7 +148,8 @@ def _component(finding: Finding) -> Dict[str, Any]:
         "type": ("framework" if finding.rule_id.startswith("declared/vendor-sdk/")
                  else "library"),
         "name": finding.upstream_name,
-        "scope": "required",
+        # CycloneDX: "excluded" documents what is in the tree but not in the image.
+        "scope": "excluded" if finding.linked is False else "required",
     }
     if finding.version:
         comp["version"] = finding.version
@@ -208,7 +209,7 @@ def _binary_component(blob) -> Dict[str, Any]:
         "bom-ref": f"binary:{blob.path}",
         "type": "file",
         "name": blob.path,
-        "scope": "required",
+        "scope": "excluded" if blob.linked is False else "required",
         "hashes": [{"alg": "SHA-256", "content": blob.sha256}],
         "properties": props,
     }

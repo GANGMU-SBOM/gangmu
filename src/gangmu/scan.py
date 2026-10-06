@@ -145,6 +145,12 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
             root, build_facts.linked_archives if facts_map else None,
             _string_signatures(rulebase), _function_prints(rulebase))
         findings.extend(_binary_findings(binaries, rulebase))
+        unlinked = sum(1 for b in binaries if b.linked is False)
+        if unlinked:
+            notes.append(
+                f"{unlinked} prebuilt binar(ies) in the tree are not named by the link map; "
+                "they stay in the SBOM with scope 'excluded' (CycloneDX) so a monorepo's "
+                "other boards do not read as shipped. --no-binaries leaves them out")
         findings.sort(key=lambda f: (-f.confidence, f.directory))
     not_built: List[Finding] = []
     if options.kconfig is not None and len(options.kconfig):

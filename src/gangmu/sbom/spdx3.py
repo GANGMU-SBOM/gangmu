@@ -97,6 +97,8 @@ def _comment(finding: Finding) -> str:
         lines.append("licences seen in the files: " + "; ".join(observed)
                      + (" -- differs from the rule's licence"
                         if differs(finding.declared_license, observed) else ""))
+    if finding.linked is False:
+        lines.append("NOT LINKED into the firmware image according to the link map")
     lines.append(describe_support(finding.support))
     for ev in finding.evidence:
         lines.append(f"evidence[{ev.technique.value}]: {ev.summary}")

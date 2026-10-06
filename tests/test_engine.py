@@ -144,3 +144,32 @@ def test_a_shared_file_does_not_make_a_false_exact_match(upstream_dir, rules_dir
     if hits:
         assert hits[0].version is None
         assert any("shared with another fork" in e.summary for e in hits[0].evidence)
+
+
+def test_a_vendors_rule_firing_outside_its_own_path_does_not_name_that_vendor(
+        project_dir, rules_dir, tmp_path):
+    """Rule says "ACME's copy lives under **/acme-sdk/tinynet"; the copy found is
+    elsewhere. The upstream identity stands, the supplier is not asserted."""
+    import yaml
+    shutil.copytree(rules_dir, tmp_path / "r")
+    path = next((tmp_path / "r").rglob("*.yaml"))
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["vendor"] = "acme"
+    data["component"] = {"path_globs": ["**/acme-sdk/tinynet"], "ships_as": "tinynet_acme"}
+    data["upstream"]["supplier"] = "ACME Semiconductor"
+    path.write_text(yaml.safe_dump(data), encoding="utf-8")
+
+    result = _scan(project_dir, tmp_path / "r")
+    finding = next(f for f in result.findings if f.upstream_name == "tinynet")
+    assert finding.vendor_name is None and finding.supplier is None
+    assert any("supplier is not asserted" in e.summary for e in finding.evidence)
+
+    # and at the place the rule names, the vendor is credited as before
+    shutil.copytree(project_dir, tmp_path / "p")
+    src = next((tmp_path / "p").rglob("tinynet"))
+    dest = tmp_path / "p" / "acme-sdk" / "tinynet"
+    dest.parent.mkdir(parents=True)
+    shutil.move(str(src), str(dest))
+    result = _scan(tmp_path / "p", tmp_path / "r")
+    finding = next(f for f in result.findings if f.upstream_name == "tinynet")
+    assert finding.supplier == "ACME Semiconductor"
