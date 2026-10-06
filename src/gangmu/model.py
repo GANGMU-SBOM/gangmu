@@ -92,6 +92,7 @@ class Finding:
 
     # Build facts, when a build was supplied.
     compiled_files: int = 0
+    advisory_scope: Optional[str] = None
     linked: Optional[bool] = None
     config_off: List[str] = field(default_factory=list)
     """Kconfig symbols the build configuration has switched off for this component."""

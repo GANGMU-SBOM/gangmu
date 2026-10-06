@@ -428,13 +428,13 @@ class MatchEngine:
         # A rule for one vendor's copy that fires outside the place it says that
         # copy lives (another SDK's tree) still tells us which upstream this is, but
         # not who supplied *this* directory: do not hand it that vendor's name.
-        foreign = bool(rule.vendor and rule.path_globs and path_match == 0)
+        foreign = bool(rule.vendor and rule.path_globs and path_match != 2)
         if foreign:
             evidence.append(Evidence(
                 technique=Technique.OTHER,
                 confidence=0.0,
                 summary=(f"rule {rule.id} describes {rule.vendor}'s copy and this "
-                         f"directory is not where that rule says it lives, so the "
+                         f"directory is not where that rule says it lives (a matching name alone is not it), so the "
                          f"supplier is not asserted"),
                 locator=rel))
 
@@ -457,10 +457,11 @@ class MatchEngine:
             renamed_from=(rule.ships_as if rule.ships_as
                           and rule.ships_as.lower() != rule.upstream_name.lower()
                           else None),
-            patch_hint=rule.fork_note,
+            patch_hint=None if foreign else rule.fork_note,
             fork_url=rule.fork_url,
             evidence=evidence,
             path_match=path_match,
+            advisory_scope=rule.advisory_scope,
             content_hash=self._content_hash(directory, rule),
         )
 

@@ -132,6 +132,8 @@ def _properties(finding: Finding) -> List[Dict[str, str]]:
     if finding.linked is not None:
         props.append({"name": "gangmu:linkedIntoImage",
                       "value": "true" if finding.linked else "false"})
+    if finding.advisory_scope:
+        props.append({"name": "gangmu:advisoryScope", "value": finding.advisory_scope})
     for alt in finding.alternatives:
         props.append({"name": "gangmu:alternative",
                       "value": f"{alt.upstream_name} ({alt.identity_confidence:.2f}, "

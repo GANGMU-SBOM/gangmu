@@ -34,8 +34,8 @@ gangmu scan freertos --rules gangmu-rules/rules --compile-db compile_commands.js
 - **支持级别写 unknown 是有意的**：AWS 的说明是 FreeRTOS LTS 版本至少两年内获得安全与关键缺陷修复，202406 LTS 随附的是内核 11.1
   （[AWS 公告](https://aws.amazon.com/about-aws/whats-new/2024/07/freertos-long-term-support-version)）。11.3.1 不是那个 LTS 里的版本，
   它的支持期要由产品团队与 AWS 确认（AWS 另有付费的扩展维护计划），工具没有可引用的来源，不替人写。
-- **为什么用 `--no-binaries`**：不加这个选项时，整个仓库里其他板子的演示自带的 55 个预编译库（`libdriver.a` 之类）会被列为组件，
-  它们都没有链接进这个镜像（SBOM 属性 `gangmu:linkedIntoImage=false`），但会让 SBOM 从 1 个组件变成 56 个。
-  扫整个单体仓库时建议加这个选项，真有预编译库链接进镜像再单独处理。
+- **其他板子的预编译库**：整个仓库里有 61 个预编译库（`libdriver.a` 之类）。有链接图时，工具现在只把链接图点名的预编译库当作进了镜像，
+  其余 40 个仍列在 SBOM 里，但 CycloneDX `scope` 是 `excluded`，并在扫描结果里提示数量，单体仓库里别的板子不会再被读成“已交付”。
+  这份样例仍加了 `--no-binaries`，让 SBOM 只有这个镜像的 1 个组件；不加的话，那 61 个会作为带 `excluded` 标记的条目出现在文件里。
 - 仓库里还有 FreeRTOS-Plus-Trace 等目录，没有规则，列为未识别；它们没有被这个演示构建，所以不影响这份 SBOM。
 - 工控客户真正关心的网络栈、TLS、Modbus、OPC UA 实现，这份样例**没有覆盖**，规则库里对应条目也很少，见 `docs/guides/industrial-iec62443-cra-sbom.md`。

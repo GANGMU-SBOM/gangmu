@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:1103b067-b78b-4799-b5a4-727dfc3c4294",
+  "serialNumber": "urn:uuid:2eb45eda-114c-4ae9-adca-e615369b2c50",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-06T13:13:49Z",
+    "timestamp": "2026-10-06T14:11:08Z",
     "tools": {
       "components": [
         {
@@ -31,7 +31,7 @@
       },
       {
         "name": "gangmu:rulesLoaded",
-        "value": "67"
+        "value": "68"
       },
       {
         "name": "gangmu:buildFactsUsed",
@@ -39,7 +39,7 @@
       },
       {
         "name": "gangmu:unidentifiedDirectories",
-        "value": "5"
+        "value": "1"
       }
     ]
   },
@@ -243,6 +243,159 @@
       ]
     },
     {
+      "bom-ref": "zephyr#zephyrproject/zephyr/zephyr-kernel",
+      "type": "library",
+      "name": "Zephyr",
+      "scope": "required",
+      "version": "4.1.0",
+      "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+      "cpe": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*",
+      "supplier": {
+        "name": "Zephyr Project"
+      },
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b2ab65e0511dcaacbc9359023df5ce71e79878af6bd80bb9dac58671bfead766"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://www.zephyrproject.org/"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 0.95,
+            "concludedValue": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "methods": [
+              {
+                "technique": "hash-comparison",
+                "confidence": 0.98,
+                "value": "VERSION matches, byte for byte, the hash rule zephyrproject/zephyr/zephyr-kernel records for Zephyr 4.1.0"
+              },
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "winnowed MinHash similarity 1.000 to Zephyr 4.1.0 (exact)"
+              },
+              {
+                "technique": "hash-comparison",
+                "confidence": 0.98,
+                "value": "every file matches the reference release byte for byte"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 4.1.0 read from VERSION"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory sits where rule zephyrproject/zephyr/zephyr-kernel expects it"
+              }
+            ]
+          },
+          {
+            "field": "cpe",
+            "confidence": 0.95,
+            "concludedValue": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*",
+            "methods": [
+              {
+                "technique": "hash-comparison",
+                "confidence": 0.98,
+                "value": "VERSION matches, byte for byte, the hash rule zephyrproject/zephyr/zephyr-kernel records for Zephyr 4.1.0"
+              },
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "winnowed MinHash similarity 1.000 to Zephyr 4.1.0 (exact)"
+              },
+              {
+                "technique": "hash-comparison",
+                "confidence": 0.98,
+                "value": "every file matches the reference release byte for byte"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 4.1.0 read from VERSION"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory sits where rule zephyrproject/zephyr/zephyr-kernel expects it"
+              }
+            ]
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "gangmu:rule",
+          "value": "zephyrproject/zephyr/zephyr-kernel"
+        },
+        {
+          "name": "gangmu:directory",
+          "value": "zephyr"
+        },
+        {
+          "name": "gangmu:identityConfidence",
+          "value": "0.950"
+        },
+        {
+          "name": "gangmu:versionConfidence",
+          "value": "0.950"
+        },
+        {
+          "name": "gangmu:rulePack",
+          "value": "community"
+        },
+        {
+          "name": "gangmu:rulePackVersion",
+          "value": "2026.10.6"
+        },
+        {
+          "name": "gangmu:versionSource",
+          "value": "anchor"
+        },
+        {
+          "name": "gangmu:vendor",
+          "value": "zephyrproject"
+        },
+        {
+          "name": "gangmu:observedLicenses",
+          "value": "Apache-2.0"
+        },
+        {
+          "name": "gangmu:compiledFiles",
+          "value": "179"
+        },
+        {
+          "name": "gangmu:linkedIntoImage",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:advisoryScope",
+          "value": "subsystem"
+        },
+        {
+          "name": "gangmu:supportStatus",
+          "value": "unknown"
+        }
+      ]
+    },
+    {
       "bom-ref": "modules/hal/nordic#zephyrproject/zephyr/nordic",
       "type": "library",
       "name": "Nordic nrfx HAL",
@@ -374,11 +527,16 @@
       "ref": "root-application",
       "dependsOn": [
         "modules/crypto/mbedtls#generic/mbedtls",
-        "modules/hal/nordic#zephyrproject/zephyr/nordic"
+        "modules/hal/nordic#zephyrproject/zephyr/nordic",
+        "zephyr#zephyrproject/zephyr/zephyr-kernel"
       ]
     },
     {
       "ref": "modules/crypto/mbedtls#generic/mbedtls",
+      "dependsOn": []
+    },
+    {
+      "ref": "zephyr#zephyrproject/zephyr/zephyr-kernel",
       "dependsOn": []
     },
     {

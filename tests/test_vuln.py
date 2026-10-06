@@ -238,3 +238,14 @@ def test_linked_flag_is_read_from_the_cyclonedx_properties():
                            "properties": [{"name": "gangmu:linkedIntoImage", "value": "true"}]},
                           {"name": "z", "version": "1", "purl": "pkg:generic/z@1"}]}
     assert [c.linked for c in candidates_from_cyclonedx(bom)] == [False, True, None]
+
+
+def test_a_subsystem_scoped_component_is_not_reported_exploitable_on_version_alone(advisories):
+    c = _lwip()
+    c.subsystem_advisories = True
+    found = match([c], advisories)
+    assert any(m.state is VexState.EXPLOITABLE for m in found)
+    from gangmu.vuln import apply_linkage
+    apply_linkage(found, [c])
+    assert not any(m.state is VexState.EXPLOITABLE for m in found)
+    assert any("subsystem" in m.detail for m in found)

@@ -1,6 +1,6 @@
 {
-  "root": "esp-idf",
-  "rulesLoaded": 67,
+  "root": "/tmp/claude-0/samples/esp-idf",
+  "rulesLoaded": 68,
   "buildFactsUsed": true,
   "findings": [
     {
@@ -63,6 +63,7 @@
       "rule_pack": "community",
       "rule_pack_version": "2026.10.6",
       "compiled_files": 112,
+      "advisory_scope": null,
       "linked": true,
       "config_off": [],
       "observed_licenses": [
@@ -99,10 +100,10 @@
       "identity_confidence": 0.92,
       "version_confidence": 0.9,
       "vendor_patched": true,
-      "vendor_name": "zephyrproject",
-      "supplier": "Zephyr Project (fork of ChaN FatFs)",
+      "vendor_name": null,
+      "supplier": null,
       "renamed_from": null,
-      "patch_hint": "Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/.",
+      "patch_hint": null,
       "fork_url": "http://elm-chan.org/fsw/ff/",
       "evidence": [
         {
@@ -122,12 +123,19 @@
           "confidence": 0.3,
           "summary": "directory is named as rule zephyrproject/zephyr/fatfs expects, but is not where that rule says the component lives",
           "locator": "components/fatfs"
+        },
+        {
+          "technique": "other",
+          "confidence": 0.0,
+          "summary": "rule zephyrproject/zephyr/fatfs describes zephyrproject's copy and this directory is not where that rule says it lives (a matching name alone is not it), so the supplier is not asserted",
+          "locator": "components/fatfs"
         }
       ],
       "alternatives": [],
       "rule_pack": "community",
       "rule_pack_version": "2026.10.6",
       "compiled_files": 10,
+      "advisory_scope": null,
       "linked": false,
       "config_off": [],
       "observed_licenses": [
@@ -190,6 +198,7 @@
       "rule_pack": "community",
       "rule_pack_version": "2026.10.6",
       "compiled_files": 2,
+      "advisory_scope": null,
       "linked": false,
       "config_off": [],
       "observed_licenses": [],
@@ -262,6 +271,7 @@
       "rule_pack": "community",
       "rule_pack_version": "2026.10.6",
       "compiled_files": 80,
+      "advisory_scope": null,
       "linked": true,
       "config_off": [],
       "observed_licenses": [],
@@ -330,6 +340,7 @@
       "rule_pack": "community",
       "rule_pack_version": "2026.10.6",
       "compiled_files": 8,
+      "advisory_scope": null,
       "linked": true,
       "config_off": [],
       "observed_licenses": [
@@ -393,6 +404,7 @@
       "rule_pack": "community",
       "rule_pack_version": "2026.10.6",
       "compiled_files": 82,
+      "advisory_scope": null,
       "linked": true,
       "config_off": [],
       "observed_licenses": [

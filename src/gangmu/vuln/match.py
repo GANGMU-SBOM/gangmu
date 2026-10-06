@@ -89,6 +89,8 @@ class Candidate:
     is_fork: bool = False
     fork_note: str = ""
     confidence: float = 1.0
+    subsystem_advisories: bool = False
+    """The component is an OS/SDK tree whose advisories each concern one subsystem."""
     linked: Optional[bool] = None
     """False when a link map showed none of the component's objects in the image;
     None when no link map was used (unknown, not "linked")."""
@@ -105,6 +107,7 @@ def candidates_from_scan(result) -> List[Candidate]:
             is_fork=finding.vendor_patched,
             fork_note=finding.patch_hint or "",
             confidence=finding.confidence,
+            subsystem_advisories=finding.advisory_scope == "subsystem",
             linked=finding.linked))
     return out
 
@@ -131,6 +134,7 @@ def candidates_from_cyclonedx(bom: dict) -> List[Candidate]:
             is_fork=bool(pedigree.get("patches")),
             fork_note=pedigree.get("notes", ""),
             confidence=confidence,
+            subsystem_advisories=props.get("gangmu:advisoryScope") == "subsystem",
             linked={"true": True, "false": False}.get(linked)))
     return out
 
@@ -268,6 +272,11 @@ UNLINKED_NOTE = ("the link map shows none of this component's objects in the ima
                  "or code loaded another way, so confirm before relying on it")
 
 
+SUBSYSTEM_NOTE = ("this component is an OS/SDK tree and the advisory concerns one subsystem "
+                  "or driver; the version is in range, but whether the firmware builds "
+                  "that code needs the file named in the advisory checked against the build")
+
+
 def apply_linkage(matches: Sequence[Match], candidates: Sequence[Candidate],
                   mark_not_affected: bool = False) -> int:
     """Take the build's link map into account; return how many findings changed.
@@ -280,8 +289,14 @@ def apply_linkage(matches: Sequence[Match], candidates: Sequence[Candidate],
     checked the build and wants the VEX to say so.
     """
     unlinked = {c.directory for c in candidates if c.linked is False}
+    umbrella = {c.directory for c in candidates if c.subsystem_advisories}
     changed = 0
     for m in matches:
+        if (m.directory in umbrella and m.directory not in unlinked
+                and m.state is VexState.EXPLOITABLE):
+            m.state = VexState.IN_TRIAGE
+            m.detail = (m.detail + "; " if m.detail else "") + "subsystem: " + SUBSYSTEM_NOTE
+            changed += 1
         if m.directory not in unlinked or m.state not in (VexState.EXPLOITABLE,
                                                           VexState.IN_TRIAGE):
             continue

@@ -36,11 +36,11 @@ gangmu cra-check --scan scan.json --sbom sbom.cdx.json --vex vex.cdx.json --no-f
 
 [`examples/industry/iot-esp-idf/`](https://github.com/GANGMU-SBOM/gangmu/tree/main/examples/industry/iot-esp-idf)：
 ESP-IDF 5.4.1 的 Wi-Fi Station，在 ESP32-C3 上真实构建。免费规则库认出 Mbed TLS、lwIP、cJSON、FatFs 四个组件，
-其中 cJSON 与 FatFs 在树里但没链接进镜像；FreeRTOS 与 hostap 只到“可能”，没有写进 SBOM。样例里有三种格式的 VEX 和 `cra-check` 结果。
+其中 cJSON 与 FatFs 在树里但没链接进镜像（SBOM 里标为 `excluded`，漏洞不会写成 `exploitable`）；FreeRTOS 与 hostap 只到“可能”，没有写进 SBOM。样例里有三种格式的 VEX 和 `cra-check` 结果。
 
 ## 目前的缺口
 
 - ESP-IDF 自己的 fork 靠乐鑫的规则包才认得全，免费库只认出四个。
-- `gangmu vuln` 对“树里有但没链接”的组件仍按版本判 `exploitable`，需要人确认后改成 `not_affected`，工具现在不替你判。
-- FatFs 这一条在 ESP-IDF 里被 Zephyr 的规则认出，供应商字段可能不准，样例 README 有说明。
+- 链接图看不出 LTO 和运行时加载的代码，所以“没链接”的组件只是被降为 `in_triage`；确认后用 `gangmu vuln --unlinked-vex` 才会写成 `not_affected`。
+- ESP-IDF 里 FatFs 的供应商和 fork 说明现在留空（不借用 Zephyr 的规则），要写准需要乐鑫的规则包。
 - 纲目不下法律结论，也不替代 ENISA 单一报告平台。

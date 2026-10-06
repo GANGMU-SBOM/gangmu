@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:68abcafd-7bfd-4384-ba06-1edf4f6948ae",
+  "serialNumber": "urn:uuid:09e4ffe6-d80e-4508-88bc-a4b8187ff1cb",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-06T13:17:30Z",
+    "timestamp": "2026-10-06T14:11:47Z",
     "tools": {
       "components": [
         {
@@ -31,7 +31,7 @@
       },
       {
         "name": "gangmu:rulesLoaded",
-        "value": "67"
+        "value": "68"
       },
       {
         "name": "gangmu:buildFactsUsed",
@@ -254,13 +254,10 @@
       "bom-ref": "components/fatfs#zephyrproject/zephyr/fatfs",
       "type": "library",
       "name": "FatFs",
-      "scope": "required",
+      "scope": "excluded",
       "version": "R0.15",
       "purl": "pkg:generic/fatfs@R0.15",
       "cpe": "cpe:2.3:a:elm-chan:fatfs:R0.15:*:*:*:*:*:*:*",
-      "supplier": {
-        "name": "Zephyr Project (fork of ChaN FatFs)"
-      },
       "hashes": [
         {
           "alg": "SHA-256",
@@ -299,7 +296,7 @@
             "type": "unofficial"
           }
         ],
-        "notes": "Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD."
+        "notes": "This copy is not byte-identical to pristine FatFs. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD."
       },
       "evidence": {
         "identity": [
@@ -322,6 +319,11 @@
                 "technique": "filename",
                 "confidence": 0.3,
                 "value": "directory is named as rule zephyrproject/zephyr/fatfs expects, but is not where that rule says the component lives"
+              },
+              {
+                "technique": "other",
+                "confidence": 0.0,
+                "value": "rule zephyrproject/zephyr/fatfs describes zephyrproject's copy and this directory is not where that rule says it lives (a matching name alone is not it), so the supplier is not asserted"
               }
             ]
           },
@@ -344,6 +346,11 @@
                 "technique": "filename",
                 "confidence": 0.3,
                 "value": "directory is named as rule zephyrproject/zephyr/fatfs expects, but is not where that rule says the component lives"
+              },
+              {
+                "technique": "other",
+                "confidence": 0.0,
+                "value": "rule zephyrproject/zephyr/fatfs describes zephyrproject's copy and this directory is not where that rule says it lives (a matching name alone is not it), so the supplier is not asserted"
               }
             ]
           }
@@ -379,10 +386,6 @@
           "value": "manifest"
         },
         {
-          "name": "gangmu:vendor",
-          "value": "zephyrproject"
-        },
-        {
           "name": "gangmu:observedLicenses",
           "value": "Apache-2.0; CC0-1.0; Unlicense"
         },
@@ -408,7 +411,7 @@
       "bom-ref": "components/json/cJSON#generic/cjson",
       "type": "library",
       "name": "cJSON",
-      "scope": "required",
+      "scope": "excluded",
       "version": "1.7.18",
       "purl": "pkg:github/DaveGamble/cJSON@1.7.18",
       "cpe": "cpe:2.3:a:cjson_project:cjson:1.7.18:*:*:*:*:*:*:*",

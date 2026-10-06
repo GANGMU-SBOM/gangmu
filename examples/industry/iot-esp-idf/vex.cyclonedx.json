@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:68abcafd-7bfd-4384-ba06-1edf4f6948ae",
+  "serialNumber": "urn:uuid:09e4ffe6-d80e-4508-88bc-a4b8187ff1cb",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-06T13:17:30Z",
+    "timestamp": "2026-10-06T14:11:47Z",
     "tools": {
       "components": [
         {
@@ -31,7 +31,7 @@
       },
       {
         "name": "gangmu:rulesLoaded",
-        "value": "67"
+        "value": "68"
       },
       {
         "name": "gangmu:buildFactsUsed",
@@ -254,13 +254,10 @@
       "bom-ref": "components/fatfs#zephyrproject/zephyr/fatfs",
       "type": "library",
       "name": "FatFs",
-      "scope": "required",
+      "scope": "excluded",
       "version": "R0.15",
       "purl": "pkg:generic/fatfs@R0.15",
       "cpe": "cpe:2.3:a:elm-chan:fatfs:R0.15:*:*:*:*:*:*:*",
-      "supplier": {
-        "name": "Zephyr Project (fork of ChaN FatFs)"
-      },
       "hashes": [
         {
           "alg": "SHA-256",
@@ -299,7 +296,7 @@
             "type": "unofficial"
           }
         ],
-        "notes": "Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD."
+        "notes": "This copy is not byte-identical to pristine FatFs. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD."
       },
       "evidence": {
         "identity": [
@@ -322,6 +319,11 @@
                 "technique": "filename",
                 "confidence": 0.3,
                 "value": "directory is named as rule zephyrproject/zephyr/fatfs expects, but is not where that rule says the component lives"
+              },
+              {
+                "technique": "other",
+                "confidence": 0.0,
+                "value": "rule zephyrproject/zephyr/fatfs describes zephyrproject's copy and this directory is not where that rule says it lives (a matching name alone is not it), so the supplier is not asserted"
               }
             ]
           },
@@ -344,6 +346,11 @@
                 "technique": "filename",
                 "confidence": 0.3,
                 "value": "directory is named as rule zephyrproject/zephyr/fatfs expects, but is not where that rule says the component lives"
+              },
+              {
+                "technique": "other",
+                "confidence": 0.0,
+                "value": "rule zephyrproject/zephyr/fatfs describes zephyrproject's copy and this directory is not where that rule says it lives (a matching name alone is not it), so the supplier is not asserted"
               }
             ]
           }
@@ -379,10 +386,6 @@
           "value": "manifest"
         },
         {
-          "name": "gangmu:vendor",
-          "value": "zephyrproject"
-        },
-        {
           "name": "gangmu:observedLicenses",
           "value": "Apache-2.0; CC0-1.0; Unlicense"
         },
@@ -408,7 +411,7 @@
       "bom-ref": "components/json/cJSON#generic/cjson",
       "type": "library",
       "name": "cJSON",
-      "scope": "required",
+      "scope": "excluded",
       "version": "1.7.18",
       "purl": "pkg:github/DaveGamble/cJSON@1.7.18",
       "cpe": "cpe:2.3:a:cjson_project:cjson:1.7.18:*:*:*:*:*:*:*",
@@ -743,8 +746,8 @@
         }
       ],
       "analysis": {
-        "state": "exploitable",
-        "detail": "version is inside the advisory's range"
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
       },
       "description": "cJSON 1.5.0 through 1.7.18 allows out-of-bounds access via the decode_array_index_from_pointer function in cJSON_Utils.c, allowing remote attackers to bypass array bounds checking and access restricted data via malformed JSON pointer strings containing alphanumeric characters.",
       "ratings": [
@@ -795,8 +798,8 @@
         }
       ],
       "analysis": {
-        "state": "exploitable",
-        "detail": "version is inside the advisory's range"
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
       },
       "description": "cJSON 1.7.19 Wrong-Key Modification via JSON Pointer Escape Decoding",
       "ratings": [
@@ -847,8 +850,8 @@
         }
       ],
       "analysis": {
-        "state": "exploitable",
-        "detail": "version is inside the advisory's range"
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
       },
       "description": "cJSON JSON Patch copy/add Uncontrolled Recursion Stack Exhaustion",
       "ratings": [
@@ -905,8 +908,8 @@
         }
       ],
       "analysis": {
-        "state": "exploitable",
-        "detail": "version is inside the advisory's range"
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
       },
       "description": "cJSON cJSON_Compare Exponential Complexity Denial of Service",
       "ratings": [
@@ -960,8 +963,8 @@
         }
       ],
       "analysis": {
-        "state": "exploitable",
-        "detail": "version is inside the advisory's range"
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
       },
       "description": "cJSON JSON Patch Non-Atomic Application Destroys Data Before Validation",
       "ratings": [
@@ -1015,8 +1018,8 @@
         }
       ],
       "analysis": {
-        "state": "exploitable",
-        "detail": "version is inside the advisory's range"
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
       },
       "description": "DaveGamble cJSON cJSON_Utils.c cJSONUtils_MergePatch use after free",
       "ratings": [
@@ -1327,7 +1330,7 @@
       ],
       "analysis": {
         "state": "in_triage",
-        "detail": "version is inside the advisory's range, but this is a vendor fork (Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine FatFs. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history.; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
       },
       "description": "In FatFS R0.16 and earlier contains a FAT32 integer overflow bug in mount_volume() where fasize *= fs->n_fats can wrap, leading to attacker-controlled file-size metadata and unsafe read lengths in downstream callers. This maps to CWE-190 (Integer Overflow or Wraparound). Estimated CVSS v3.1 vector: CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H (7.6, High). Remote delivery is also possible in OTA/update pipelines. The estimated CISA SSVC vectors are Exploitation: PoC, Technical Impact: Total.",
       "ratings": [
@@ -1383,7 +1386,7 @@
       ],
       "analysis": {
         "state": "in_triage",
-        "detail": "version is inside the advisory's range, but this is a vendor fork (Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine FatFs. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history.; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
       },
       "description": "FatFs R0.16 and earlier contains a stack overflow bug in f_getlabel() because exFAT label length (XDIR_NumLabel) is trusted without enforcing spec maximums. This maps to CWE-121 (Stack-based Buffer Overflow). Estimated CVSS v3.1 vector: CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H (7.6, High). The estimated CISA SSVC vectors are Exploitation: PoC, Technical Impact: Total.",
       "ratings": [
@@ -1439,7 +1442,7 @@
       ],
       "analysis": {
         "state": "in_triage",
-        "detail": "version is inside the advisory's range, but this is a vendor fork (Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine FatFs. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history.; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
       },
       "description": "FatFs R0.16 and earlier contains a downstream-caller vulnerability pattern associated with FatFs long filename handling. With LFN enabled, fno.fname can be up to 255 characters; many callers copy it into short fixed buffers without bounds checks, causing overflow. This maps to CWE-120 (Buffer Copy without Checking Size of Input). Estimated CVSS v3.1 vector: CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H (7.6, High). The estimated CISA SSVC vectors are Exploitation: PoC, Technical Impact: Total.",
       "ratings": [
@@ -1789,7 +1792,7 @@
       ],
       "analysis": {
         "state": "in_triage",
-        "detail": "version is inside the advisory's range, but this is a vendor fork (Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine FatFs. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history.; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
       },
       "description": "FatFs R0.16 and earlier contains a divide-by-zero in exFAT sync logic bug when crafted metadata causes n_fatent - 2 to be zero during write/sync operations. This maps to CWE-369 (Divide By Zero). Estimated CVSS v3.1 vector: CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H (4.6, Medium). Network-delivered update media can make this remote in some pipelines. The estimated CISA SSVC vectors are Exploitation: PoC, Technical Impact: Partial.",
       "ratings": [
@@ -1845,7 +1848,7 @@
       ],
       "analysis": {
         "state": "in_triage",
-        "detail": "version is inside the advisory's range, but this is a vendor fork (Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine FatFs. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history.; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
       },
       "description": "FatFs prior to R0.16 that use GPT scanning with 'FF_LBA64 = 1' contains an issue where an unbounded loop count derived from GPT header field GPTH_PtNum, enabling extremely long or effectively infinite mount-time scans. This maps to CWE-835 (Loop with Unreachable Exit Condition). Estimated CVSS v3.1 vector: CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H (4.6, Medium). The estimated CISA SSVC vectors are Exploitation: PoC, Technical Impact: Partial.",
       "ratings": [
@@ -1901,7 +1904,7 @@
       ],
       "analysis": {
         "state": "in_triage",
-        "detail": "version is inside the advisory's range, but this is a vendor fork (Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine FatFs. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history.; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
       },
       "description": "FatFs R0.16 and earlier contains an uninitialized cluster exposure when f_lseek() extends files beyond EOF without zero-filling newly allocated clusters. This maps to CWE-908 (Use of Uninitialized Resource). Estimated CVSS v3.1 vector: CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N (4.6, Medium). The estimated CISA SSVC vectors are Exploitation: PoC, Technical Impact: Partial.",
       "ratings": [

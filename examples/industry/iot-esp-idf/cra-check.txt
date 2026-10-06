@@ -6,7 +6,7 @@ part AI-II-1   Annex I Part II (1)      Identify and document components, includ
          -> Write a rule for each unidentified directory, or record in the technical documentation why it is not a component (generated code, your own source).
 ok   AI-II-2   Annex I Part II (2)      Address and remediate vulnerabilities without delay
          + 36 vulnerability record(s), each with a recorded state
-         + 30 still in triage -- these are the ones a human must close before a declaration of conformity
+         + 36 still in triage -- these are the ones a human must close before a declaration of conformity
          -> Close the in_triage findings: for a vendor fork, check the fork's history for the fix.
 ---- AI-II-3   Annex I Part II (3)      Effective and regular tests and reviews of security
          ! security testing is not what this tool does

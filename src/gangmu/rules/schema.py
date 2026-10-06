@@ -205,6 +205,10 @@ class Rule:
     """Maintenance status and end-of-support date of the upstream project, with
     where to check it. Optional: most rules say nothing, and the SBOM then says
     ``unknown`` rather than guessing. Written under ``upstream.support``."""
+    advisory_scope: Optional[str] = None
+    """``subsystem`` for an OS or SDK tree (Zephyr, ESP-IDF) whose advisories each
+    concern one subsystem or driver: a version match alone does not mean the
+    firmware builds the affected code. Written under ``upstream.advisory_scope``."""
     source: Optional[UpstreamSource] = None
     mirrors: Tuple[UpstreamSource, ...] = ()
     """Further repositories CI re-derives the same evidence from. For a rule
@@ -300,6 +304,15 @@ def _config_gates(value: Any, source_path: str) -> Tuple[ConfigGate, ...]:
                             f"'path' and 'symbols'")
         gates.append(ConfigGate(symbols, str(entry["path"])))
     return tuple(gates)
+
+
+def _parse_advisory_scope(raw: Any, source_path: Any) -> Optional[str]:
+    if raw in (None, ""):
+        return None
+    if raw != "subsystem":
+        raise RuleError(f"{source_path}: upstream.advisory_scope must be 'subsystem', "
+                        f"got {raw!r}")
+    return "subsystem"
 
 
 def _parse_rule_support(raw: Any, source_path: Any) -> Optional[Support]:
@@ -528,6 +541,7 @@ def rule_from_dict(data: Mapping[str, Any], source_path: str = "") -> Rule:
         supplier=(str(upstream["supplier"]) if upstream.get("supplier") else None),
         license=(str(upstream["license"]) if upstream.get("license") else None),
         support=_parse_rule_support(upstream.get("support"), source_path),
+        advisory_scope=_parse_advisory_scope(upstream.get("advisory_scope"), source_path),
         source=source,
         mirrors=mirrors,
         patched=bool(fork.get("patched", False)),

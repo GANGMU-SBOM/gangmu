@@ -1,9 +1,9 @@
 {
   "@context": "https://openvex.dev/ns/v0.2.0",
-  "@id": "https://gangmu.dev/openvex/75257dfd-d056-4db9-af3c-7ee77c944e41",
+  "@id": "https://gangmu.dev/openvex/3a2684fc-e726-4f21-9e5e-9e725b6bccdc",
   "author": "Example Co (sample, not a real publisher)",
   "role": "Document Creator",
-  "timestamp": "2026-10-06T13:18:19Z",
+  "timestamp": "2026-10-06T14:12:13Z",
   "version": 1,
   "tooling": "gangmu-sbom 0.6.2",
   "statements": [
@@ -21,11 +21,9 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
-      "status": "affected",
-      "action_statement": "Matched on component and version by gangmu. No fixed release has been identified by the tool and the remediation is the manufacturer's decision. Advisory references: https://lists.debian.org/debian-lts-announce/2025/09/msg00019.html; https://x-0r.com/posts/cJSON-Array-Index-Parsing-Vulnerability; https://github.com/CVEProject/cvelistV5/tree/main/cves/2025/57xxx/CVE-2025-57052.json.",
-      "action_statement_timestamp": "2026-10-06T13:18:19Z",
-      "status_notes": "version is inside the advisory's range"
+      "timestamp": "2026-10-06T14:12:13Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
     },
     {
       "vulnerability": {
@@ -41,11 +39,9 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
-      "status": "affected",
-      "action_statement": "Matched on component and version by gangmu. No fixed release has been identified by the tool and the remediation is the manufacturer's decision. Advisory references: https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/29xxx/CVE-2026-29036.json; https://nvd.nist.gov/vuln/detail/CVE-2026-29036; https://www.vulncheck.com/advisories/cjson-wrong-key-modification-via-json-pointer-escape-decoding.",
-      "action_statement_timestamp": "2026-10-06T13:18:19Z",
-      "status_notes": "version is inside the advisory's range"
+      "timestamp": "2026-10-06T14:12:13Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
     },
     {
       "vulnerability": {
@@ -61,11 +57,9 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
-      "status": "affected",
-      "action_statement": "Matched on component and version by gangmu. No fixed release has been identified by the tool and the remediation is the manufacturer's decision. Advisory references: https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/67xxx/CVE-2026-67215.json; https://nvd.nist.gov/vuln/detail/CVE-2026-67215; https://www.vulncheck.com/advisories/cjson-json-patch-copy-add-uncontrolled-recursion-stack-exhaustion.",
-      "action_statement_timestamp": "2026-10-06T13:18:19Z",
-      "status_notes": "version is inside the advisory's range"
+      "timestamp": "2026-10-06T14:12:13Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
     },
     {
       "vulnerability": {
@@ -81,11 +75,9 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
-      "status": "affected",
-      "action_statement": "Matched on component and version by gangmu. No fixed release has been identified by the tool and the remediation is the manufacturer's decision. Advisory references: https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/67xxx/CVE-2026-67216.json; https://nvd.nist.gov/vuln/detail/CVE-2026-67216; https://www.vulncheck.com/advisories/cjson-cjson-compare-exponential-complexity-denial-of-service.",
-      "action_statement_timestamp": "2026-10-06T13:18:19Z",
-      "status_notes": "version is inside the advisory's range"
+      "timestamp": "2026-10-06T14:12:13Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
     },
     {
       "vulnerability": {
@@ -101,11 +93,9 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
-      "status": "affected",
-      "action_statement": "Matched on component and version by gangmu. No fixed release has been identified by the tool and the remediation is the manufacturer's decision. Advisory references: https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/67xxx/CVE-2026-67217.json; https://nvd.nist.gov/vuln/detail/CVE-2026-67217; https://www.vulncheck.com/advisories/cjson-json-patch-non-atomic-application-destroys-data-before-validation.",
-      "action_statement_timestamp": "2026-10-06T13:18:19Z",
-      "status_notes": "version is inside the advisory's range"
+      "timestamp": "2026-10-06T14:12:13Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
     },
     {
       "vulnerability": {
@@ -121,11 +111,9 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
-      "status": "affected",
-      "action_statement": "Matched on component and version by gangmu. No fixed release has been identified by the tool and the remediation is the manufacturer's decision. Advisory references: https://github.com/DaveGamble/cJSON/; https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/87xxx/CVE-2026-87933.json; https://nvd.nist.gov/vuln/detail/CVE-2026-87933.",
-      "action_statement_timestamp": "2026-10-06T13:18:19Z",
-      "status_notes": "version is inside the advisory's range"
+      "timestamp": "2026-10-06T14:12:13Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
     },
     {
       "vulnerability": {
@@ -141,7 +129,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -159,7 +147,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -177,7 +165,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -195,7 +183,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -213,7 +201,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -231,9 +219,9 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
-      "status_notes": "version is inside the advisory's range, but this is a vendor fork (Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine FatFs. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history.; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
     },
     {
       "vulnerability": {
@@ -249,9 +237,9 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
-      "status_notes": "version is inside the advisory's range, but this is a vendor fork (Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine FatFs. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history.; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
     },
     {
       "vulnerability": {
@@ -267,9 +255,9 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
-      "status_notes": "version is inside the advisory's range, but this is a vendor fork (Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine FatFs. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history.; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
     },
     {
       "vulnerability": {
@@ -285,7 +273,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version '2.2.0' cannot be ordered against the advisory's range, so neither affected nor unaffected can be established from the SBOM alone"
     },
@@ -303,7 +291,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -321,7 +309,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -339,7 +327,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -357,7 +345,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -375,7 +363,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -393,9 +381,9 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
-      "status_notes": "version is inside the advisory's range, but this is a vendor fork (Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine FatFs. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history.; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
     },
     {
       "vulnerability": {
@@ -411,9 +399,9 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
-      "status_notes": "version is inside the advisory's range, but this is a vendor fork (Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine FatFs. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history.; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
     },
     {
       "vulnerability": {
@@ -429,9 +417,9 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
-      "status_notes": "version is inside the advisory's range, but this is a vendor fork (Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine FatFs. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history.; not linked: the link map shows none of this component's objects in the image, so its code is probably not in the firmware; a map cannot see LTO or code loaded another way, so confirm before relying on it"
     },
     {
       "vulnerability": {
@@ -447,7 +435,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -465,7 +453,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -483,7 +471,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -501,7 +489,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -519,7 +507,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -537,7 +525,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -555,7 +543,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -573,7 +561,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -591,7 +579,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -609,7 +597,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -627,7 +615,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     },
@@ -645,7 +633,7 @@
           }
         }
       ],
-      "timestamp": "2026-10-06T13:18:19Z",
+      "timestamp": "2026-10-06T14:12:13Z",
       "status": "under_investigation",
       "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
     }

@@ -789,6 +789,12 @@ def cmd_vuln(args: argparse.Namespace) -> int:
 
     matches = match_vulns(candidates, advisories,
                           include_not_affected=args.include_not_affected)
+    if any(c.subsystem_advisories for c in candidates):
+        n = apply_linkage(matches, [c for c in candidates if c.subsystem_advisories])
+        if n:
+            print(f"{n} finding(s) on an OS/SDK tree lowered from exploitable to in_triage: "
+                  "the advisory names one subsystem, check it against the build",
+                  file=sys.stderr)
     if any(c.linked is False for c in candidates):
         n = apply_linkage(matches, candidates, mark_not_affected=args.unlinked_vex)
         print(f"{sum(1 for c in candidates if c.linked is False)} component(s) are in "

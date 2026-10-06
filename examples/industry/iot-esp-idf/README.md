@@ -36,11 +36,13 @@ SPDX 3、OpenVEX、CSAF 都通过官方 schema 校验。
 
 另有两个“可能”项没有写进 SBOM：FreeRTOS-Kernel（ESP-IDF 的 fork，置信度 0.52）和 hostap（0.52）。置信度不够就不断言，这正是乐鑫规则包要补的地方。
 
-- **漏洞**：CycloneDX VEX 36 条，OpenVEX 与 CSAF 合并后 35 条。其中 6 条（cJSON）是 `exploitable`（OpenVEX 写成 `affected`），29 条是 `in_triage`。
-- **一个需要人看的问题**：这 6 条 cJSON 的组件并没有链接进镜像。现在的 `gangmu vuln` 只比较版本，不看“未链接”，所以仍写 `exploitable`。
-  若产品团队确认 cJSON 没有进入固件，可以在 VEX 里改为 `not_affected` 并注明 `code_not_present`；工具目前不会替你判断。这是一个值得改进的点。
+- **漏洞**：CycloneDX VEX 36 条，OpenVEX 与 CSAF 合并后 35 条，全部 `in_triage`，没有 `exploitable`。
+  cJSON 的 6 条和 FatFs 的 6 条属于“树里有、没链接进镜像”的组件：`gangmu vuln` 读到 SBOM 里的 `gangmu:linkedIntoImage=false` 后，
+  把它们从 `exploitable` 降到 `in_triage`，并在 detail 里写明原因。链接图看不出 LTO 和运行时加载的代码，所以只降级，不替人下结论；
+  产品团队确认后，加 `--unlinked-vex` 重跑，这 12 条就会写成 `not_affected` / `code_not_present`。
+  这两个组件在 SBOM 里的 CycloneDX `scope` 是 `excluded`，SPDX 里有一行说明。
 - **`cra-check` 的结论**（见 `cra-check.txt`）：顶层覆盖不能声称（14 个目录看起来像组件但没有识别）；30 条漏洞仍待处理；
   没有声明 CVD 政策、漏洞联系方式、技术文档保存期限，所以多项 FAIL。样例没有 `gangmu.yaml`，这是工具在严格执行，不是 bug。
-- 一个顺手发现：FatFs 是被 Zephyr 的规则（`zephyrproject/zephyr/fatfs`）认出来的，所以供应商写成 “Zephyr Project (fork of ChaN FatFs)”，
-  也被标成 vendor-modified，这些都是按 Zephyr 的 fork 写的。ESP-IDF 自己的 `components/fatfs` 与它未必是同一个 fork，这两个字段在这里不一定准确，
-  需要有人对照 ESP-IDF 的 FatFs 来源，要么补一条 ESP-IDF 的规则，要么修正规则的适用范围。
+- FatFs 是被 Zephyr 的规则（`zephyrproject/zephyr/fatfs`）按“上游相同”认出来的，但它不在那条规则写的 Zephyr 目录里（`modules/fs/fatfs`）。
+  现在工具对这种情况不再把规则里的厂商写进供应商字段，也不再沿用 Zephyr 的 fork 说明，供应商留空，证据里写明“不断言供应商”；
+  是否改过仍标 vendor-modified（文件与上游不一致）。ESP-IDF 自己的 FatFs 来源需要乐鑫的规则包才能写准。
