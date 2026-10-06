@@ -2,6 +2,14 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
+## 未发布
+
+* **SBOM 记录每个组件是由哪个规则包识别的。** CycloneDX 组件新增属性 `gangmu:rulePack` 与 `gangmu:rulePackVersion`
+  （规则包 `rulebase.json` 里的 `name` 与 `version`；没有清单时用入口点名或目录名，且不带版本），SPDX 的组件备注里写
+  “from rule pack …”，`gangmu scan --format json` 的每个发现多出 `rule_pack`、`rule_pack_version`。同一条规则被后加载的包
+  覆盖时，记的是后者。来自构建声明或二进制字符串、不经规则识别的组件不带这两个字段。这样团队能看出一份 SBOM 里有多少
+  组件是靠哪个规则包识别的，也是商业规则包“价值报告”的数据来源。
+
 ## 0.6.1
 
 在干净环境里从 PyPI 验证 0.6.0 时发现并修复的问题。

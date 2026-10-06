@@ -31,7 +31,10 @@ def _now() -> str:
 def _package(finding: Finding) -> Dict[str, Any]:
     pkg_id = _spdx_id("Package", f"{finding.upstream_name}-{finding.directory}")
     comment_lines = [
-        f"identified by gangmu rule {finding.rule_id}",
+        f"identified by gangmu rule {finding.rule_id}"
+        + (f" from rule pack {finding.rule_pack}"
+           + (f" {finding.rule_pack_version}" if finding.rule_pack_version else "")
+           if finding.rule_pack else ""),
         f"directory: {finding.directory}",
         f"identity confidence: {finding.identity_confidence:.3f}",
         f"version confidence: {finding.version_confidence:.3f}"

@@ -107,6 +107,10 @@ def _properties(finding: Finding) -> List[Dict[str, str]]:
         {"name": "gangmu:versionConfidence",
          "value": f"{finding.version_confidence:.3f}"},
     ]
+    if finding.rule_pack:
+        props.append({"name": "gangmu:rulePack", "value": finding.rule_pack})
+        if finding.rule_pack_version:
+            props.append({"name": "gangmu:rulePackVersion", "value": finding.rule_pack_version})
     if finding.version_source:
         props.append({"name": "gangmu:versionSource", "value": finding.version_source})
     if finding.version and "~" in finding.version:

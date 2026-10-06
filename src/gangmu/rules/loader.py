@@ -11,7 +11,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Union
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import yaml
 
@@ -27,6 +27,9 @@ class RuleBase:
     roots: List[RuleRoot] = field(default_factory=list)
     # "<id>: <later root> replaces <earlier root>" for every overlaid rule
     overridden: List[str] = field(default_factory=list)
+    # rule id -> (pack, version) of the root whose rule is in force: the later root
+    # when a rule was overlaid. The version is "" when the root has no manifest.
+    provenance: Dict[str, Tuple[str, str]] = field(default_factory=dict)
 
     def __len__(self) -> int:
         return len(self.rules)
@@ -178,6 +181,8 @@ def load_rule_roots(roots: Sequence[Union[RuleRoot, Path, str]],
         check_manifest(root.path, root.manifest)
         loaded = load_rules(root.path, strict=strict)
         combined.roots.append(root)
+        pack = root.pack_name
+        version = str((root.manifest or {}).get("version") or "")
         combined.errors.extend(f"[{root.label}] {e}" if len(roots) > 1 else e
                                for e in loaded.errors)
         for rule in loaded.rules:
@@ -189,4 +194,5 @@ def load_rule_roots(roots: Sequence[Union[RuleRoot, Path, str]],
                 position[rule.id] = len(combined.rules)
                 combined.rules.append(rule)
             origin[rule.id] = root.label
+            combined.provenance[rule.id] = (pack, version)
     return combined
