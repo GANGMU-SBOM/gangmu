@@ -45,4 +45,4 @@ gangmu cra-check --sbom sbom.cdx.json --vex vex.json
 ```
 
 - [示例产物](https://github.com/GANGMU-SBOM/gangmu/tree/main/examples/output) · [CRA 对标](../CRA.md) · [国产生态覆盖](../CHINA.md)
-- 其他 SDK：[ESP-IDF](esp-idf-sbom.md) · [RT-Thread](rt-thread-sbom.md)
+- 其他 SDK：[ESP-IDF](esp-idf-sbom.md) · [RT-Thread](rt-thread-sbom.md) · [IAR / Keil / CCS](iar-keil-ccs-sbom.md) · [STM32 / NXP / Nordic](stm32-nxp-nordic-sbom.md)

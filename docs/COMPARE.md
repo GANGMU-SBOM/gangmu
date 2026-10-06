@@ -22,7 +22,7 @@ description: 嵌入式 C/C++ 固件的 SBOM 工具怎么选？对比纲目（gan
 | cdxgen | 多语言项目清单 | 多语言 CycloneDX 生成 | C/C++ 依赖主要来自 Conan 等声明 | 开源 |
 | esp-idf-sbom | ESP-IDF 工程的 `sbom.yml` 与构建产物 | ESP-IDF 官方，乐鑫组件元数据 | 只覆盖 ESP-IDF 一个 SDK；纲目把它的 `sbom.yml` 当一等输入 | 开源 |
 | Black Duck、FOSSA 等商业 SCA | 源码、构建、片段匹配 | 企业级许可证与漏洞治理 | 有片段匹配能力，闭源商业产品 | 商业 |
-| Interlynk lynkctl | 嵌入式 C/C++ | 面向 STM32、Infineon、NXP 等 | 闭源商业产品 | 商业 |
+| Interlynk lynkctl | 构建后的编译器与链接器调用（Make、CMake、IAR、TI CCS；Eclipse、Keil 官方称在开发中） | 与链接 map 对账、离线运行；官方称支持 STM32、Infineon、NXP | 闭源商业产品，具体识别效果无法独立验证；芯片 SDK 规则覆盖不同于纲目（纲目侧见 [STM32 / NXP / Nordic 指南](guides/stm32-nxp-nordic-sbom.md)） | 商业 |
 | ONEKEY、Finite State、Cybellum、NetRise | 固件二进制 | 无源码场景的二进制分析 | 面向大型企业的二进制分析产品 | 商业 |
 
 ## 什么时候选纲目
@@ -42,4 +42,4 @@ description: 嵌入式 C/C++ 固件的 SBOM 工具怎么选？对比纲目（gan
 
 更多边界见 [能力边界](LIMITS.md)，评测方法与数字见 [评测基准](BENCHMARK.md)，同类工具的更多背景见 [README](../README.md#同类工具)。
 
-- 几个常见任务：[ESP-IDF](guides/esp-idf-sbom.md) · [Zephyr](guides/zephyr-sbom.md) · [RT-Thread / OpenHarmony](guides/rt-thread-sbom.md) · [国密库](guides/gmssl-tongsuo-sbom.md) · [CRA 与工信部报送](guides/cra-and-miit-reporting.md)
+- 几个常见任务：[ESP-IDF](guides/esp-idf-sbom.md) · [Zephyr](guides/zephyr-sbom.md) · [RT-Thread / OpenHarmony](guides/rt-thread-sbom.md) · [IAR / Keil / CCS](guides/iar-keil-ccs-sbom.md) · [STM32 / NXP / Nordic](guides/stm32-nxp-nordic-sbom.md) · [国密库](guides/gmssl-tongsuo-sbom.md) · [CRA 与工信部报送](guides/cra-and-miit-reporting.md)

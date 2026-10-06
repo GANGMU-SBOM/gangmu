@@ -58,4 +58,4 @@ gangmu cra-check --sbom sbom.cdx.json --vex vex.json        # 逐条对照 CRA
 - 一份真实的输出长什么样：[examples/output](https://github.com/GANGMU-SBOM/gangmu/tree/main/examples/output)
 - 欧盟 CRA 要求什么：[CRA 对标](../CRA.md)
 - 被厂商魔改的组件怎么识别：[识别原理](vendor-modified-components.md)
-- 其他 SDK：[Zephyr](zephyr-sbom.md) · [RT-Thread](rt-thread-sbom.md)
+- 其他 SDK：[Zephyr](zephyr-sbom.md) · [RT-Thread](rt-thread-sbom.md) · [IAR / Keil / CCS](iar-keil-ccs-sbom.md) · [STM32 / NXP / Nordic](stm32-nxp-nordic-sbom.md)
