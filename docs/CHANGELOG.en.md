@@ -2,6 +2,24 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
+## Unreleased
+
+* **Four problems found by scanning a real project** (ST's STM32CubeF1 LwIP echo-server example).
+  1. An IAR (`.ewp`) or Eclipse/CCS project given to `--project` by a relative path had its source
+     paths joined to the project directory twice, so every source went missing: 0 components, while the
+     scan still printed "61 sources built". Paths are now made absolute first; a project whose listed
+     sources are all missing is an error, and a partly missing one is noted.
+  2. `--project` with a `.cproject` file itself failed with "unsupported project file" (a dot-file has
+     no suffix). It works now.
+  3. `gangmu wrap` shimmed only cc, gcc, g++, clang and clang++, so a cross compiler such as
+     `arm-none-eabi-gcc` recorded nothing, and `scan` then marked every component "not linked". It now
+     also shims every `<triple>-gcc`, `-g++` and `-clang` on PATH, and `scan` exits with an error when the
+     compile database has no source under the scanned tree.
+  4. In a GNU ld map built with `--gc-sections`, an object whose sections were all discarded was still
+     named on a `LOAD` line and counted as linked. Only objects that contribute bytes to an image
+     section now count; with LTO, or a map that shows no contributions, every named object is still
+     kept. In that example 20 of 62 objects are now reported as dropped at link time.
+
 ## 0.6.2
 
 * **GitHub Action and pre-commit hook.** A root `action.yml`

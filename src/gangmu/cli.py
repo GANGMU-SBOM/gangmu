@@ -21,7 +21,7 @@ from .cra import REPORT_STAGES, build_evidence_bundle, check_cra, draft_report
 from .cn import MIIT_STAGES, check_dual_regime, draft_miit_report
 from .eval import CISA_2026, NTIA_2021, score_sbom
 from .build.projects import parse_project
-from .build.wrap import wrap_build
+from .build.wrap import default_compilers, wrap_build
 from .dirprint import (DEFAULT_EXCLUDE, DEFAULT_INCLUDE, SketchCache,
                        print_directory, sha256_file)
 from .fingerprint import ALGO
@@ -207,6 +207,13 @@ def cmd_scan(args: argparse.Namespace) -> int:
                                     Path(args.link_map) if args.link_map else None,
                                     db=db)
         print(f"build facts: {facts.summary()}", file=sys.stderr)
+        if not facts.compiled and (db is not None or args.compile_db):
+            print("error: the compile database or project lists no source file "
+                  f"under {args.root}, so every component would be reported as "
+                  "not linked. Check that it came from a build of this tree "
+                  "(for `gangmu wrap`, pass --compiler with the exact compiler "
+                  "name the build uses).", file=sys.stderr)
+            return 2
         if facts.ambiguous_objects:
             print(f"warning: {len(facts.ambiguous_objects)} object basename(s) are "
                   f"ambiguous and were kept conservatively", file=sys.stderr)
@@ -1187,7 +1194,7 @@ def cmd_wrap(args: argparse.Namespace) -> int:
         print("error: give the build command after --, e.g. "
               "gangmu wrap -o cc.json -- make -j8", file=sys.stderr)
         return 2
-    compilers = args.compiler or ["cc", "gcc", "g++", "clang", "clang++"]
+    compilers = args.compiler or default_compilers()
     try:
         result = wrap_build(command, compilers, Path(args.out),
                             workdir=Path(args.directory) if args.directory else None)
@@ -1917,8 +1924,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="run a build behind compiler shims and write a compile database")
     w.add_argument("--out", "-o", default="compile_commands.json")
     w.add_argument("--compiler", action="append",
-                   help="compiler name to shim; repeatable "
-                        "(default: cc, gcc, g++, clang, clang++)")
+                   help="compiler name to shim; repeatable (default: cc, gcc, "
+                        "g++, clang, clang++ and every <triple>-gcc / -g++ / "
+                        "-clang found on PATH, e.g. arm-none-eabi-gcc)")
     w.add_argument("--directory", "-C", help="run the command here")
     w.add_argument("command", nargs=argparse.REMAINDER,
                    help="-- then the build command, e.g. -- make -j8")

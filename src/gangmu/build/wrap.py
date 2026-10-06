@@ -27,6 +27,7 @@ too. When nothing is recorded, ``gangmu wrap`` says so; use ``--project`` then.
 
 from __future__ import annotations
 
+import fnmatch
 import json
 import os
 import shutil
@@ -89,6 +90,33 @@ def _write_shim(bindir: Path, name: str, real: str,
     path.write_text(_SHIM.format(real=real))
     path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     return path
+
+
+DEFAULT_COMPILERS = ["cc", "gcc", "g++", "clang", "clang++"]
+# Cross compilers are named <triple>-gcc; those are what firmware is built with.
+_CROSS_PATTERNS = ("*-gcc", "*-g++", "*-clang", "*-clang++")
+
+
+def default_compilers(path: Optional[str] = None) -> List[str]:
+    """The plain compiler names plus every ``<triple>-gcc`` style cross
+    compiler found on PATH (``arm-none-eabi-gcc``, ``riscv64-unknown-elf-gcc``).
+
+    Shimming a name nobody calls is harmless; missing the one the build calls
+    records nothing.
+    """
+    names = list(DEFAULT_COMPILERS)
+    found = set()
+    for directory in (path if path is not None else os.environ.get("PATH", "")
+                      ).split(os.pathsep):
+        try:
+            entries = os.listdir(directory) if directory else []
+        except OSError:
+            continue
+        for entry in entries:
+            stem = entry[:-4] if entry.lower().endswith(".exe") else entry
+            if any(fnmatch.fnmatchcase(stem, pat) for pat in _CROSS_PATTERNS):
+                found.add(stem)
+    return names + sorted(found - set(names))
 
 
 def _output_option(args: Sequence[str]) -> Optional[str]:
