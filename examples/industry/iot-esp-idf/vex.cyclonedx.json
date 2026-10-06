@@ -1,0 +1,2624 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:68abcafd-7bfd-4384-ba06-1edf4f6948ae",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-06T13:17:30Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "gangmu-sbom",
+          "version": "0.6.2"
+        }
+      ]
+    },
+    "component": {
+      "bom-ref": "root-application",
+      "type": "application",
+      "name": "wifi-station",
+      "version": "5.4.1"
+    },
+    "properties": [
+      {
+        "name": "gangmu:generationContext",
+        "value": "build"
+      },
+      {
+        "name": "gangmu:generationContextNote",
+        "value": "Derived from the build's own compile database"
+      },
+      {
+        "name": "gangmu:rulesLoaded",
+        "value": "67"
+      },
+      {
+        "name": "gangmu:buildFactsUsed",
+        "value": "true"
+      },
+      {
+        "name": "gangmu:unidentifiedDirectories",
+        "value": "14"
+      },
+      {
+        "name": "gangmu:possibleComponent",
+        "value": "FreeRTOS-Kernel 10.5.0~10.5.1 at components/freertos/FreeRTOS-Kernel (identity 0.52, rule generic/freertos-kernel)"
+      },
+      {
+        "name": "gangmu:possibleComponent",
+        "value": "hostap (wpa_supplicant / hostapd) 2.10 at components/wpa_supplicant (identity 0.52, rule generic/hostap)"
+      }
+    ]
+  },
+  "components": [
+    {
+      "bom-ref": "components/mbedtls/mbedtls#generic/mbedtls",
+      "type": "library",
+      "name": "Mbed TLS",
+      "scope": "required",
+      "version": "3.6.2",
+      "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+      "cpe": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*",
+      "supplier": {
+        "name": "Trusted Firmware (Mbed TLS project)"
+      },
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "82e83d6b2a7e7cf4b4cef8f79b00fa4274436f47341162c9dbc0aa10aabba305"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/Mbed-TLS/mbedtls"
+        }
+      ],
+      "pedigree": {
+        "ancestors": [
+          {
+            "type": "library",
+            "name": "Mbed TLS",
+            "bom-ref": "upstream/Mbed TLS",
+            "version": "3.6.2",
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "externalReferences": [
+              {
+                "type": "website",
+                "url": "https://github.com/Mbed-TLS/mbedtls"
+              }
+            ]
+          }
+        ],
+        "patches": [
+          {
+            "type": "unofficial"
+          }
+        ],
+        "notes": "This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD."
+      },
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 0.95,
+            "concludedValue": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "methods": [
+              {
+                "technique": "hash-comparison",
+                "confidence": 0.98,
+                "value": "include/mbedtls/build_info.h matches, byte for byte, the hash rule generic/mbedtls records for Mbed TLS 3.6.2"
+              },
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "2766 of 2770 functions of Mbed TLS 3.6.2 are present (0.999 containment, strong); 2908 functions in this directory"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.88,
+                "value": "2722 version-discriminating function(s) matched; 2721 are in 3.6.2 (agreement 1.00), and 1 belong to other recorded versions -- this tree mixes releases, which is what a vendor fork looks like (4 recorded function(s) of 3.6.2 are missing or altered); 141 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 3.6.2 read from include/mbedtls/build_info.h"
+              },
+              {
+                "technique": "manifest-analysis",
+                "confidence": 0.9,
+                "value": "vendor manifest declares Mbed TLS 3.6.2"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory is named as rule generic/mbedtls expects, but is not where that rule says the component lives"
+              }
+            ]
+          },
+          {
+            "field": "cpe",
+            "confidence": 0.95,
+            "concludedValue": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*",
+            "methods": [
+              {
+                "technique": "hash-comparison",
+                "confidence": 0.98,
+                "value": "include/mbedtls/build_info.h matches, byte for byte, the hash rule generic/mbedtls records for Mbed TLS 3.6.2"
+              },
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "2766 of 2770 functions of Mbed TLS 3.6.2 are present (0.999 containment, strong); 2908 functions in this directory"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.88,
+                "value": "2722 version-discriminating function(s) matched; 2721 are in 3.6.2 (agreement 1.00), and 1 belong to other recorded versions -- this tree mixes releases, which is what a vendor fork looks like (4 recorded function(s) of 3.6.2 are missing or altered); 141 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 3.6.2 read from include/mbedtls/build_info.h"
+              },
+              {
+                "technique": "manifest-analysis",
+                "confidence": 0.9,
+                "value": "vendor manifest declares Mbed TLS 3.6.2"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory is named as rule generic/mbedtls expects, but is not where that rule says the component lives"
+              }
+            ]
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "gangmu:rule",
+          "value": "generic/mbedtls"
+        },
+        {
+          "name": "gangmu:directory",
+          "value": "components/mbedtls/mbedtls"
+        },
+        {
+          "name": "gangmu:identityConfidence",
+          "value": "0.950"
+        },
+        {
+          "name": "gangmu:versionConfidence",
+          "value": "0.950"
+        },
+        {
+          "name": "gangmu:rulePack",
+          "value": "community"
+        },
+        {
+          "name": "gangmu:rulePackVersion",
+          "value": "2026.10.6"
+        },
+        {
+          "name": "gangmu:versionSource",
+          "value": "anchor"
+        },
+        {
+          "name": "gangmu:shippedAs",
+          "value": "mbedtls"
+        },
+        {
+          "name": "gangmu:observedLicenses",
+          "value": "Apache-2.0; GPL-2.0-or-later; BSD-3-Clause; GP"
+        },
+        {
+          "name": "gangmu:licenseDiffersFromRule",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:compiledFiles",
+          "value": "112"
+        },
+        {
+          "name": "gangmu:linkedIntoImage",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:supportStatus",
+          "value": "maintained"
+        },
+        {
+          "name": "gangmu:endOfSupport",
+          "value": "2027-03-31"
+        },
+        {
+          "name": "gangmu:supportSource",
+          "value": "https://github.com/Mbed-TLS/mbedtls/blob/development/BRANCHES.md"
+        },
+        {
+          "name": "gangmu:supportAsOf",
+          "value": "2026-10-06"
+        }
+      ]
+    },
+    {
+      "bom-ref": "components/fatfs#zephyrproject/zephyr/fatfs",
+      "type": "library",
+      "name": "FatFs",
+      "scope": "required",
+      "version": "R0.15",
+      "purl": "pkg:generic/fatfs@R0.15",
+      "cpe": "cpe:2.3:a:elm-chan:fatfs:R0.15:*:*:*:*:*:*:*",
+      "supplier": {
+        "name": "Zephyr Project (fork of ChaN FatFs)"
+      },
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "17d6fd16d779c2feacda2fd96fc62fb5b6310cf6b04ba1b1b2423b4864037d8b"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "BSD-1-Clause"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "http://elm-chan.org/fsw/ff/"
+        }
+      ],
+      "pedigree": {
+        "ancestors": [
+          {
+            "type": "library",
+            "name": "FatFs",
+            "bom-ref": "upstream/FatFs",
+            "version": "R0.15",
+            "purl": "pkg:generic/fatfs@R0.15",
+            "externalReferences": [
+              {
+                "type": "website",
+                "url": "http://elm-chan.org/fsw/ff/"
+              }
+            ]
+          }
+        ],
+        "patches": [
+          {
+            "type": "unofficial"
+          }
+        ],
+        "notes": "Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD."
+      },
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 0.9,
+            "concludedValue": "pkg:generic/fatfs@R0.15",
+            "methods": [
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.9,
+                "value": "winnowed MinHash similarity 0.926 to FatFs git-4f60a12c58c3 (strong)"
+              },
+              {
+                "technique": "manifest-analysis",
+                "confidence": 0.9,
+                "value": "vendor manifest declares FatFs R0.15"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory is named as rule zephyrproject/zephyr/fatfs expects, but is not where that rule says the component lives"
+              }
+            ]
+          },
+          {
+            "field": "cpe",
+            "confidence": 0.9,
+            "concludedValue": "cpe:2.3:a:elm-chan:fatfs:R0.15:*:*:*:*:*:*:*",
+            "methods": [
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.9,
+                "value": "winnowed MinHash similarity 0.926 to FatFs git-4f60a12c58c3 (strong)"
+              },
+              {
+                "technique": "manifest-analysis",
+                "confidence": 0.9,
+                "value": "vendor manifest declares FatFs R0.15"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory is named as rule zephyrproject/zephyr/fatfs expects, but is not where that rule says the component lives"
+              }
+            ]
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "gangmu:rule",
+          "value": "zephyrproject/zephyr/fatfs"
+        },
+        {
+          "name": "gangmu:directory",
+          "value": "components/fatfs"
+        },
+        {
+          "name": "gangmu:identityConfidence",
+          "value": "0.920"
+        },
+        {
+          "name": "gangmu:versionConfidence",
+          "value": "0.900"
+        },
+        {
+          "name": "gangmu:rulePack",
+          "value": "community"
+        },
+        {
+          "name": "gangmu:rulePackVersion",
+          "value": "2026.10.6"
+        },
+        {
+          "name": "gangmu:versionSource",
+          "value": "manifest"
+        },
+        {
+          "name": "gangmu:vendor",
+          "value": "zephyrproject"
+        },
+        {
+          "name": "gangmu:observedLicenses",
+          "value": "Apache-2.0; CC0-1.0; Unlicense"
+        },
+        {
+          "name": "gangmu:licenseDiffersFromRule",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:compiledFiles",
+          "value": "10"
+        },
+        {
+          "name": "gangmu:linkedIntoImage",
+          "value": "false"
+        },
+        {
+          "name": "gangmu:supportStatus",
+          "value": "unknown"
+        }
+      ]
+    },
+    {
+      "bom-ref": "components/json/cJSON#generic/cjson",
+      "type": "library",
+      "name": "cJSON",
+      "scope": "required",
+      "version": "1.7.18",
+      "purl": "pkg:github/DaveGamble/cJSON@1.7.18",
+      "cpe": "cpe:2.3:a:cjson_project:cjson:1.7.18:*:*:*:*:*:*:*",
+      "supplier": {
+        "name": "Dave Gamble and cJSON contributors"
+      },
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "3359b23c276d774225be86d401a474d36881bbb0946101317eb1cdba60f3285a"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/DaveGamble/cJSON"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 0.85,
+            "concludedValue": "pkg:github/DaveGamble/cJSON@1.7.18",
+            "methods": [
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.9,
+                "value": "winnowed MinHash similarity 0.945 to cJSON 1.7.19 (strong)"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 1.7.18 read from cJSON.h"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory sits where rule generic/cjson expects it"
+              }
+            ]
+          },
+          {
+            "field": "cpe",
+            "confidence": 0.85,
+            "concludedValue": "cpe:2.3:a:cjson_project:cjson:1.7.18:*:*:*:*:*:*:*",
+            "methods": [
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.9,
+                "value": "winnowed MinHash similarity 0.945 to cJSON 1.7.19 (strong)"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 1.7.18 read from cJSON.h"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory sits where rule generic/cjson expects it"
+              }
+            ]
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "gangmu:rule",
+          "value": "generic/cjson"
+        },
+        {
+          "name": "gangmu:directory",
+          "value": "components/json/cJSON"
+        },
+        {
+          "name": "gangmu:identityConfidence",
+          "value": "0.920"
+        },
+        {
+          "name": "gangmu:versionConfidence",
+          "value": "0.850"
+        },
+        {
+          "name": "gangmu:rulePack",
+          "value": "community"
+        },
+        {
+          "name": "gangmu:rulePackVersion",
+          "value": "2026.10.6"
+        },
+        {
+          "name": "gangmu:versionSource",
+          "value": "probe"
+        },
+        {
+          "name": "gangmu:observedLicenses",
+          "value": "MIT"
+        },
+        {
+          "name": "gangmu:compiledFiles",
+          "value": "2"
+        },
+        {
+          "name": "gangmu:linkedIntoImage",
+          "value": "false"
+        },
+        {
+          "name": "gangmu:supportStatus",
+          "value": "unknown"
+        }
+      ]
+    },
+    {
+      "bom-ref": "components/lwip/lwip#generic/lwip",
+      "type": "library",
+      "name": "lwIP",
+      "scope": "required",
+      "version": "2.2.0",
+      "purl": "pkg:generic/lwip@2.2.0",
+      "cpe": "cpe:2.3:a:lwip_project:lwip:2.2.0:*:*:*:*:*:*:*",
+      "supplier": {
+        "name": "lwIP Project (non-GNU)"
+      },
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "52f02a5956040e045cd6888f79ad11914cae106d8b5686580b3fe80fe89ebf93"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://savannah.nongnu.org/projects/lwip/"
+        }
+      ],
+      "pedigree": {
+        "ancestors": [
+          {
+            "type": "library",
+            "name": "lwIP",
+            "bom-ref": "upstream/lwIP",
+            "version": "2.2.0",
+            "purl": "pkg:generic/lwip@2.2.0",
+            "externalReferences": [
+              {
+                "type": "website",
+                "url": "https://savannah.nongnu.org/projects/lwip/"
+              }
+            ]
+          }
+        ],
+        "patches": [
+          {
+            "type": "unofficial"
+          }
+        ],
+        "notes": "This copy is not byte-identical to pristine lwIP. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD."
+      },
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 0.85,
+            "concludedValue": "pkg:generic/lwip@2.2.0",
+            "methods": [
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "1828 of 1934 functions of lwIP 2.2.0 are present (0.945 containment, strong); 2063 functions in this directory"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.88,
+                "value": "1185 version-discriminating function(s) matched; 1166 are in 2.2.0 (agreement 0.92), and 19 belong to other recorded versions -- this tree mixes releases, which is what a vendor fork looks like (106 recorded function(s) of 2.2.0 are missing or altered); 213 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 2.2.0 read from src/include/lwip/init.h"
+              },
+              {
+                "technique": "manifest-analysis",
+                "confidence": 0.9,
+                "value": "vendor manifest declares lwip 2.2.0"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory sits where rule generic/lwip expects it"
+              }
+            ]
+          },
+          {
+            "field": "cpe",
+            "confidence": 0.85,
+            "concludedValue": "cpe:2.3:a:lwip_project:lwip:2.2.0:*:*:*:*:*:*:*",
+            "methods": [
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "1828 of 1934 functions of lwIP 2.2.0 are present (0.945 containment, strong); 2063 functions in this directory"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.88,
+                "value": "1185 version-discriminating function(s) matched; 1166 are in 2.2.0 (agreement 0.92), and 19 belong to other recorded versions -- this tree mixes releases, which is what a vendor fork looks like (106 recorded function(s) of 2.2.0 are missing or altered); 213 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 2.2.0 read from src/include/lwip/init.h"
+              },
+              {
+                "technique": "manifest-analysis",
+                "confidence": 0.9,
+                "value": "vendor manifest declares lwip 2.2.0"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory sits where rule generic/lwip expects it"
+              }
+            ]
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "gangmu:rule",
+          "value": "generic/lwip"
+        },
+        {
+          "name": "gangmu:directory",
+          "value": "components/lwip/lwip"
+        },
+        {
+          "name": "gangmu:identityConfidence",
+          "value": "0.950"
+        },
+        {
+          "name": "gangmu:versionConfidence",
+          "value": "0.850"
+        },
+        {
+          "name": "gangmu:rulePack",
+          "value": "community"
+        },
+        {
+          "name": "gangmu:rulePackVersion",
+          "value": "2026.10.6"
+        },
+        {
+          "name": "gangmu:versionSource",
+          "value": "probe"
+        },
+        {
+          "name": "gangmu:observedLicenses",
+          "value": "BSD-2-Clause"
+        },
+        {
+          "name": "gangmu:licenseDiffersFromRule",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:compiledFiles",
+          "value": "80"
+        },
+        {
+          "name": "gangmu:linkedIntoImage",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:supportStatus",
+          "value": "unknown"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-application",
+      "dependsOn": [
+        "components/fatfs#zephyrproject/zephyr/fatfs",
+        "components/json/cJSON#generic/cjson",
+        "components/lwip/lwip#generic/lwip",
+        "components/mbedtls/mbedtls#generic/mbedtls"
+      ]
+    },
+    {
+      "ref": "components/mbedtls/mbedtls#generic/mbedtls",
+      "dependsOn": []
+    },
+    {
+      "ref": "components/fatfs#zephyrproject/zephyr/fatfs",
+      "dependsOn": []
+    },
+    {
+      "ref": "components/json/cJSON#generic/cjson",
+      "dependsOn": []
+    },
+    {
+      "ref": "components/lwip/lwip#generic/lwip",
+      "dependsOn": []
+    }
+  ],
+  "vulnerabilities": [
+    {
+      "bom-ref": "CVE-2025-57052#components/json/cJSON#purl",
+      "id": "CVE-2025-57052",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2025-57052"
+      },
+      "affects": [
+        {
+          "ref": "components/json/cJSON#generic/cjson"
+        }
+      ],
+      "analysis": {
+        "state": "exploitable",
+        "detail": "version is inside the advisory's range"
+      },
+      "description": "cJSON 1.5.0 through 1.7.18 allows out-of-bounds access via the decode_array_index_from_pointer function in cJSON_Utils.c, allowing remote attackers to bypass array bounds checking and access restricted data via malformed JSON pointer strings containing alphanumeric characters.",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://lists.debian.org/debian-lts-announce/2025/09/msg00019.html"
+        },
+        {
+          "url": "https://x-0r.com/posts/cJSON-Array-Index-Parsing-Vulnerability"
+        },
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2025/57xxx/CVE-2025-57052.json"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-57052"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/davegamble/cjson"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.920"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-29036#components/json/cJSON#purl",
+      "id": "CVE-2026-29036",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2026-29036"
+      },
+      "affects": [
+        {
+          "ref": "components/json/cJSON#generic/cjson"
+        }
+      ],
+      "analysis": {
+        "state": "exploitable",
+        "detail": "version is inside the advisory's range"
+      },
+      "description": "cJSON 1.7.19 Wrong-Key Modification via JSON Pointer Escape Decoding",
+      "ratings": [
+        {
+          "severity": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:H/VA:N/SC:N/SI:N/SA:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/29xxx/CVE-2026-29036.json"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-29036"
+        },
+        {
+          "url": "https://www.vulncheck.com/advisories/cjson-wrong-key-modification-via-json-pointer-escape-decoding"
+        },
+        {
+          "url": "https://github.com/DaveGamble/cJSON"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/davegamble/cjson"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.920"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-67215#components/json/cJSON#purl",
+      "id": "CVE-2026-67215",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2026-67215"
+      },
+      "affects": [
+        {
+          "ref": "components/json/cJSON#generic/cjson"
+        }
+      ],
+      "analysis": {
+        "state": "exploitable",
+        "detail": "version is inside the advisory's range"
+      },
+      "description": "cJSON JSON Patch copy/add Uncontrolled Recursion Stack Exhaustion",
+      "ratings": [
+        {
+          "severity": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/67xxx/CVE-2026-67215.json"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-67215"
+        },
+        {
+          "url": "https://www.vulncheck.com/advisories/cjson-json-patch-copy-add-uncontrolled-recursion-stack-exhaustion"
+        },
+        {
+          "url": "https://github.com/DaveGamble/cJSON/blob/v1.7.19/cJSON.c#L253-L261"
+        },
+        {
+          "url": "https://github.com/DaveGamble/cJSON/blob/v1.7.19/cJSON_Utils.c#L906-L940"
+        },
+        {
+          "url": "https://joshua.hu/cjson-json-parser-cve-vulnerabilities"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/davegamble/cjson"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.920"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-67216#components/json/cJSON#purl",
+      "id": "CVE-2026-67216",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2026-67216"
+      },
+      "affects": [
+        {
+          "ref": "components/json/cJSON#generic/cjson"
+        }
+      ],
+      "analysis": {
+        "state": "exploitable",
+        "detail": "version is inside the advisory's range"
+      },
+      "description": "cJSON cJSON_Compare Exponential Complexity Denial of Service",
+      "ratings": [
+        {
+          "severity": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/67xxx/CVE-2026-67216.json"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-67216"
+        },
+        {
+          "url": "https://www.vulncheck.com/advisories/cjson-cjson-compare-exponential-complexity-denial-of-service"
+        },
+        {
+          "url": "https://github.com/DaveGamble/cJSON/blob/v1.7.19/cJSON.c#L3057-L3180"
+        },
+        {
+          "url": "https://joshua.hu/cjson-json-parser-cve-vulnerabilities"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/davegamble/cjson"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.920"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-67217#components/json/cJSON#purl",
+      "id": "CVE-2026-67217",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2026-67217"
+      },
+      "affects": [
+        {
+          "ref": "components/json/cJSON#generic/cjson"
+        }
+      ],
+      "analysis": {
+        "state": "exploitable",
+        "detail": "version is inside the advisory's range"
+      },
+      "description": "cJSON JSON Patch Non-Atomic Application Destroys Data Before Validation",
+      "ratings": [
+        {
+          "severity": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:L/VA:N/SC:N/SI:N/SA:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/67xxx/CVE-2026-67217.json"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-67217"
+        },
+        {
+          "url": "https://www.vulncheck.com/advisories/cjson-json-patch-non-atomic-application-destroys-data-before-validation"
+        },
+        {
+          "url": "https://github.com/DaveGamble/cJSON/blob/v1.7.19/cJSON_Utils.c#L887-L948"
+        },
+        {
+          "url": "https://joshua.hu/cjson-json-parser-cve-vulnerabilities"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/davegamble/cjson"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.920"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-87933#components/json/cJSON#purl",
+      "id": "CVE-2026-87933",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2026-87933"
+      },
+      "affects": [
+        {
+          "ref": "components/json/cJSON#generic/cjson"
+        }
+      ],
+      "analysis": {
+        "state": "exploitable",
+        "detail": "version is inside the advisory's range"
+      },
+      "description": "DaveGamble cJSON cJSON_Utils.c cJSONUtils_MergePatch use after free",
+      "ratings": [
+        {
+          "severity": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:L/VI:L/VA:L/SC:N/SI:N/SA:N/E:P",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/DaveGamble/cJSON/"
+        },
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/87xxx/CVE-2026-87933.json"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-87933"
+        },
+        {
+          "url": "https://vuldb.com/cve/CVE-2026-87933"
+        },
+        {
+          "url": "https://vuldb.com/submit/911136"
+        },
+        {
+          "url": "https://vuldb.com/vuln/401815"
+        },
+        {
+          "url": "https://github.com/DaveGamble/cJSON/issues/1060"
+        },
+        {
+          "url": "https://vuldb.com/vuln/401815/cti"
+        },
+        {
+          "url": "https://github.com/DaveGamble/cJSON/pull/1065"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/davegamble/cjson"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.920"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-34877#components/mbedtls/mbedtls#cpe",
+      "id": "CVE-2026-34877",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-34877"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "An issue was discovered in Mbed TLS versions from 2.19.0 up to 3.6.5, Mbed TLS 4.0.0. Insufficient protection of serialized SSL context or session structures allows an attacker who can modify the serialized structures to induce memory corruption, leading to arbitrary code execution. This is caused by Incorrect Use of Privileged APIs.",
+      "ratings": [
+        {
+          "score": 9.8,
+          "method": "CVSSv31",
+          "severity": "critical"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-serialized-data/"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-34872#components/mbedtls/mbedtls#cpe",
+      "id": "CVE-2026-34872",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-34872"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "An issue was discovered in Mbed TLS 3.5.x and 3.6.x through 3.6.5 and TF-PSA-Crypto 1.0. There is a lack of contributory behavior in FFDH due to improper input validation. Using finite-field Diffie-Hellman, the other party can force the shared secret into a small set of values (lack of contributory behavior). This is a problem for protocols that depend on contributory behavior (which is not the case for TLS). The attack can be carried by the peer, or depending on the protocol by an active network attacker (person in the middle).",
+      "ratings": [
+        {
+          "score": 9.1,
+          "method": "CVSSv31",
+          "severity": "critical"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-ffdh-peerkey-checks/"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-47917#components/mbedtls/mbedtls#cpe",
+      "id": "CVE-2025-47917",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-47917"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS before 3.6.4 allows a use-after-free in certain situations of applications that are developed in accordance with the documentation. The function mbedtls_x509_string_to_names() takes a head argument that is documented as an output argument. The documentation does not suggest that the function will free that pointer; however, the function does call mbedtls_asn1_free_named_data_list() on that argument, which performs a deep free(). As a result, application code that uses this function (relying only on documented behavior) is likely to still hold pointers to the memory blocks that were freed, resulting in a high risk of use-after-free or double-free. In particular, the two sample programs x509/cert_write and x509/cert_req are affected (use-after-free if the san string contains more than one DN).",
+      "ratings": [
+        {
+          "score": 8.9,
+          "method": "CVSSv31",
+          "severity": "high"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls-docs/blob/main/security-advisories/mbedtls-security-advisory-2025-06-7.md"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/tech-updates/security-advisories/"
+        },
+        {
+          "url": "https://lists.debian.org/debian-lts-announce/2025/08/msg00013.html"
+        },
+        {
+          "url": "https://lists.debian.org/debian-lts-announce/2025/08/msg00025.html"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-52496#components/mbedtls/mbedtls#cpe",
+      "id": "CVE-2025-52496",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-52496"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS before 3.6.4 has a race condition in AESNI detection if certain compiler optimizations occur. An attacker may be able to extract an AES key from a multithreaded program, or perform a GCM forgery.",
+      "ratings": [
+        {
+          "score": 7.8,
+          "method": "CVSSv31",
+          "severity": "high"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls-docs/blob/main/security-advisories/mbedtls-security-advisory-2025-06-1.md"
+        },
+        {
+          "url": "https://lists.debian.org/debian-lts-announce/2025/08/msg00013.html"
+        },
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls-docs/blob/main/security-advisories/mbedtls-security-advisory-2025-06-1.md"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-25835#components/mbedtls/mbedtls#cpe",
+      "id": "CVE-2026-25835",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-25835"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS before 3.6.6 and TF-PSA-Crypto before 1.1.0 misuse seeds in a Pseudo-Random Number Generator (PRNG).",
+      "ratings": [
+        {
+          "score": 7.7,
+          "method": "CVSSv31",
+          "severity": "high"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-rng-cloning/"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-6682#components/fatfs#cpe",
+      "id": "CVE-2026-6682",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-6682"
+      },
+      "affects": [
+        {
+          "ref": "components/fatfs#zephyrproject/zephyr/fatfs"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "In FatFS R0.16 and earlier contains a FAT32 integer overflow bug in mount_volume() where fasize *= fs->n_fats can wrap, leading to attacker-controlled file-size metadata and unsafe read lengths in downstream callers. This maps to CWE-190 (Integer Overflow or Wraparound). Estimated CVSS v3.1 vector: CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H (7.6, High). Remote delivery is also possible in OTA/update pipelines. The estimated CISA SSVC vectors are Exploitation: PoC, Technical Impact: Total.",
+      "ratings": [
+        {
+          "score": 7.6,
+          "method": "CVSSv31",
+          "severity": "high"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://elm-chan.org/fsw/ff/"
+        },
+        {
+          "url": "https://github.com/runZeroInc/vulns-2026-fatfs-chance"
+        },
+        {
+          "url": "https://www.runzero.com/advisories/fatfs-fat32-int-of-mnt-cve-2026-6682/"
+        },
+        {
+          "url": "https://www.runzero.com/blog/fatfs-bugs/"
+        },
+        {
+          "url": "https://github.com/runZeroInc/vulns-2026-fatfs-chance"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:elm-chan:fatfs:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.920"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-6687#components/fatfs#cpe",
+      "id": "CVE-2026-6687",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-6687"
+      },
+      "affects": [
+        {
+          "ref": "components/fatfs#zephyrproject/zephyr/fatfs"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "FatFs R0.16 and earlier contains a stack overflow bug in f_getlabel() because exFAT label length (XDIR_NumLabel) is trusted without enforcing spec maximums. This maps to CWE-121 (Stack-based Buffer Overflow). Estimated CVSS v3.1 vector: CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H (7.6, High). The estimated CISA SSVC vectors are Exploitation: PoC, Technical Impact: Total.",
+      "ratings": [
+        {
+          "score": 7.6,
+          "method": "CVSSv31",
+          "severity": "high"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://elm-chan.org/fsw/ff/"
+        },
+        {
+          "url": "https://github.com/runZeroInc/vulns-2026-fatfs-chance"
+        },
+        {
+          "url": "https://www.runzero.com/advisories/fatfs-exfat-label-len-of-cve-2026-6687/"
+        },
+        {
+          "url": "https://www.runzero.com/blog/fatfs-bugs/"
+        },
+        {
+          "url": "https://github.com/runZeroInc/vulns-2026-fatfs-chance"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:elm-chan:fatfs:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.920"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-6688#components/fatfs#cpe",
+      "id": "CVE-2026-6688",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-6688"
+      },
+      "affects": [
+        {
+          "ref": "components/fatfs#zephyrproject/zephyr/fatfs"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "FatFs R0.16 and earlier contains a downstream-caller vulnerability pattern associated with FatFs long filename handling. With LFN enabled, fno.fname can be up to 255 characters; many callers copy it into short fixed buffers without bounds checks, causing overflow. This maps to CWE-120 (Buffer Copy without Checking Size of Input). Estimated CVSS v3.1 vector: CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H (7.6, High). The estimated CISA SSVC vectors are Exploitation: PoC, Technical Impact: Total.",
+      "ratings": [
+        {
+          "score": 7.6,
+          "method": "CVSSv31",
+          "severity": "high"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://elm-chan.org/fsw/ff/"
+        },
+        {
+          "url": "https://github.com/runZeroInc/vulns-2026-fatfs-chance"
+        },
+        {
+          "url": "https://www.runzero.com/advisories/fatfs-long-fn-of-downstream-cve-2026-6688/"
+        },
+        {
+          "url": "https://www.runzero.com/blog/fatfs-bugs/"
+        },
+        {
+          "url": "https://github.com/runZeroInc/vulns-2026-fatfs-chance"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:elm-chan:fatfs:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.920"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2020-22283#components/lwip/lwip#cpe",
+      "id": "CVE-2020-22283",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-22283"
+      },
+      "affects": [
+        {
+          "ref": "components/lwip/lwip#generic/lwip"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version '2.2.0' cannot be ordered against the advisory's range, so neither affected nor unaffected can be established from the SBOM alone"
+      },
+      "description": "A buffer overflow vulnerability in the icmp6_send_response_with_addrs_and_netif() function of Free Software Foundation lwIP version git head allows attackers to access sensitive information via a crafted ICMPv6 packet.",
+      "ratings": [
+        {
+          "score": 7.5,
+          "method": "CVSSv31",
+          "severity": "high"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://lists.debian.org/debian-lts-announce/2023/11/msg00011.html"
+        },
+        {
+          "url": "https://savannah.nongnu.org/bugs/index.php?58553"
+        },
+        {
+          "url": "https://lists.debian.org/debian-lts-announce/2023/11/msg00011.html"
+        },
+        {
+          "url": "https://savannah.nongnu.org/bugs/index.php?58553"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:lwip_project:lwip:-:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-34871#components/mbedtls/mbedtls#cpe",
+      "id": "CVE-2026-34871",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-34871"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "An issue was discovered in Mbed TLS before 3.6.6 and 4.x before 4.1.0 and TF-PSA-Crypto before 1.1.0. There is a Predictable Seed in a Pseudo-Random Number Generator (PRNG).",
+      "ratings": [
+        {
+          "score": 6.7,
+          "method": "CVSSv31",
+          "severity": "medium"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-dev-random/"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-54764#components/mbedtls/mbedtls#cpe",
+      "id": "CVE-2025-54764",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-54764"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS before 3.6.5 allows a local timing attack against certain RSA operations, and direct calls to mbedtls_mpi_mod_inv or mbedtls_mpi_gcd.",
+      "ratings": [
+        {
+          "score": 6.2,
+          "method": "CVSSv31",
+          "severity": "medium"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2025-10-ssbleed-mstep/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/tech-updates/security-advisories/"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-59438#components/mbedtls/mbedtls#cpe",
+      "id": "CVE-2025-59438",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-59438"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS through 3.6.4 has an Observable Timing Discrepancy.",
+      "ratings": [
+        {
+          "score": 5.3,
+          "method": "CVSSv31",
+          "severity": "medium"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2025-10-invalid-padding-error/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/tech-updates/security-advisories/"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-66442#components/mbedtls/mbedtls#cpe",
+      "id": "CVE-2025-66442",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-66442"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "In Mbed TLS through 4.0.0, there is a compiler-induced timing side channel (in RSA and CBC/ECB decryption) that only occurs with LLVM's select-optimize feature. TF-PSA-Crypto through 1.0.0 is also affected.",
+      "ratings": [
+        {
+          "score": 5.1,
+          "method": "CVSSv31",
+          "severity": "medium"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/Mbed-TLS/TF-PSA-Crypto/releases"
+        },
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls/releases"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-compiler-induced-constant-time-violations/"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-52497#components/mbedtls/mbedtls#cpe",
+      "id": "CVE-2025-52497",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-52497"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS before 3.6.4 has a PEM parsing one-byte heap-based buffer underflow, in mbedtls_pem_read_buffer and two mbedtls_pk_parse functions, via untrusted PEM input.",
+      "ratings": [
+        {
+          "score": 4.8,
+          "method": "CVSSv31",
+          "severity": "medium"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls-docs/blob/main/security-advisories/mbedtls-security-advisory-2025-06-2.md"
+        },
+        {
+          "url": "https://lists.debian.org/debian-lts-announce/2025/08/msg00013.html"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-6683#components/fatfs#cpe",
+      "id": "CVE-2026-6683",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-6683"
+      },
+      "affects": [
+        {
+          "ref": "components/fatfs#zephyrproject/zephyr/fatfs"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "FatFs R0.16 and earlier contains a divide-by-zero in exFAT sync logic bug when crafted metadata causes n_fatent - 2 to be zero during write/sync operations. This maps to CWE-369 (Divide By Zero). Estimated CVSS v3.1 vector: CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H (4.6, Medium). Network-delivered update media can make this remote in some pipelines. The estimated CISA SSVC vectors are Exploitation: PoC, Technical Impact: Partial.",
+      "ratings": [
+        {
+          "score": 4.6,
+          "method": "CVSSv31",
+          "severity": "medium"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://elm-chan.org/fsw/ff/"
+        },
+        {
+          "url": "https://github.com/runZeroInc/vulns-2026-fatfs-chance"
+        },
+        {
+          "url": "https://www.runzero.com/advisories/fatfs-exfat-divide-by-zero-cve-2026-6683"
+        },
+        {
+          "url": "https://www.runzero.com/blog/fatfs-bugs/"
+        },
+        {
+          "url": "https://github.com/runZeroInc/vulns-2026-fatfs-chance"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:elm-chan:fatfs:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.920"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-6684#components/fatfs#cpe",
+      "id": "CVE-2026-6684",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-6684"
+      },
+      "affects": [
+        {
+          "ref": "components/fatfs#zephyrproject/zephyr/fatfs"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "FatFs prior to R0.16 that use GPT scanning with 'FF_LBA64 = 1' contains an issue where an unbounded loop count derived from GPT header field GPTH_PtNum, enabling extremely long or effectively infinite mount-time scans. This maps to CWE-835 (Loop with Unreachable Exit Condition). Estimated CVSS v3.1 vector: CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H (4.6, Medium). The estimated CISA SSVC vectors are Exploitation: PoC, Technical Impact: Partial.",
+      "ratings": [
+        {
+          "score": 4.6,
+          "method": "CVSSv31",
+          "severity": "medium"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://elm-chan.org/fsw/ff/"
+        },
+        {
+          "url": "https://github.com/runZeroInc/vulns-2026-fatfs-chance"
+        },
+        {
+          "url": "https://www.runzero.com/advisories/fatfs-gpt-scan-loop-dos-cve-2026-6684/"
+        },
+        {
+          "url": "https://www.runzero.com/blog/fatfs-bugs/"
+        },
+        {
+          "url": "https://github.com/runZeroInc/vulns-2026-fatfs-chance"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:elm-chan:fatfs:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.920"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-6686#components/fatfs#cpe",
+      "id": "CVE-2026-6686",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-6686"
+      },
+      "affects": [
+        {
+          "ref": "components/fatfs#zephyrproject/zephyr/fatfs"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "FatFs R0.16 and earlier contains an uninitialized cluster exposure when f_lseek() extends files beyond EOF without zero-filling newly allocated clusters. This maps to CWE-908 (Use of Uninitialized Resource). Estimated CVSS v3.1 vector: CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N (4.6, Medium). The estimated CISA SSVC vectors are Exploitation: PoC, Technical Impact: Partial.",
+      "ratings": [
+        {
+          "score": 4.6,
+          "method": "CVSSv31",
+          "severity": "medium"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://elm-chan.org/fsw/ff/"
+        },
+        {
+          "url": "https://github.com/runZeroInc/vulns-2026-fatfs-chance"
+        },
+        {
+          "url": "https://www.runzero.com/advisories/fatfs-uninit-cluster-exposure-cve-2026-6686/"
+        },
+        {
+          "url": "https://www.runzero.com/blog/fatfs-bugs/"
+        },
+        {
+          "url": "https://github.com/runZeroInc/vulns-2026-fatfs-chance"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:elm-chan:fatfs:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.920"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-48965#components/mbedtls/mbedtls#cpe",
+      "id": "CVE-2025-48965",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-48965"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS before 3.6.4 has a NULL pointer dereference because mbedtls_asn1_store_named_data can trigger conflicting data with val.p of NULL but val.len greater than zero.",
+      "ratings": [
+        {
+          "score": 4.0,
+          "method": "CVSSv31",
+          "severity": "medium"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls-docs/blob/main/security-advisories/mbedtls-security-advisory-2025-06-6.md"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/tech-updates/security-advisories/"
+        },
+        {
+          "url": "https://lists.debian.org/debian-lts-announce/2025/08/msg00013.html"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2024-28836#components/mbedtls/mbedtls#purl",
+      "id": "CVE-2024-28836",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2024-28836"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "An issue was discovered in Mbed TLS 3.5.x before 3.6.0. When negotiating the TLS version on the server side, it can fall back to the TLS 1.2 implementation of the protocol if it is disabled. If the TLS 1.2 implementation was disabled at build time, a TLS 1.2 client could put a TLS 1.3-only server in",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls/releases/tag/v3.6.0"
+        },
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2024/28xxx/CVE-2024-28836.json"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/tech-updates/security-advisories/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-28836"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2024-45159#components/mbedtls/mbedtls#purl",
+      "id": "CVE-2024-45159",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2024-45159"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "An issue was discovered in Mbed TLS 3.x before 3.6.1. With TLS 1.3, when a server enables optional authentication of the client, if the client-provided certificate does not have appropriate values in if keyUsage or extKeyUsage extensions, then the return value of mbedtls_ssl_get_verify_result() woul",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls/releases/"
+        },
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2024/45xxx/CVE-2024-45159.json"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2024-08-3/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-45159"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-27809#components/mbedtls/mbedtls#purl",
+      "id": "CVE-2025-27809",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2025-27809"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS before 2.28.10 and 3.x before 3.6.3, on the client side, accepts servers that have trusted certificates for arbitrary hostnames unless the TLS client application calls mbedtls_ssl_set_hostname.",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:L/I:L/A:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://mastodon.social/@bagder/114219540623402700"
+        },
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2025/27xxx/CVE-2025-27809.json"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2025-03-1/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-27809"
+        },
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls/issues/466"
+        },
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls/releases"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-27810#components/mbedtls/mbedtls#purl",
+      "id": "CVE-2025-27810",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2025-27810"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS before 2.28.10 and 3.x before 3.6.3, in some cases of failed memory allocation or hardware errors, uses uninitialized stack memory to compose the TLS Finished message, potentially leading to authentication bypasses such as replays.",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:L/I:L/A:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2025/27xxx/CVE-2025-27810.json"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2025-03-2/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-27810"
+        },
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls/releases"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-49087#components/mbedtls/mbedtls#purl",
+      "id": "CVE-2025-49087",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2025-49087"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "In Mbed TLS 3.6.1 through 3.6.3 before 3.6.4, a timing discrepancy in block cipher padding removal allows an attacker to recover the plaintext when PKCS#7 padding mode is used.",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:L/I:N/A:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2025/49xxx/CVE-2025-49087.json"
+        },
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls-docs/blob/main/security-advisories/mbedtls-security-advisory-2025-06-5.md"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/tech-updates/security-advisories/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-49087"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-49600#components/mbedtls/mbedtls#purl",
+      "id": "CVE-2025-49600",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2025-49600"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "In MbedTLS 3.3.0 before 3.6.4, mbedtls_lms_verify may accept invalid signatures if hash computation fails and internal errors go unchecked, enabling LMS (Leighton-Micali Signature) forgery in a fault scenario. Specifically, unchecked return values in mbedtls_lms_verify allow an attacker (who can ind",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:P/AC:H/PR:N/UI:N/S:C/C:N/I:H/A:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2025/49xxx/CVE-2025-49600.json"
+        },
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls-docs/blob/main/security-advisories/mbedtls-security-advisory-2025-06-3.md"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-49600"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-49601#components/mbedtls/mbedtls#purl",
+      "id": "CVE-2025-49601",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2025-49601"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "In MbedTLS 3.3.0 before 3.6.4, mbedtls_lms_import_public_key does not check that the input buffer is at least 4 bytes before reading a 32-bit field, allowing a possible out-of-bounds read on truncated input. Specifically, an out-of-bounds read in mbedtls_lms_import_public_key allows context-dependen",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:L",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2025/49xxx/CVE-2025-49601.json"
+        },
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls-docs/blob/main/security-advisories/mbedtls-security-advisory-2025-06-4.md"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-49601"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-25835#components/mbedtls/mbedtls#purl",
+      "id": "CVE-2026-25835",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2026-25835"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS before 3.6.6 and TF-PSA-Crypto before 1.1.0 misuse seeds in a Pseudo-Random Number Generator (PRNG).",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:L/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/25xxx/CVE-2026-25835.json"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-rng-cloning/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-25835"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-34873#components/mbedtls/mbedtls#purl",
+      "id": "CVE-2026-34873",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2026-34873"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "An issue was discovered in Mbed TLS 3.5.0 through 4.0.0. Client impersonation can occur while resuming a TLS 1.3 session.",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/34xxx/CVE-2026-34873.json"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-client-impersonation-while-resuming-tls13-session/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-34873"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-34875#components/mbedtls/mbedtls#purl",
+      "id": "CVE-2026-34875",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2026-34875"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "An issue was discovered in Mbed TLS through 3.6.5 and TF-PSA-Crypto 1.0.0. A buffer overflow can occur in public key export for FFDH keys.",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/34xxx/CVE-2026-34875.json"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-ffdh-buffer-overflow/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-34875"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-34876#components/mbedtls/mbedtls#purl",
+      "id": "CVE-2026-34876",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2026-34876"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "An issue was discovered in Mbed TLS 3.x before 3.6.6. An out-of-bounds read vulnerability in mbedtls_ccm_finish() in library/ccm.c allows attackers to obtain adjacent CCM context data via invocation of the multipart CCM API with an oversized tag_len parameter. This is caused by missing validation of",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/34xxx/CVE-2026-34876.json"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-ccm-finish-boundary-check/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/tech-updates/security-advisories/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-34876"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-73064#components/mbedtls/mbedtls#purl",
+      "id": "CVE-2026-73064",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2026-73064"
+      },
+      "affects": [
+        {
+          "ref": "components/mbedtls/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "In Mbed TLS 3.2.0 though 3.6.6 and 4.0.0 through 4.1.0, an attacker who can cause an entropy source to fail can remove or inject bytes into the start of the TLS stream. This only affects TLS 1.3 servers.",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:L/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/73xxx/CVE-2026-73064.json"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-07-random-generator-fault-tls-integrity/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-73064"
+        },
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    }
+  ]
+}

@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional
 
 from .. import __version__
 from ..licenses import cyclonedx_licenses, differs, observed_ids
+from ..support import support_properties
 from ..model import Finding, ScanResult
 
 SPEC_VERSION = "1.6"
@@ -135,6 +136,7 @@ def _properties(finding: Finding) -> List[Dict[str, str]]:
         props.append({"name": "gangmu:alternative",
                       "value": f"{alt.upstream_name} ({alt.identity_confidence:.2f}, "
                                f"rule {alt.rule_id})"})
+    props.extend(support_properties(finding.support))
     return props
 
 

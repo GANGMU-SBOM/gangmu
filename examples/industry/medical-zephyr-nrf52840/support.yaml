@@ -1,0 +1,8 @@
+# Maintenance status the product team has checked. Only what a source backs is written;
+# components not listed (Zephyr 4.1.0, nrfx, picolibc) stay "unknown" in the SBOM.
+components:
+  - name: Mbed TLS
+    status: maintained            # the 3.6 LTS branch; 3.6.2 itself is behind the branch head
+    end_of_support: 2027-03-31    # "supported until March 2027" (end of month assumed)
+    source: https://github.com/Mbed-TLS/mbedtls/blob/development/BRANCHES.md
+    as_of: 2026-10-06

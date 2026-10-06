@@ -18,6 +18,7 @@ from pathlib import Path
 
 from ..fingerprint import ALGO, DEFAULT_K, DEFAULT_SKETCH, DEFAULT_WINDOW, Signature
 from ..fnsig import FunctionSignature
+from ..support import Support, SupportError, parse_support
 
 # Containment bands for function-level matching. A component's own functions
 # are either present in the tree or they are not, so the bands sit much higher
@@ -200,6 +201,10 @@ class Rule:
     supplier: Optional[str] = None
     """Who produces the upstream component. NTIA's first minimum element and
     CISA 2026's "Component Producer": without it a reader has nobody to ask."""
+    support: Optional[Support] = None
+    """Maintenance status and end-of-support date of the upstream project, with
+    where to check it. Optional: most rules say nothing, and the SBOM then says
+    ``unknown`` rather than guessing. Written under ``upstream.support``."""
     source: Optional[UpstreamSource] = None
     mirrors: Tuple[UpstreamSource, ...] = ()
     """Further repositories CI re-derives the same evidence from. For a rule
@@ -295,6 +300,15 @@ def _config_gates(value: Any, source_path: str) -> Tuple[ConfigGate, ...]:
                             f"'path' and 'symbols'")
         gates.append(ConfigGate(symbols, str(entry["path"])))
     return tuple(gates)
+
+
+def _parse_rule_support(raw: Any, source_path: Any) -> Optional[Support]:
+    if raw in (None, {}):
+        return None
+    try:
+        return parse_support(raw, f"{source_path}: upstream.support")
+    except SupportError as exc:
+        raise RuleError(str(exc)) from None
 
 
 def _tuple(value: Any) -> Tuple[str, ...]:
@@ -513,6 +527,7 @@ def rule_from_dict(data: Mapping[str, Any], source_path: str = "") -> Rule:
         homepage=(str(upstream["homepage"]) if upstream.get("homepage") else None),
         supplier=(str(upstream["supplier"]) if upstream.get("supplier") else None),
         license=(str(upstream["license"]) if upstream.get("license") else None),
+        support=_parse_rule_support(upstream.get("support"), source_path),
         source=source,
         mirrors=mirrors,
         patched=bool(fork.get("patched", False)),

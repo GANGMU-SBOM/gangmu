@@ -1,0 +1,439 @@
+{
+  "root": "esp-idf",
+  "rulesLoaded": 67,
+  "buildFactsUsed": true,
+  "findings": [
+    {
+      "directory": "components/mbedtls/mbedtls",
+      "rule_id": "generic/mbedtls",
+      "upstream_name": "Mbed TLS",
+      "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+      "cpe": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*",
+      "homepage": "https://github.com/Mbed-TLS/mbedtls",
+      "declared_license": "Apache-2.0",
+      "version": "3.6.2",
+      "version_source": "anchor",
+      "identity_confidence": 0.95,
+      "version_confidence": 0.95,
+      "vendor_patched": true,
+      "vendor_name": null,
+      "supplier": "Trusted Firmware (Mbed TLS project)",
+      "renamed_from": "mbedtls",
+      "patch_hint": null,
+      "fork_url": null,
+      "evidence": [
+        {
+          "technique": "hash-comparison",
+          "confidence": 0.98,
+          "summary": "include/mbedtls/build_info.h matches, byte for byte, the hash rule generic/mbedtls records for Mbed TLS 3.6.2",
+          "locator": "mbedtls/include/mbedtls/build_info.h"
+        },
+        {
+          "technique": "ast-fingerprint",
+          "confidence": 0.95,
+          "summary": "2766 of 2770 functions of Mbed TLS 3.6.2 are present (0.999 containment, strong); 2908 functions in this directory",
+          "locator": "components/mbedtls/mbedtls"
+        },
+        {
+          "technique": "source-code-analysis",
+          "confidence": 0.88,
+          "summary": "2722 version-discriminating function(s) matched; 2721 are in 3.6.2 (agreement 1.00), and 1 belong to other recorded versions -- this tree mixes releases, which is what a vendor fork looks like (4 recorded function(s) of 3.6.2 are missing or altered); 141 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)",
+          "locator": "components/mbedtls/mbedtls"
+        },
+        {
+          "technique": "source-code-analysis",
+          "confidence": 0.85,
+          "summary": "version 3.6.2 read from include/mbedtls/build_info.h",
+          "locator": "components/mbedtls/mbedtls/include/mbedtls/build_info.h"
+        },
+        {
+          "technique": "manifest-analysis",
+          "confidence": 0.9,
+          "summary": "vendor manifest declares Mbed TLS 3.6.2",
+          "locator": "components/mbedtls/mbedtls/sbom.yml"
+        },
+        {
+          "technique": "filename",
+          "confidence": 0.3,
+          "summary": "directory is named as rule generic/mbedtls expects, but is not where that rule says the component lives",
+          "locator": "components/mbedtls/mbedtls"
+        }
+      ],
+      "alternatives": [],
+      "rule_pack": "community",
+      "rule_pack_version": "2026.10.6",
+      "compiled_files": 112,
+      "linked": true,
+      "config_off": [],
+      "observed_licenses": [
+        "Apache-2.0 OR GPL-2.0-or-later",
+        "Apache-2.0",
+        "BSD-3-Clause",
+        "Apache-2.0 OR GP"
+      ],
+      "license_files": {
+        "LICENSE": "Apache-2.0"
+      },
+      "content_hash": "82e83d6b2a7e7cf4b4cef8f79b00fa4274436f47341162c9dbc0aa10aabba305",
+      "component_name": null,
+      "depends_on": [],
+      "support": {
+        "status": "maintained",
+        "end_of_support": "2027-03-31",
+        "source": "https://github.com/Mbed-TLS/mbedtls/blob/development/BRANCHES.md",
+        "as_of": "2026-10-06"
+      },
+      "path_match": 1,
+      "confidence": 0.95
+    },
+    {
+      "directory": "components/fatfs",
+      "rule_id": "zephyrproject/zephyr/fatfs",
+      "upstream_name": "FatFs",
+      "purl": "pkg:generic/fatfs@R0.15",
+      "cpe": "cpe:2.3:a:elm-chan:fatfs:R0.15:*:*:*:*:*:*:*",
+      "homepage": "http://elm-chan.org/fsw/ff/",
+      "declared_license": "BSD-1-Clause",
+      "version": "R0.15",
+      "version_source": "manifest",
+      "identity_confidence": 0.92,
+      "version_confidence": 0.9,
+      "vendor_patched": true,
+      "vendor_name": "zephyrproject",
+      "supplier": "Zephyr Project (fork of ChaN FatFs)",
+      "renamed_from": null,
+      "patch_hint": "Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/.",
+      "fork_url": "http://elm-chan.org/fsw/ff/",
+      "evidence": [
+        {
+          "technique": "ast-fingerprint",
+          "confidence": 0.9,
+          "summary": "winnowed MinHash similarity 0.926 to FatFs git-4f60a12c58c3 (strong)",
+          "locator": "components/fatfs"
+        },
+        {
+          "technique": "manifest-analysis",
+          "confidence": 0.9,
+          "summary": "vendor manifest declares FatFs R0.15",
+          "locator": "components/fatfs/sbom.yml"
+        },
+        {
+          "technique": "filename",
+          "confidence": 0.3,
+          "summary": "directory is named as rule zephyrproject/zephyr/fatfs expects, but is not where that rule says the component lives",
+          "locator": "components/fatfs"
+        }
+      ],
+      "alternatives": [],
+      "rule_pack": "community",
+      "rule_pack_version": "2026.10.6",
+      "compiled_files": 10,
+      "linked": false,
+      "config_off": [],
+      "observed_licenses": [
+        "Apache-2.0",
+        "CC0-1.0",
+        "Unlicense OR CC0-1.0"
+      ],
+      "license_files": {},
+      "content_hash": "17d6fd16d779c2feacda2fd96fc62fb5b6310cf6b04ba1b1b2423b4864037d8b",
+      "component_name": null,
+      "depends_on": [],
+      "support": {
+        "status": "unknown",
+        "end_of_support": null,
+        "source": null,
+        "as_of": null
+      },
+      "path_match": 1,
+      "confidence": 0.9
+    },
+    {
+      "directory": "components/json/cJSON",
+      "rule_id": "generic/cjson",
+      "upstream_name": "cJSON",
+      "purl": "pkg:github/DaveGamble/cJSON@1.7.18",
+      "cpe": "cpe:2.3:a:cjson_project:cjson:1.7.18:*:*:*:*:*:*:*",
+      "homepage": "https://github.com/DaveGamble/cJSON",
+      "declared_license": "MIT",
+      "version": "1.7.18",
+      "version_source": "probe",
+      "identity_confidence": 0.92,
+      "version_confidence": 0.85,
+      "vendor_patched": false,
+      "vendor_name": null,
+      "supplier": "Dave Gamble and cJSON contributors",
+      "renamed_from": null,
+      "patch_hint": null,
+      "fork_url": null,
+      "evidence": [
+        {
+          "technique": "ast-fingerprint",
+          "confidence": 0.9,
+          "summary": "winnowed MinHash similarity 0.945 to cJSON 1.7.19 (strong)",
+          "locator": "components/json/cJSON"
+        },
+        {
+          "technique": "source-code-analysis",
+          "confidence": 0.85,
+          "summary": "version 1.7.18 read from cJSON.h",
+          "locator": "components/json/cJSON/cJSON.h"
+        },
+        {
+          "technique": "filename",
+          "confidence": 0.3,
+          "summary": "directory sits where rule generic/cjson expects it",
+          "locator": "components/json/cJSON"
+        }
+      ],
+      "alternatives": [],
+      "rule_pack": "community",
+      "rule_pack_version": "2026.10.6",
+      "compiled_files": 2,
+      "linked": false,
+      "config_off": [],
+      "observed_licenses": [],
+      "license_files": {
+        "LICENSE": "MIT"
+      },
+      "content_hash": "3359b23c276d774225be86d401a474d36881bbb0946101317eb1cdba60f3285a",
+      "component_name": null,
+      "depends_on": [],
+      "support": {
+        "status": "unknown",
+        "end_of_support": null,
+        "source": null,
+        "as_of": null
+      },
+      "path_match": 2,
+      "confidence": 0.85
+    },
+    {
+      "directory": "components/lwip/lwip",
+      "rule_id": "generic/lwip",
+      "upstream_name": "lwIP",
+      "purl": "pkg:generic/lwip@2.2.0",
+      "cpe": "cpe:2.3:a:lwip_project:lwip:2.2.0:*:*:*:*:*:*:*",
+      "homepage": "https://savannah.nongnu.org/projects/lwip/",
+      "declared_license": "BSD-3-Clause",
+      "version": "2.2.0",
+      "version_source": "probe",
+      "identity_confidence": 0.95,
+      "version_confidence": 0.85,
+      "vendor_patched": true,
+      "vendor_name": null,
+      "supplier": "lwIP Project (non-GNU)",
+      "renamed_from": null,
+      "patch_hint": null,
+      "fork_url": null,
+      "evidence": [
+        {
+          "technique": "ast-fingerprint",
+          "confidence": 0.95,
+          "summary": "1828 of 1934 functions of lwIP 2.2.0 are present (0.945 containment, strong); 2063 functions in this directory",
+          "locator": "components/lwip/lwip"
+        },
+        {
+          "technique": "source-code-analysis",
+          "confidence": 0.88,
+          "summary": "1185 version-discriminating function(s) matched; 1166 are in 2.2.0 (agreement 0.92), and 19 belong to other recorded versions -- this tree mixes releases, which is what a vendor fork looks like (106 recorded function(s) of 2.2.0 are missing or altered); 213 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)",
+          "locator": "components/lwip/lwip"
+        },
+        {
+          "technique": "source-code-analysis",
+          "confidence": 0.85,
+          "summary": "version 2.2.0 read from src/include/lwip/init.h",
+          "locator": "components/lwip/lwip/src/include/lwip/init.h"
+        },
+        {
+          "technique": "manifest-analysis",
+          "confidence": 0.9,
+          "summary": "vendor manifest declares lwip 2.2.0",
+          "locator": "components/lwip/lwip/sbom.yml"
+        },
+        {
+          "technique": "filename",
+          "confidence": 0.3,
+          "summary": "directory sits where rule generic/lwip expects it",
+          "locator": "components/lwip/lwip"
+        }
+      ],
+      "alternatives": [],
+      "rule_pack": "community",
+      "rule_pack_version": "2026.10.6",
+      "compiled_files": 80,
+      "linked": true,
+      "config_off": [],
+      "observed_licenses": [],
+      "license_files": {
+        "COPYING": "BSD-2-Clause"
+      },
+      "content_hash": "52f02a5956040e045cd6888f79ad11914cae106d8b5686580b3fe80fe89ebf93",
+      "component_name": null,
+      "depends_on": [],
+      "support": {
+        "status": "unknown",
+        "end_of_support": null,
+        "source": null,
+        "as_of": null
+      },
+      "path_match": 2,
+      "confidence": 0.85
+    }
+  ],
+  "possible": [
+    {
+      "directory": "components/freertos/FreeRTOS-Kernel",
+      "rule_id": "generic/freertos-kernel",
+      "upstream_name": "FreeRTOS-Kernel",
+      "purl": "pkg:github/freertos/freertos-kernel",
+      "cpe": "cpe:2.3:o:amazon:freertos:*:*:*:*:*:*:*:*",
+      "homepage": "https://www.freertos.org",
+      "declared_license": "MIT",
+      "version": "10.5.0~10.5.1",
+      "version_source": "functions",
+      "identity_confidence": 0.52,
+      "version_confidence": 0.52,
+      "vendor_patched": true,
+      "vendor_name": null,
+      "supplier": "Amazon Web Services (FreeRTOS project)",
+      "renamed_from": null,
+      "patch_hint": null,
+      "fork_url": null,
+      "evidence": [
+        {
+          "technique": "ast-fingerprint",
+          "confidence": 0.5,
+          "summary": "112 of 261 functions of FreeRTOS-Kernel 10.5.1 are present (0.429 containment, weak -- needs review); 375 functions in this directory",
+          "locator": "components/freertos/FreeRTOS-Kernel"
+        },
+        {
+          "technique": "source-code-analysis",
+          "confidence": 0.88,
+          "summary": "113 version-discriminating function(s) matched; 109 are in 10.5.1 (agreement 0.43), and 4 belong to other recorded versions -- this tree mixes releases, which is what a vendor fork looks like (149 recorded function(s) of 10.5.1 are missing or altered); 259 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)",
+          "locator": "components/freertos/FreeRTOS-Kernel"
+        },
+        {
+          "technique": "manifest-analysis",
+          "confidence": 0.9,
+          "summary": "vendor manifest declares freertos 10.5.1",
+          "locator": "components/freertos/FreeRTOS-Kernel/sbom.yml"
+        },
+        {
+          "technique": "filename",
+          "confidence": 0.3,
+          "summary": "directory sits where rule generic/freertos-kernel expects it",
+          "locator": "components/freertos/FreeRTOS-Kernel"
+        }
+      ],
+      "alternatives": [],
+      "rule_pack": "community",
+      "rule_pack_version": "2026.10.6",
+      "compiled_files": 8,
+      "linked": true,
+      "config_off": [],
+      "observed_licenses": [
+        "MIT",
+        "Apache-2.0"
+      ],
+      "license_files": {
+        "LICENSE.md": "MIT"
+      },
+      "content_hash": "2e51efac0a22a944d24ce100d6238e22b2b2e504938ab24820694733b2e1fe47",
+      "component_name": null,
+      "depends_on": [],
+      "support": {
+        "status": "unknown",
+        "end_of_support": null,
+        "source": null,
+        "as_of": null
+      },
+      "path_match": 2,
+      "confidence": 0.52
+    },
+    {
+      "directory": "components/wpa_supplicant",
+      "rule_id": "generic/hostap",
+      "upstream_name": "hostap (wpa_supplicant / hostapd)",
+      "purl": "pkg:generic/hostap@2.10",
+      "cpe": "cpe:2.3:a:w1.fi:hostapd:2.10:*:*:*:*:*:*:*",
+      "homepage": "https://w1.fi/",
+      "declared_license": "BSD-3-Clause",
+      "version": "2.10",
+      "version_source": "manifest",
+      "identity_confidence": 0.52,
+      "version_confidence": 0.52,
+      "vendor_patched": true,
+      "vendor_name": null,
+      "supplier": "Jouni Malinen and hostap contributors",
+      "renamed_from": "hostap",
+      "patch_hint": null,
+      "fork_url": null,
+      "evidence": [
+        {
+          "technique": "ast-fingerprint",
+          "confidence": 0.5,
+          "summary": "modified derivative of hostap (wpa_supplicant / hostapd): 1533 of this directory's 2218 functions (69%) are identical to recorded releases and the rest are not; the version is not asserted (identical functions span 2.10 to 2.10)",
+          "locator": "components/wpa_supplicant"
+        },
+        {
+          "technique": "manifest-analysis",
+          "confidence": 0.9,
+          "summary": "vendor manifest declares wpa_supplicant 2.10",
+          "locator": "components/wpa_supplicant/sbom.yml"
+        },
+        {
+          "technique": "filename",
+          "confidence": 0.3,
+          "summary": "directory sits where rule generic/hostap expects it",
+          "locator": "components/wpa_supplicant"
+        }
+      ],
+      "alternatives": [],
+      "rule_pack": "community",
+      "rule_pack_version": "2026.10.6",
+      "compiled_files": 82,
+      "linked": true,
+      "config_off": [],
+      "observed_licenses": [
+        "Apache-2.0",
+        "CC0-1.0"
+      ],
+      "license_files": {
+        "COPYING": ""
+      },
+      "content_hash": "617a1a243080cdf7a0cd044472285bf6bdfcc8b760f851519516eb1f59d277e9",
+      "component_name": null,
+      "depends_on": [],
+      "support": {
+        "status": "unknown",
+        "end_of_support": null,
+        "source": null,
+        "as_of": null
+      },
+      "path_match": 2,
+      "confidence": 0.52
+    }
+  ],
+  "notBuilt": [],
+  "binaries": [],
+  "unidentified": [
+    "components/cmock/CMock",
+    "components/console/argtable3",
+    "components/console/linenoise",
+    "components/esp_netif/lwip",
+    "components/heap/tlsf",
+    "components/http_parser",
+    "components/lwip",
+    "components/mbedtls",
+    "components/mqtt/esp-mqtt",
+    "components/newlib",
+    "components/protobuf-c/protobuf-c",
+    "components/rt",
+    "components/spiffs/spiffs",
+    "components/unity/unity"
+  ],
+  "notes": [
+    "3 of 4 component(s) have no support status in the rules or the --support file; the SBOM says 'unknown' for them. FDA asks for the level of support and the end-of-support date of every component"
+  ]
+}

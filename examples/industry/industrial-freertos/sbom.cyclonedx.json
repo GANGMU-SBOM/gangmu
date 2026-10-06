@@ -1,0 +1,195 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:12513c95-5fd1-4436-8c83-7be47abd4c2b",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-06T13:13:34Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "gangmu-sbom",
+          "version": "0.6.2"
+        }
+      ]
+    },
+    "component": {
+      "bom-ref": "root-application",
+      "type": "application",
+      "name": "freertos-mps2-demo",
+      "version": "202411.00"
+    },
+    "properties": [
+      {
+        "name": "gangmu:generationContext",
+        "value": "build"
+      },
+      {
+        "name": "gangmu:generationContextNote",
+        "value": "Derived from the build's own compile database"
+      },
+      {
+        "name": "gangmu:rulesLoaded",
+        "value": "67"
+      },
+      {
+        "name": "gangmu:buildFactsUsed",
+        "value": "true"
+      },
+      {
+        "name": "gangmu:unidentifiedDirectories",
+        "value": "1"
+      }
+    ]
+  },
+  "components": [
+    {
+      "bom-ref": "FreeRTOS/Source#generic/freertos-kernel",
+      "type": "library",
+      "name": "FreeRTOS-Kernel",
+      "scope": "required",
+      "version": "11.3.1",
+      "purl": "pkg:github/freertos/freertos-kernel@11.3.1",
+      "cpe": "cpe:2.3:o:amazon:freertos:11.3.1:*:*:*:*:*:*:*",
+      "supplier": {
+        "name": "Amazon Web Services (FreeRTOS project)"
+      },
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "51ffdd6bb0303dcce72eab290b996d0de31aca70e468c65a93ea950b61d02bed"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://www.freertos.org"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 0.85,
+            "concludedValue": "pkg:github/freertos/freertos-kernel@11.3.1",
+            "methods": [
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "331 of 331 functions of FreeRTOS-Kernel 11.3.1 are present (1.000 containment, strong); 2634 functions in this directory"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.88,
+                "value": "318 version-discriminating function(s) matched; 317 are in 11.3.1 (agreement 1.00), and 1 also belong to other recorded versions (this tree mixes releases), but every recorded function of 11.3.1 is present, so this is not by itself evidence of modification; 2302 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 11.3.1 read from include/task.h"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory sits where rule generic/freertos-kernel expects it"
+              }
+            ]
+          },
+          {
+            "field": "cpe",
+            "confidence": 0.85,
+            "concludedValue": "cpe:2.3:o:amazon:freertos:11.3.1:*:*:*:*:*:*:*",
+            "methods": [
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "331 of 331 functions of FreeRTOS-Kernel 11.3.1 are present (1.000 containment, strong); 2634 functions in this directory"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.88,
+                "value": "318 version-discriminating function(s) matched; 317 are in 11.3.1 (agreement 1.00), and 1 also belong to other recorded versions (this tree mixes releases), but every recorded function of 11.3.1 is present, so this is not by itself evidence of modification; 2302 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 11.3.1 read from include/task.h"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory sits where rule generic/freertos-kernel expects it"
+              }
+            ]
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "gangmu:rule",
+          "value": "generic/freertos-kernel"
+        },
+        {
+          "name": "gangmu:directory",
+          "value": "FreeRTOS/Source"
+        },
+        {
+          "name": "gangmu:identityConfidence",
+          "value": "0.950"
+        },
+        {
+          "name": "gangmu:versionConfidence",
+          "value": "0.850"
+        },
+        {
+          "name": "gangmu:rulePack",
+          "value": "community"
+        },
+        {
+          "name": "gangmu:rulePackVersion",
+          "value": "2026.10.6"
+        },
+        {
+          "name": "gangmu:versionSource",
+          "value": "probe"
+        },
+        {
+          "name": "gangmu:observedLicenses",
+          "value": "MIT"
+        },
+        {
+          "name": "gangmu:compiledFiles",
+          "value": "8"
+        },
+        {
+          "name": "gangmu:linkedIntoImage",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:supportStatus",
+          "value": "unknown"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-application",
+      "dependsOn": [
+        "FreeRTOS/Source#generic/freertos-kernel"
+      ]
+    },
+    {
+      "ref": "FreeRTOS/Source#generic/freertos-kernel",
+      "dependsOn": []
+    }
+  ]
+}

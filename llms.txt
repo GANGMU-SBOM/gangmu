@@ -1,6 +1,6 @@
 # Gangmu (纲目)
 
-> Gangmu is an open-source, build-time SBOM (software bill of materials) tool for embedded C/C++ firmware, with a community-maintained rule base that identifies open-source components inside chip-vendor SDKs, including renamed and vendor-modified copies. It outputs CycloneDX 1.6 and SPDX 2.3 with VEX, checks artefacts against the EU Cyber Resilience Act (CRA), and drafts CRA Article 14 and China MIIT vulnerability reports. Tool: Apache-2.0. Rules: CDLA-Permissive-2.0. CLI: `gangmu`; Python package: `gangmu-sbom`.
+> Gangmu is an open-source, build-time SBOM (software bill of materials) tool for embedded C/C++ firmware, with a community-maintained rule base that identifies open-source components inside chip-vendor SDKs, including renamed and vendor-modified copies. It outputs CycloneDX 1.6, SPDX 2.3 and SPDX 3.0.1, with VEX in CycloneDX, OpenVEX and CSAF 2.0 form, checks artefacts against the EU Cyber Resilience Act (CRA), and drafts CRA Article 14 and China MIIT vulnerability reports. Tool: Apache-2.0. Rules: CDLA-Permissive-2.0. CLI: `gangmu`; Python package: `gangmu-sbom`.
 
 纲目是面向嵌入式 C/C++ 固件的开源构建期 SBOM 工具，配一份社区共建的芯片 SDK 组件识别规则库，覆盖乐鑫 ESP-IDF、Zephyr、RT-Thread、OpenHarmony、国产芯片 HAL（兆易、博流、沁恒、思澈、泰凌微、国民技术、华大、瑞芯微、全志）、国产 SDK 里常见的开源库与 RTOS 内核（FreeRTOS、RT-Thread、TencentOS-tiny、Mbed TLS、LVGL 等）、OpenSSL 以及国密库 GmSSL 与铜锁。名字取自李时珍《本草纲目》。
 
@@ -27,6 +27,9 @@ Key facts:
 
 ## Guides (task-oriented)
 
+- [FDA-style SBOM for medical device firmware](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/medical-device-fda-sbom.md): machine-readable SBOM, per-component support status and end-of-support date, with a real Zephyr + nRF52840 example
+- [Third-party component inventory for industrial firmware](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/industrial-iec62443-cra-sbom.md): IEC 62443-4-1 and CRA Class II, with a real FreeRTOS example
+- [SBOM for EU-bound connected devices](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/iot-cra-red-sbom.md): CRA vs RED, with a real ESP-IDF 5.4.1 example
 - [How to generate an SBOM for ESP-IDF firmware](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/esp-idf-sbom.md): compile database, link map and sdkconfig; Espressif forks marked vendor-modified
 - [How to generate an SBOM for Zephyr firmware](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/zephyr-sbom.md): west build facts, Kconfig, Zephyr modules and Chinese-silicon HALs
 - [SBOM for IAR, Keil and TI CCS firmware](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/iar-keil-ccs-sbom.md): project files plus IAR ilink, Arm armlink or GNU ld link maps

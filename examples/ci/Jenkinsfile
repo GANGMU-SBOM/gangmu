@@ -1,0 +1,48 @@
+// gangmu SBOM in Jenkins (declarative pipeline).
+//
+// Needs a Jenkins agent with Docker, or replace the agent block with a node that
+// already has Python 3.9+. Builds the SBOM, archives it, and optionally matches it
+// against an advisory database mirrored inside your network (`gangmu vuln` never
+// goes online by itself).
+//
+// Not run against a live Jenkins by the gangmu project: check the first build.
+
+pipeline {
+  agent { docker { image 'python:3.12-slim'; args '-u root' } }
+  parameters {
+    string(name: 'PRODUCT_NAME', defaultValue: 'firmware', description: 'product name written to the SBOM')
+    string(name: 'PRODUCT_VERSION', defaultValue: '', description: 'product version (optional)')
+    string(name: 'COMPILE_DB', defaultValue: '', description: 'compile_commands.json from the real build (optional)')
+    string(name: 'LINK_MAP', defaultValue: '', description: 'linker map from the real build (optional)')
+    string(name: 'SUPPORT_FILE', defaultValue: '', description: 'component support status / end-of-support file (optional)')
+    string(name: 'ADVISORY_DB', defaultValue: '', description: 'directory of NVD / OSV JSON for gangmu vuln (optional)')
+    string(name: 'GANGMU_VERSION', defaultValue: '', description: 'gangmu-sbom version, empty = latest')
+  }
+  stages {
+    stage('SBOM') {
+      steps {
+        withEnv(["GANGMU_PIN=${params.GANGMU_VERSION ? '==' + params.GANGMU_VERSION : ''}"]) {
+          sh '''
+            python -m pip install --quiet "gangmu-sbom${GANGMU_PIN}"
+            mkdir -p sbom
+            set --  --app-name "$PRODUCT_NAME"
+            [ -n "$PRODUCT_VERSION" ] && set -- "$@" --app-version "$PRODUCT_VERSION"
+            [ -n "$COMPILE_DB" ]      && set -- "$@" --compile-db "$COMPILE_DB"
+            [ -n "$LINK_MAP" ]        && set -- "$@" --link-map "$LINK_MAP"
+            [ -n "$SUPPORT_FILE" ]    && set -- "$@" --support "$SUPPORT_FILE"
+            gangmu scan . --format cyclonedx "$@" -o sbom/sbom.cdx.json
+            gangmu scan . --format spdx3     "$@" -o sbom/sbom.spdx3.json
+            if [ -n "$ADVISORY_DB" ]; then
+              gangmu vuln sbom/sbom.cdx.json --db "$ADVISORY_DB" --format cyclonedx -o sbom/vex.cdx.json
+            fi
+          '''
+        }
+      }
+    }
+  }
+  post {
+    always {
+      archiveArtifacts artifacts: 'sbom/**', allowEmptyArchive: true, fingerprint: true
+    }
+  }
+}

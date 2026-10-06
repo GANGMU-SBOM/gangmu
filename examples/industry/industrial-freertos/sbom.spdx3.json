@@ -1,0 +1,151 @@
+{
+  "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+  "@graph": [
+    {
+      "type": "CreationInfo",
+      "@id": "_:creationinfo",
+      "specVersion": "3.0.1",
+      "created": "2026-10-06T13:13:37Z",
+      "createdBy": [
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/agent/gangmu-sbom"
+      ],
+      "createdUsing": [
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/tool/gangmu-sbom"
+      ]
+    },
+    {
+      "type": "Tool",
+      "spdxId": "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/tool/gangmu-sbom",
+      "name": "gangmu-sbom-0.6.2",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "SoftwareAgent",
+      "spdxId": "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/agent/gangmu-sbom",
+      "name": "gangmu-sbom",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/package/freertos-mps2-demo",
+      "name": "freertos-mps2-demo",
+      "software_packageVersion": "202411.00",
+      "software_primaryPurpose": "firmware",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "Organization",
+      "spdxId": "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/agent/Amazon-Web-Services-FreeRTOS-project",
+      "name": "Amazon Web Services (FreeRTOS project)",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/package/FreeRTOS-Kernel-FreeRTOS-Source",
+      "name": "FreeRTOS-Kernel",
+      "software_packageVersion": "11.3.1",
+      "software_primaryPurpose": "library",
+      "comment": "identified by gangmu rule generic/freertos-kernel\ndirectory: FreeRTOS/Source\nidentity confidence: 0.950\nversion confidence: 0.850 (source: probe)\nlicences seen in the files: MIT\nsupport status: unknown\nevidence[ast-fingerprint]: 331 of 331 functions of FreeRTOS-Kernel 11.3.1 are present (1.000 containment, strong); 2634 functions in this directory\nevidence[source-code-analysis]: 318 version-discriminating function(s) matched; 317 are in 11.3.1 (agreement 1.00), and 1 also belong to other recorded versions (this tree mixes releases), but every recorded function of 11.3.1 is present, so this is not by itself evidence of modification; 2302 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)\nevidence[source-code-analysis]: version 11.3.1 read from include/task.h\nevidence[filename]: directory sits where rule generic/freertos-kernel expects it",
+      "software_packageUrl": "pkg:github/freertos/freertos-kernel@11.3.1",
+      "software_homePage": "https://www.freertos.org",
+      "externalIdentifier": [
+        {
+          "type": "ExternalIdentifier",
+          "externalIdentifierType": "cpe23",
+          "identifier": "cpe:2.3:o:amazon:freertos:11.3.1:*:*:*:*:*:*:*"
+        }
+      ],
+      "verifiedUsing": [
+        {
+          "type": "Hash",
+          "algorithm": "sha256",
+          "hashValue": "51ffdd6bb0303dcce72eab290b996d0de31aca70e468c65a93ea950b61d02bed"
+        }
+      ],
+      "suppliedBy": "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/agent/Amazon-Web-Services-FreeRTOS-project",
+      "supportLevel": [
+        "noAssertion"
+      ],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "simplelicensing_LicenseExpression",
+      "spdxId": "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/license/MIT",
+      "simplelicensing_licenseExpression": "MIT",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/rel/hasDeclaredLicense-6",
+      "from": "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/package/FreeRTOS-Kernel-FreeRTOS-Source",
+      "relationshipType": "hasDeclaredLicense",
+      "to": [
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/license/MIT"
+      ],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/rel/contains-7",
+      "from": "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/package/freertos-mps2-demo",
+      "relationshipType": "contains",
+      "to": [
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/package/FreeRTOS-Kernel-FreeRTOS-Source"
+      ],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "software_Sbom",
+      "spdxId": "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/sbom/freertos-mps2-demo",
+      "name": "freertos-mps2-demo-sbom",
+      "software_sbomType": [
+        "build"
+      ],
+      "rootElement": [
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/package/freertos-mps2-demo"
+      ],
+      "element": [
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/tool/gangmu-sbom",
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/agent/gangmu-sbom",
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/agent/Amazon-Web-Services-FreeRTOS-project",
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/package/FreeRTOS-Kernel-FreeRTOS-Source",
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/license/MIT",
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/rel/hasDeclaredLicense-6",
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/rel/contains-7"
+      ],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "simplelicensing_LicenseExpression",
+      "spdxId": "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/license/CC0-1.0",
+      "simplelicensing_licenseExpression": "CC0-1.0",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "SpdxDocument",
+      "spdxId": "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/document/freertos-mps2-demo",
+      "name": "freertos-mps2-demo-sbom",
+      "dataLicense": "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/license/CC0-1.0",
+      "profileConformance": [
+        "core",
+        "software"
+      ],
+      "rootElement": [
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/sbom/freertos-mps2-demo"
+      ],
+      "creationInfo": "_:creationinfo",
+      "element": [
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/tool/gangmu-sbom",
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/agent/gangmu-sbom",
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/package/freertos-mps2-demo",
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/agent/Amazon-Web-Services-FreeRTOS-project",
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/package/FreeRTOS-Kernel-FreeRTOS-Source",
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/license/MIT",
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/rel/hasDeclaredLicense-6",
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/rel/contains-7",
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/sbom/freertos-mps2-demo",
+        "https://gangmu.dev/spdx/ca22ec58-ebca-4cf9-9ecd-9597718921d2/license/CC0-1.0"
+      ]
+    }
+  ]
+}

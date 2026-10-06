@@ -1,0 +1,48 @@
+# gangmu SBOM in GitLab CI.
+#
+# Copy into .gitlab-ci.yml (or `include:` it). Builds an SBOM for every pipeline,
+# keeps it as an artifact, and optionally matches it against an advisory database
+# you mirror inside your own network (`gangmu vuln` itself never goes online).
+#
+# Not run against a live GitLab by the gangmu project: check the first pipeline.
+
+variables:
+  GANGMU_VERSION: ""            # e.g. "0.6.1"; empty installs the latest
+  PRODUCT_NAME: "firmware"
+  PRODUCT_VERSION: "$CI_COMMIT_TAG"
+  COMPILE_DB: ""                # path to compile_commands.json from your real build
+  LINK_MAP: ""                  # path to the linker map (GNU ld, lld, IAR, armlink)
+  SUPPORT_FILE: ""              # optional: component support status / end-of-support
+  ADVISORY_DB: ""               # optional: directory of NVD / OSV JSON for `gangmu vuln`
+  PUBLISHER: ""                 # optional: who signs the VEX (needed for openvex / csaf)
+  PUBLISHER_URL: ""
+
+sbom:
+  image: python:3.12-slim
+  stage: test
+  script:
+    - python -m pip install --quiet "gangmu-sbom${GANGMU_VERSION:+==$GANGMU_VERSION}"
+    - |
+      set -- --app-name "$PRODUCT_NAME"
+      [ -n "$PRODUCT_VERSION" ] && set -- "$@" --app-version "$PRODUCT_VERSION"
+      [ -n "$COMPILE_DB" ]      && set -- "$@" --compile-db "$COMPILE_DB"
+      [ -n "$LINK_MAP" ]        && set -- "$@" --link-map "$LINK_MAP"
+      [ -n "$SUPPORT_FILE" ]    && set -- "$@" --support "$SUPPORT_FILE"
+      mkdir -p sbom
+      gangmu scan . --format cyclonedx "$@" -o sbom/sbom.cdx.json
+      gangmu scan . --format spdx3     "$@" -o sbom/sbom.spdx3.json
+    - |
+      if [ -n "$ADVISORY_DB" ]; then
+        gangmu vuln sbom/sbom.cdx.json --db "$ADVISORY_DB" --format cyclonedx -o sbom/vex.cdx.json
+        if [ -n "$PUBLISHER" ]; then
+          gangmu vuln sbom/sbom.cdx.json --db "$ADVISORY_DB" --format openvex \
+            --publisher "$PUBLISHER" -o sbom/vex.openvex.json || true
+          gangmu vuln sbom/sbom.cdx.json --db "$ADVISORY_DB" --format csaf \
+            --publisher "$PUBLISHER" --publisher-url "$PUBLISHER_URL" -o sbom/vex.csaf.json || true
+        fi
+      fi
+  artifacts:
+    when: always
+    expire_in: never          # CRA asks for ten years of technical documentation
+    paths:
+      - sbom/

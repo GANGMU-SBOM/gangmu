@@ -1,0 +1,1553 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:1103b067-b78b-4799-b5a4-727dfc3c4294",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-06T13:13:49Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "gangmu-sbom",
+          "version": "0.6.2"
+        }
+      ]
+    },
+    "component": {
+      "bom-ref": "root-application",
+      "type": "application",
+      "name": "peripheral-hr",
+      "version": "4.1.0"
+    },
+    "properties": [
+      {
+        "name": "gangmu:generationContext",
+        "value": "build"
+      },
+      {
+        "name": "gangmu:generationContextNote",
+        "value": "Derived from the build's own compile database"
+      },
+      {
+        "name": "gangmu:rulesLoaded",
+        "value": "67"
+      },
+      {
+        "name": "gangmu:buildFactsUsed",
+        "value": "true"
+      },
+      {
+        "name": "gangmu:unidentifiedDirectories",
+        "value": "5"
+      }
+    ]
+  },
+  "components": [
+    {
+      "bom-ref": "modules/crypto/mbedtls#generic/mbedtls",
+      "type": "library",
+      "name": "Mbed TLS",
+      "scope": "required",
+      "version": "3.6.2",
+      "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+      "cpe": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*",
+      "supplier": {
+        "name": "Trusted Firmware (Mbed TLS project)"
+      },
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "fce40f395edccb8dee8cb3bbfa2a40ba104f7a09d164ed5d7679a253f5bd5b8c"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/Mbed-TLS/mbedtls"
+        }
+      ],
+      "pedigree": {
+        "ancestors": [
+          {
+            "type": "library",
+            "name": "Mbed TLS",
+            "bom-ref": "upstream/Mbed TLS",
+            "version": "3.6.2",
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "externalReferences": [
+              {
+                "type": "website",
+                "url": "https://github.com/Mbed-TLS/mbedtls"
+              }
+            ]
+          }
+        ],
+        "patches": [
+          {
+            "type": "unofficial"
+          }
+        ],
+        "notes": "This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD."
+      },
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 0.95,
+            "concludedValue": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "methods": [
+              {
+                "technique": "hash-comparison",
+                "confidence": 0.98,
+                "value": "include/mbedtls/build_info.h matches, byte for byte, the hash rule generic/mbedtls records for Mbed TLS 3.6.2"
+              },
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "2528 of 2770 functions of Mbed TLS 3.6.2 are present (0.913 containment, strong); 2722 functions in this directory"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.88,
+                "value": "2486 version-discriminating function(s) matched; 2483 are in 3.6.2 (agreement 0.91), and 3 belong to other recorded versions -- this tree mixes releases, which is what a vendor fork looks like (242 recorded function(s) of 3.6.2 are missing or altered); 191 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 3.6.2 read from include/mbedtls/build_info.h"
+              },
+              {
+                "technique": "manifest-analysis",
+                "confidence": 0.9,
+                "value": "vendor manifest declares mbedtls 3.6.2"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory is named as rule generic/mbedtls expects, but is not where that rule says the component lives"
+              }
+            ]
+          },
+          {
+            "field": "cpe",
+            "confidence": 0.95,
+            "concludedValue": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*",
+            "methods": [
+              {
+                "technique": "hash-comparison",
+                "confidence": 0.98,
+                "value": "include/mbedtls/build_info.h matches, byte for byte, the hash rule generic/mbedtls records for Mbed TLS 3.6.2"
+              },
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "2528 of 2770 functions of Mbed TLS 3.6.2 are present (0.913 containment, strong); 2722 functions in this directory"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.88,
+                "value": "2486 version-discriminating function(s) matched; 2483 are in 3.6.2 (agreement 0.91), and 3 belong to other recorded versions -- this tree mixes releases, which is what a vendor fork looks like (242 recorded function(s) of 3.6.2 are missing or altered); 191 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 3.6.2 read from include/mbedtls/build_info.h"
+              },
+              {
+                "technique": "manifest-analysis",
+                "confidence": 0.9,
+                "value": "vendor manifest declares mbedtls 3.6.2"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory is named as rule generic/mbedtls expects, but is not where that rule says the component lives"
+              }
+            ]
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "gangmu:rule",
+          "value": "generic/mbedtls"
+        },
+        {
+          "name": "gangmu:directory",
+          "value": "modules/crypto/mbedtls"
+        },
+        {
+          "name": "gangmu:identityConfidence",
+          "value": "0.950"
+        },
+        {
+          "name": "gangmu:versionConfidence",
+          "value": "0.950"
+        },
+        {
+          "name": "gangmu:rulePack",
+          "value": "community"
+        },
+        {
+          "name": "gangmu:rulePackVersion",
+          "value": "2026.10.6"
+        },
+        {
+          "name": "gangmu:versionSource",
+          "value": "anchor"
+        },
+        {
+          "name": "gangmu:shippedAs",
+          "value": "mbedtls"
+        },
+        {
+          "name": "gangmu:observedLicenses",
+          "value": "Apache-2.0; GPL-2.0-or-later; BSD-3-Clause; GP"
+        },
+        {
+          "name": "gangmu:licenseDiffersFromRule",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:compiledFiles",
+          "value": "108"
+        },
+        {
+          "name": "gangmu:linkedIntoImage",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:supportStatus",
+          "value": "maintained"
+        },
+        {
+          "name": "gangmu:endOfSupport",
+          "value": "2027-03-31"
+        },
+        {
+          "name": "gangmu:supportSource",
+          "value": "https://github.com/Mbed-TLS/mbedtls/blob/development/BRANCHES.md"
+        },
+        {
+          "name": "gangmu:supportAsOf",
+          "value": "2026-10-06"
+        }
+      ]
+    },
+    {
+      "bom-ref": "modules/hal/nordic#zephyrproject/zephyr/nordic",
+      "type": "library",
+      "name": "Nordic nrfx HAL",
+      "scope": "required",
+      "purl": "pkg:github/zephyrproject-rtos/hal_nordic",
+      "supplier": {
+        "name": "Nordic Semiconductor ASA, via the Zephyr Project"
+      },
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "603716a355b24619820dd9824bf4c227c075ef43e1e9d50317996a69fa4a0930"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/zephyrproject-rtos/hal_nordic"
+        }
+      ],
+      "pedigree": {
+        "ancestors": [
+          {
+            "type": "library",
+            "name": "Nordic nrfx HAL",
+            "bom-ref": "upstream/Nordic nrfx HAL",
+            "purl": "pkg:github/zephyrproject-rtos/hal_nordic",
+            "externalReferences": [
+              {
+                "type": "website",
+                "url": "https://github.com/zephyrproject-rtos/hal_nordic"
+              }
+            ]
+          }
+        ],
+        "patches": [
+          {
+            "type": "unofficial"
+          }
+        ],
+        "notes": "zephyrproject maintains this fork; files will not hash to the upstream project they were forked from. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD."
+      },
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 0.385,
+            "concludedValue": "pkg:github/zephyrproject-rtos/hal_nordic",
+            "methods": [
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.75,
+                "value": "winnowed MinHash similarity 0.738 to Nordic nrfx HAL git-c708b9fe1b7a (partial)"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory sits where rule zephyrproject/zephyr/nordic expects it"
+              }
+            ]
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "gangmu:rule",
+          "value": "zephyrproject/zephyr/nordic"
+        },
+        {
+          "name": "gangmu:directory",
+          "value": "modules/hal/nordic"
+        },
+        {
+          "name": "gangmu:identityConfidence",
+          "value": "0.770"
+        },
+        {
+          "name": "gangmu:versionConfidence",
+          "value": "0.000"
+        },
+        {
+          "name": "gangmu:rulePack",
+          "value": "community"
+        },
+        {
+          "name": "gangmu:rulePackVersion",
+          "value": "2026.10.6"
+        },
+        {
+          "name": "gangmu:shippedAs",
+          "value": "nordic"
+        },
+        {
+          "name": "gangmu:vendor",
+          "value": "zephyrproject"
+        },
+        {
+          "name": "gangmu:observedLicenses",
+          "value": "BSD-3-Clause; Apache-2.0; LicenseRef-Nordic-5-Clause"
+        },
+        {
+          "name": "gangmu:licenseDiffersFromRule",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:compiledFiles",
+          "value": "8"
+        },
+        {
+          "name": "gangmu:linkedIntoImage",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:supportStatus",
+          "value": "unknown"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-application",
+      "dependsOn": [
+        "modules/crypto/mbedtls#generic/mbedtls",
+        "modules/hal/nordic#zephyrproject/zephyr/nordic"
+      ]
+    },
+    {
+      "ref": "modules/crypto/mbedtls#generic/mbedtls",
+      "dependsOn": []
+    },
+    {
+      "ref": "modules/hal/nordic#zephyrproject/zephyr/nordic",
+      "dependsOn": []
+    }
+  ],
+  "vulnerabilities": [
+    {
+      "bom-ref": "CVE-2026-34877#modules/crypto/mbedtls#cpe",
+      "id": "CVE-2026-34877",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-34877"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "An issue was discovered in Mbed TLS versions from 2.19.0 up to 3.6.5, Mbed TLS 4.0.0. Insufficient protection of serialized SSL context or session structures allows an attacker who can modify the serialized structures to induce memory corruption, leading to arbitrary code execution. This is caused by Incorrect Use of Privileged APIs.",
+      "ratings": [
+        {
+          "score": 9.8,
+          "method": "CVSSv31",
+          "severity": "critical"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-serialized-data/"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-34872#modules/crypto/mbedtls#cpe",
+      "id": "CVE-2026-34872",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-34872"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "An issue was discovered in Mbed TLS 3.5.x and 3.6.x through 3.6.5 and TF-PSA-Crypto 1.0. There is a lack of contributory behavior in FFDH due to improper input validation. Using finite-field Diffie-Hellman, the other party can force the shared secret into a small set of values (lack of contributory behavior). This is a problem for protocols that depend on contributory behavior (which is not the case for TLS). The attack can be carried by the peer, or depending on the protocol by an active network attacker (person in the middle).",
+      "ratings": [
+        {
+          "score": 9.1,
+          "method": "CVSSv31",
+          "severity": "critical"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-ffdh-peerkey-checks/"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-47917#modules/crypto/mbedtls#cpe",
+      "id": "CVE-2025-47917",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-47917"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS before 3.6.4 allows a use-after-free in certain situations of applications that are developed in accordance with the documentation. The function mbedtls_x509_string_to_names() takes a head argument that is documented as an output argument. The documentation does not suggest that the function will free that pointer; however, the function does call mbedtls_asn1_free_named_data_list() on that argument, which performs a deep free(). As a result, application code that uses this function (relying only on documented behavior) is likely to still hold pointers to the memory blocks that were freed, resulting in a high risk of use-after-free or double-free. In particular, the two sample programs x509/cert_write and x509/cert_req are affected (use-after-free if the san string contains more than one DN).",
+      "ratings": [
+        {
+          "score": 8.9,
+          "method": "CVSSv31",
+          "severity": "high"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls-docs/blob/main/security-advisories/mbedtls-security-advisory-2025-06-7.md"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/tech-updates/security-advisories/"
+        },
+        {
+          "url": "https://lists.debian.org/debian-lts-announce/2025/08/msg00013.html"
+        },
+        {
+          "url": "https://lists.debian.org/debian-lts-announce/2025/08/msg00025.html"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-52496#modules/crypto/mbedtls#cpe",
+      "id": "CVE-2025-52496",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-52496"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS before 3.6.4 has a race condition in AESNI detection if certain compiler optimizations occur. An attacker may be able to extract an AES key from a multithreaded program, or perform a GCM forgery.",
+      "ratings": [
+        {
+          "score": 7.8,
+          "method": "CVSSv31",
+          "severity": "high"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls-docs/blob/main/security-advisories/mbedtls-security-advisory-2025-06-1.md"
+        },
+        {
+          "url": "https://lists.debian.org/debian-lts-announce/2025/08/msg00013.html"
+        },
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls-docs/blob/main/security-advisories/mbedtls-security-advisory-2025-06-1.md"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-25835#modules/crypto/mbedtls#cpe",
+      "id": "CVE-2026-25835",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-25835"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS before 3.6.6 and TF-PSA-Crypto before 1.1.0 misuse seeds in a Pseudo-Random Number Generator (PRNG).",
+      "ratings": [
+        {
+          "score": 7.7,
+          "method": "CVSSv31",
+          "severity": "high"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-rng-cloning/"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-34871#modules/crypto/mbedtls#cpe",
+      "id": "CVE-2026-34871",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-34871"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "An issue was discovered in Mbed TLS before 3.6.6 and 4.x before 4.1.0 and TF-PSA-Crypto before 1.1.0. There is a Predictable Seed in a Pseudo-Random Number Generator (PRNG).",
+      "ratings": [
+        {
+          "score": 6.7,
+          "method": "CVSSv31",
+          "severity": "medium"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-dev-random/"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-54764#modules/crypto/mbedtls#cpe",
+      "id": "CVE-2025-54764",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-54764"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS before 3.6.5 allows a local timing attack against certain RSA operations, and direct calls to mbedtls_mpi_mod_inv or mbedtls_mpi_gcd.",
+      "ratings": [
+        {
+          "score": 6.2,
+          "method": "CVSSv31",
+          "severity": "medium"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2025-10-ssbleed-mstep/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/tech-updates/security-advisories/"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-59438#modules/crypto/mbedtls#cpe",
+      "id": "CVE-2025-59438",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-59438"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS through 3.6.4 has an Observable Timing Discrepancy.",
+      "ratings": [
+        {
+          "score": 5.3,
+          "method": "CVSSv31",
+          "severity": "medium"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2025-10-invalid-padding-error/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/tech-updates/security-advisories/"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-66442#modules/crypto/mbedtls#cpe",
+      "id": "CVE-2025-66442",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-66442"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "In Mbed TLS through 4.0.0, there is a compiler-induced timing side channel (in RSA and CBC/ECB decryption) that only occurs with LLVM's select-optimize feature. TF-PSA-Crypto through 1.0.0 is also affected.",
+      "ratings": [
+        {
+          "score": 5.1,
+          "method": "CVSSv31",
+          "severity": "medium"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/Mbed-TLS/TF-PSA-Crypto/releases"
+        },
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls/releases"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-compiler-induced-constant-time-violations/"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-52497#modules/crypto/mbedtls#cpe",
+      "id": "CVE-2025-52497",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-52497"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS before 3.6.4 has a PEM parsing one-byte heap-based buffer underflow, in mbedtls_pem_read_buffer and two mbedtls_pk_parse functions, via untrusted PEM input.",
+      "ratings": [
+        {
+          "score": 4.8,
+          "method": "CVSSv31",
+          "severity": "medium"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls-docs/blob/main/security-advisories/mbedtls-security-advisory-2025-06-2.md"
+        },
+        {
+          "url": "https://lists.debian.org/debian-lts-announce/2025/08/msg00013.html"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-48965#modules/crypto/mbedtls#cpe",
+      "id": "CVE-2025-48965",
+      "source": {
+        "name": "NVD",
+        "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-48965"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS before 3.6.4 has a NULL pointer dereference because mbedtls_asn1_store_named_data can trigger conflicting data with val.p of NULL but val.len greater than zero.",
+      "ratings": [
+        {
+          "score": 4.0,
+          "method": "CVSSv31",
+          "severity": "medium"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls-docs/blob/main/security-advisories/mbedtls-security-advisory-2025-06-6.md"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/tech-updates/security-advisories/"
+        },
+        {
+          "url": "https://lists.debian.org/debian-lts-announce/2025/08/msg00013.html"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "cpe"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "cpe:2.3:a:arm:mbed_tls:*:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2024-28836#modules/crypto/mbedtls#purl",
+      "id": "CVE-2024-28836",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2024-28836"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "An issue was discovered in Mbed TLS 3.5.x before 3.6.0. When negotiating the TLS version on the server side, it can fall back to the TLS 1.2 implementation of the protocol if it is disabled. If the TLS 1.2 implementation was disabled at build time, a TLS 1.2 client could put a TLS 1.3-only server in",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls/releases/tag/v3.6.0"
+        },
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2024/28xxx/CVE-2024-28836.json"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/tech-updates/security-advisories/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-28836"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2024-45159#modules/crypto/mbedtls#purl",
+      "id": "CVE-2024-45159",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2024-45159"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "An issue was discovered in Mbed TLS 3.x before 3.6.1. With TLS 1.3, when a server enables optional authentication of the client, if the client-provided certificate does not have appropriate values in if keyUsage or extKeyUsage extensions, then the return value of mbedtls_ssl_get_verify_result() woul",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls/releases/"
+        },
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2024/45xxx/CVE-2024-45159.json"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2024-08-3/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-45159"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-27809#modules/crypto/mbedtls#purl",
+      "id": "CVE-2025-27809",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2025-27809"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS before 2.28.10 and 3.x before 3.6.3, on the client side, accepts servers that have trusted certificates for arbitrary hostnames unless the TLS client application calls mbedtls_ssl_set_hostname.",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:L/I:L/A:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://mastodon.social/@bagder/114219540623402700"
+        },
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2025/27xxx/CVE-2025-27809.json"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2025-03-1/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-27809"
+        },
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls/issues/466"
+        },
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls/releases"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-27810#modules/crypto/mbedtls#purl",
+      "id": "CVE-2025-27810",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2025-27810"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS before 2.28.10 and 3.x before 3.6.3, in some cases of failed memory allocation or hardware errors, uses uninitialized stack memory to compose the TLS Finished message, potentially leading to authentication bypasses such as replays.",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:L/I:L/A:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2025/27xxx/CVE-2025-27810.json"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2025-03-2/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-27810"
+        },
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls/releases"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-49087#modules/crypto/mbedtls#purl",
+      "id": "CVE-2025-49087",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2025-49087"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "In Mbed TLS 3.6.1 through 3.6.3 before 3.6.4, a timing discrepancy in block cipher padding removal allows an attacker to recover the plaintext when PKCS#7 padding mode is used.",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:L/I:N/A:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2025/49xxx/CVE-2025-49087.json"
+        },
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls-docs/blob/main/security-advisories/mbedtls-security-advisory-2025-06-5.md"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/tech-updates/security-advisories/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-49087"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-49600#modules/crypto/mbedtls#purl",
+      "id": "CVE-2025-49600",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2025-49600"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "In MbedTLS 3.3.0 before 3.6.4, mbedtls_lms_verify may accept invalid signatures if hash computation fails and internal errors go unchecked, enabling LMS (Leighton-Micali Signature) forgery in a fault scenario. Specifically, unchecked return values in mbedtls_lms_verify allow an attacker (who can ind",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:P/AC:H/PR:N/UI:N/S:C/C:N/I:H/A:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2025/49xxx/CVE-2025-49600.json"
+        },
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls-docs/blob/main/security-advisories/mbedtls-security-advisory-2025-06-3.md"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-49600"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2025-49601#modules/crypto/mbedtls#purl",
+      "id": "CVE-2025-49601",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2025-49601"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "In MbedTLS 3.3.0 before 3.6.4, mbedtls_lms_import_public_key does not check that the input buffer is at least 4 bytes before reading a 32-bit field, allowing a possible out-of-bounds read on truncated input. Specifically, an out-of-bounds read in mbedtls_lms_import_public_key allows context-dependen",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:L",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2025/49xxx/CVE-2025-49601.json"
+        },
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls-docs/blob/main/security-advisories/mbedtls-security-advisory-2025-06-4.md"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-49601"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-25835#modules/crypto/mbedtls#purl",
+      "id": "CVE-2026-25835",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2026-25835"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "Mbed TLS before 3.6.6 and TF-PSA-Crypto before 1.1.0 misuse seeds in a Pseudo-Random Number Generator (PRNG).",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:L/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/25xxx/CVE-2026-25835.json"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-rng-cloning/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-25835"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-34873#modules/crypto/mbedtls#purl",
+      "id": "CVE-2026-34873",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2026-34873"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "An issue was discovered in Mbed TLS 3.5.0 through 4.0.0. Client impersonation can occur while resuming a TLS 1.3 session.",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/34xxx/CVE-2026-34873.json"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-client-impersonation-while-resuming-tls13-session/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-34873"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-34875#modules/crypto/mbedtls#purl",
+      "id": "CVE-2026-34875",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2026-34875"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "An issue was discovered in Mbed TLS through 3.6.5 and TF-PSA-Crypto 1.0.0. A buffer overflow can occur in public key export for FFDH keys.",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/34xxx/CVE-2026-34875.json"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-ffdh-buffer-overflow/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-34875"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-34876#modules/crypto/mbedtls#purl",
+      "id": "CVE-2026-34876",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2026-34876"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "An issue was discovered in Mbed TLS 3.x before 3.6.6. An out-of-bounds read vulnerability in mbedtls_ccm_finish() in library/ccm.c allows attackers to obtain adjacent CCM context data via invocation of the multipart CCM API with an oversized tag_len parameter. This is caused by missing validation of",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/34xxx/CVE-2026-34876.json"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-03-ccm-finish-boundary-check/"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/tech-updates/security-advisories/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-34876"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    },
+    {
+      "bom-ref": "CVE-2026-73064#modules/crypto/mbedtls#purl",
+      "id": "CVE-2026-73064",
+      "source": {
+        "name": "OSV",
+        "url": "https://osv.dev/vulnerability/CVE-2026-73064"
+      },
+      "affects": [
+        {
+          "ref": "modules/crypto/mbedtls#generic/mbedtls"
+        }
+      ],
+      "analysis": {
+        "state": "in_triage",
+        "detail": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+      },
+      "description": "In Mbed TLS 3.2.0 though 3.6.6 and 4.0.0 through 4.1.0, an attacker who can cause an entropy source to fail can remove or inject bytes into the start of the TLS stream. This only affects TLS 1.3 servers.",
+      "ratings": [
+        {
+          "severity": "CVSS:3.1/AV:L/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N",
+          "method": "other"
+        }
+      ],
+      "advisories": [
+        {
+          "url": "https://github.com/CVEProject/cvelistV5/tree/main/cves/2026/73xxx/CVE-2026-73064.json"
+        },
+        {
+          "url": "https://mbed-tls.readthedocs.io/en/latest/security-advisories/mbedtls-security-advisory-2026-07-random-generator-fault-tls-integrity/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-73064"
+        },
+        {
+          "url": "https://github.com/Mbed-TLS/mbedtls"
+        }
+      ],
+      "properties": [
+        {
+          "name": "gangmu:channel",
+          "value": "purl"
+        },
+        {
+          "name": "gangmu:matchedOn",
+          "value": "pkg:github/mbed-tls/mbedtls"
+        },
+        {
+          "name": "gangmu:componentConfidence",
+          "value": "0.950"
+        }
+      ]
+    }
+  ]
+}

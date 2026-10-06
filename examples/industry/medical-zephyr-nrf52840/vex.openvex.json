@@ -1,0 +1,407 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://gangmu.dev/openvex/d9cc71b3-8f6a-4204-b714-f679823ede3f",
+  "author": "Example Co (sample, not a real publisher)",
+  "role": "Document Creator",
+  "timestamp": "2026-10-06T13:14:02Z",
+  "version": 1,
+  "tooling": "gangmu-sbom 0.6.2",
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2026-34877",
+        "description": "An issue was discovered in Mbed TLS versions from 2.19.0 up to 3.6.5, Mbed TLS 4.0.0. Insufficient protection of serialized SSL context or session structures allows an attacker who can modify the serialized structures to induce memory corruption, leading to arbitrary code execution. This is caused by Incorrect Use of Privileged APIs."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-34872",
+        "description": "An issue was discovered in Mbed TLS 3.5.x and 3.6.x through 3.6.5 and TF-PSA-Crypto 1.0. There is a lack of contributory behavior in FFDH due to improper input validation. Using finite-field Diffie-Hellman, the other party can force the shared secret into a small set of values (lack of contributory behavior). This is a problem for protocols that depend on contributory behavior (which is not the case for TLS). The attack can be carried by the peer, or depending on the protocol by an active network attacker (person in the middle)."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-47917",
+        "description": "Mbed TLS before 3.6.4 allows a use-after-free in certain situations of applications that are developed in accordance with the documentation. The function mbedtls_x509_string_to_names() takes a head argument that is documented as an output argument. The documentation does not suggest that the function will free that pointer; however, the function does call mbedtls_asn1_free_named_data_list() on that argument, which performs a deep free(). As a result, application code that uses this function (relying only on documented behavior) is likely to still hold pointers to the memory blocks that were freed, resulting in a high risk of use-after-free or double-free. In particular, the two sample programs x509/cert_write and x509/cert_req are affected (use-after-free if the san string contains more than one DN)."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-52496",
+        "description": "Mbed TLS before 3.6.4 has a race condition in AESNI detection if certain compiler optimizations occur. An attacker may be able to extract an AES key from a multithreaded program, or perform a GCM forgery."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-25835",
+        "description": "Mbed TLS before 3.6.6 and TF-PSA-Crypto before 1.1.0 misuse seeds in a Pseudo-Random Number Generator (PRNG)."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-34871",
+        "description": "An issue was discovered in Mbed TLS before 3.6.6 and 4.x before 4.1.0 and TF-PSA-Crypto before 1.1.0. There is a Predictable Seed in a Pseudo-Random Number Generator (PRNG)."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-54764",
+        "description": "Mbed TLS before 3.6.5 allows a local timing attack against certain RSA operations, and direct calls to mbedtls_mpi_mod_inv or mbedtls_mpi_gcd."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-59438",
+        "description": "Mbed TLS through 3.6.4 has an Observable Timing Discrepancy."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-66442",
+        "description": "In Mbed TLS through 4.0.0, there is a compiler-induced timing side channel (in RSA and CBC/ECB decryption) that only occurs with LLVM's select-optimize feature. TF-PSA-Crypto through 1.0.0 is also affected."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-52497",
+        "description": "Mbed TLS before 3.6.4 has a PEM parsing one-byte heap-based buffer underflow, in mbedtls_pem_read_buffer and two mbedtls_pk_parse functions, via untrusted PEM input."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-48965",
+        "description": "Mbed TLS before 3.6.4 has a NULL pointer dereference because mbedtls_asn1_store_named_data can trigger conflicting data with val.p of NULL but val.len greater than zero."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-28836",
+        "description": "An issue was discovered in Mbed TLS 3.5.x before 3.6.0. When negotiating the TLS version on the server side, it can fall back to the TLS 1.2 implementation of the protocol if it is disabled. If the TLS 1.2 implementation was disabled at build time, a TLS 1.2 client could put a TLS 1.3-only server in"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-45159",
+        "description": "An issue was discovered in Mbed TLS 3.x before 3.6.1. With TLS 1.3, when a server enables optional authentication of the client, if the client-provided certificate does not have appropriate values in if keyUsage or extKeyUsage extensions, then the return value of mbedtls_ssl_get_verify_result() woul"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-27809",
+        "description": "Mbed TLS before 2.28.10 and 3.x before 3.6.3, on the client side, accepts servers that have trusted certificates for arbitrary hostnames unless the TLS client application calls mbedtls_ssl_set_hostname."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-27810",
+        "description": "Mbed TLS before 2.28.10 and 3.x before 3.6.3, in some cases of failed memory allocation or hardware errors, uses uninitialized stack memory to compose the TLS Finished message, potentially leading to authentication bypasses such as replays."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-49087",
+        "description": "In Mbed TLS 3.6.1 through 3.6.3 before 3.6.4, a timing discrepancy in block cipher padding removal allows an attacker to recover the plaintext when PKCS#7 padding mode is used."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-49600",
+        "description": "In MbedTLS 3.3.0 before 3.6.4, mbedtls_lms_verify may accept invalid signatures if hash computation fails and internal errors go unchecked, enabling LMS (Leighton-Micali Signature) forgery in a fault scenario. Specifically, unchecked return values in mbedtls_lms_verify allow an attacker (who can ind"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-49601",
+        "description": "In MbedTLS 3.3.0 before 3.6.4, mbedtls_lms_import_public_key does not check that the input buffer is at least 4 bytes before reading a 32-bit field, allowing a possible out-of-bounds read on truncated input. Specifically, an out-of-bounds read in mbedtls_lms_import_public_key allows context-dependen"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-34873",
+        "description": "An issue was discovered in Mbed TLS 3.5.0 through 4.0.0. Client impersonation can occur while resuming a TLS 1.3 session."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-34875",
+        "description": "An issue was discovered in Mbed TLS through 3.6.5 and TF-PSA-Crypto 1.0.0. A buffer overflow can occur in public key export for FFDH keys."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-34876",
+        "description": "An issue was discovered in Mbed TLS 3.x before 3.6.6. An out-of-bounds read vulnerability in mbedtls_ccm_finish() in library/ccm.c allows attackers to obtain adjacent CCM context data via invocation of the multipart CCM API with an oversized tag_len parameter. This is caused by missing validation of"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-73064",
+        "description": "In Mbed TLS 3.2.0 though 3.6.6 and 4.0.0 through 4.1.0, an attacker who can cause an entropy source to fail can remove or inject bytes into the start of the TLS stream. This only affects TLS 1.3 servers."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T13:14:02Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    }
+  ]
+}

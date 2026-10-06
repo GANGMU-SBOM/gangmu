@@ -4,6 +4,19 @@
 
 ## 未发布
 
+* **新输出格式：SPDX 3.0.1、OpenVEX 0.2.0、CSAF 2.0（csaf_vex）。** `gangmu scan --format spdx3` 写 SPDX 3.0.1 JSON-LD（Software 配置：
+  供应商是独立的 Agent、组件哈希进 `verifiedUsing`、许可证是元素并用关系挂接）；`gangmu vuln --format openvex|csaf` 把同一份分析写成 OpenVEX 或 CSAF。
+  三种格式都用官方 JSON schema 在测试里校验（schema 放在 `tests/fixtures/schemas/`）。SPDX 2.3 仍是 `--format spdx`，默认输出不变。
+  OpenVEX 和 CSAF 要求声明者，所以必须传 `--publisher`（CSAF 还要 `--publisher-url`），工具不替人编一个；
+  CSAF 文档状态是 `draft`，`affected` 的补救措施写 `none_available`（工具只知道版本命中，不知道修复版本）。
+  同一条公告被 CPE 和 PURL 两条通道同时命中时只写一条语句，取需要处理最多的状态。
+* **组件维护状态与停止支持日期。** FDA 上市前网络安全指南要求 SBOM 里每个组件写明厂商维护支持级别和停止支持日期。
+  来源有两个：规则里的 `upstream.support` 块，或 `gangmu scan --support FILE`（JSON / YAML）；文件里的条目优先。
+  没有人声明的组件写 `unknown`，不留空，也不猜。CycloneDX 写成 `gangmu:supportStatus` / `gangmu:endOfSupport` 属性，
+  SPDX 2.3 写 `validUntilDate`，SPDX 3 写 `supportLevel` 和 `validUntilTime`。状态取值：`maintained`、`limited`（只修安全问题）、
+  `no_longer_maintained`、`abandoned`、`unknown`。
+* **GitLab CI 与 Jenkins 模板**（`examples/ci/`），GitHub Action 新增 `spdx3` 格式和 `support` 输入。模板没有在真实的 GitLab 或 Jenkins 上运行过，
+  只验证了 YAML 语法和参数拼装。
 * **用真实工程（ST 官方 STM32CubeF1 的 LwIP 示例）验证后修了四个问题。**
   1. IAR（`.ewp`）和 Eclipse/CCS 工程用相对路径传给 `--project` 时，源文件路径被拼了两次，结果是 0 个组件，
      却仍打印“已构建 61 个源文件”。现在先转成绝对路径；工程里列出的源文件全部不存在时直接报错，部分不存在时给出提示。

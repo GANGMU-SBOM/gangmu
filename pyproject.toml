@@ -30,7 +30,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.4", "cryptography>=41", "capstone>=5.0"]
+dev = ["pytest>=7.4", "cryptography>=41", "capstone>=5.0", "jsonschema>=4.18"]
 # Signing SBOMs and evidence bundles (gangmu sign / sign-verify).
 sign = ["cryptography>=41"]
 # Optional vector path for fingerprinting; results are identical without it.

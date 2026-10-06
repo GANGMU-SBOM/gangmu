@@ -1,0 +1,205 @@
+{
+  "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+  "@graph": [
+    {
+      "type": "CreationInfo",
+      "@id": "_:creationinfo",
+      "specVersion": "3.0.1",
+      "created": "2026-10-06T13:14:01Z",
+      "createdBy": [
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/agent/gangmu-sbom"
+      ],
+      "createdUsing": [
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/tool/gangmu-sbom"
+      ]
+    },
+    {
+      "type": "Tool",
+      "spdxId": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/tool/gangmu-sbom",
+      "name": "gangmu-sbom-0.6.2",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "SoftwareAgent",
+      "spdxId": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/agent/gangmu-sbom",
+      "name": "gangmu-sbom",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/package/peripheral-hr",
+      "name": "peripheral-hr",
+      "software_packageVersion": "4.1.0",
+      "software_primaryPurpose": "firmware",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "Organization",
+      "spdxId": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/agent/Trusted-Firmware-Mbed-TLS-project",
+      "name": "Trusted Firmware (Mbed TLS project)",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/package/Mbed-TLS-modules-crypto-mbedtls",
+      "name": "Mbed TLS",
+      "software_packageVersion": "3.6.2",
+      "software_primaryPurpose": "library",
+      "comment": "identified by gangmu rule generic/mbedtls\ndirectory: modules/crypto/mbedtls\nidentity confidence: 0.950\nversion confidence: 0.950 (source: anchor)\nVENDOR-MODIFIED copy of upstream Mbed TLS\nshipped by the vendor as 'mbedtls'\nlicences seen in the files: Apache-2.0; GPL-2.0-or-later; BSD-3-Clause; GP -- differs from the rule's licence\nsupport status: maintained; end of support 2027-03-31 (source: https://github.com/Mbed-TLS/mbedtls/blob/development/BRANCHES.md, checked 2026-10-06)\nevidence[hash-comparison]: include/mbedtls/build_info.h matches, byte for byte, the hash rule generic/mbedtls records for Mbed TLS 3.6.2\nevidence[ast-fingerprint]: 2528 of 2770 functions of Mbed TLS 3.6.2 are present (0.913 containment, strong); 2722 functions in this directory\nevidence[source-code-analysis]: 2486 version-discriminating function(s) matched; 2483 are in 3.6.2 (agreement 0.91), and 3 belong to other recorded versions -- this tree mixes releases, which is what a vendor fork looks like (242 recorded function(s) of 3.6.2 are missing or altered); 191 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)\nevidence[source-code-analysis]: version 3.6.2 read from include/mbedtls/build_info.h\nevidence[manifest-analysis]: vendor manifest declares mbedtls 3.6.2\nevidence[filename]: directory is named as rule generic/mbedtls expects, but is not where that rule says the component lives",
+      "software_packageUrl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+      "software_homePage": "https://github.com/Mbed-TLS/mbedtls",
+      "externalIdentifier": [
+        {
+          "type": "ExternalIdentifier",
+          "externalIdentifierType": "cpe23",
+          "identifier": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+        }
+      ],
+      "verifiedUsing": [
+        {
+          "type": "Hash",
+          "algorithm": "sha256",
+          "hashValue": "fce40f395edccb8dee8cb3bbfa2a40ba104f7a09d164ed5d7679a253f5bd5b8c"
+        }
+      ],
+      "suppliedBy": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/agent/Trusted-Firmware-Mbed-TLS-project",
+      "supportLevel": [
+        "support"
+      ],
+      "validUntilTime": "2027-03-31T00:00:00Z",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "simplelicensing_LicenseExpression",
+      "spdxId": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/license/Apache-2.0",
+      "simplelicensing_licenseExpression": "Apache-2.0",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/rel/hasDeclaredLicense-6",
+      "from": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/package/Mbed-TLS-modules-crypto-mbedtls",
+      "relationshipType": "hasDeclaredLicense",
+      "to": [
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/license/Apache-2.0"
+      ],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "Organization",
+      "spdxId": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/agent/Nordic-Semiconductor-ASA-via-the-Zephyr-Project",
+      "name": "Nordic Semiconductor ASA, via the Zephyr Project",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/package/Nordic-nrfx-HAL-modules-hal-nordic",
+      "name": "Nordic nrfx HAL",
+      "software_packageVersion": "NOASSERTION",
+      "software_primaryPurpose": "library",
+      "comment": "identified by gangmu rule zephyrproject/zephyr/nordic\ndirectory: modules/hal/nordic\nidentity confidence: 0.770\nversion confidence: 0.000 (source: none)\nVENDOR-MODIFIED copy of upstream Nordic nrfx HAL -- zephyrproject maintains this fork; files will not hash to the upstream project they were forked from.\nshipped by the vendor as 'nordic'\nlicences seen in the files: BSD-3-Clause; Apache-2.0; LicenseRef-Nordic-5-Clause -- differs from the rule's licence\nsupport status: unknown\nevidence[ast-fingerprint]: winnowed MinHash similarity 0.738 to Nordic nrfx HAL git-c708b9fe1b7a (partial)\nevidence[filename]: directory sits where rule zephyrproject/zephyr/nordic expects it",
+      "software_packageUrl": "pkg:github/zephyrproject-rtos/hal_nordic",
+      "software_homePage": "https://github.com/zephyrproject-rtos/hal_nordic",
+      "verifiedUsing": [
+        {
+          "type": "Hash",
+          "algorithm": "sha256",
+          "hashValue": "603716a355b24619820dd9824bf4c227c075ef43e1e9d50317996a69fa4a0930"
+        }
+      ],
+      "suppliedBy": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/agent/Nordic-Semiconductor-ASA-via-the-Zephyr-Project",
+      "supportLevel": [
+        "noAssertion"
+      ],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "simplelicensing_LicenseExpression",
+      "spdxId": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/license/BSD-3-Clause",
+      "simplelicensing_licenseExpression": "BSD-3-Clause",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/rel/hasDeclaredLicense-10",
+      "from": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/package/Nordic-nrfx-HAL-modules-hal-nordic",
+      "relationshipType": "hasDeclaredLicense",
+      "to": [
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/license/BSD-3-Clause"
+      ],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/rel/contains-11",
+      "from": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/package/peripheral-hr",
+      "relationshipType": "contains",
+      "to": [
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/package/Mbed-TLS-modules-crypto-mbedtls",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/package/Nordic-nrfx-HAL-modules-hal-nordic"
+      ],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "software_Sbom",
+      "spdxId": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/sbom/peripheral-hr",
+      "name": "peripheral-hr-sbom",
+      "software_sbomType": [
+        "build"
+      ],
+      "rootElement": [
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/package/peripheral-hr"
+      ],
+      "element": [
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/tool/gangmu-sbom",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/agent/gangmu-sbom",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/agent/Trusted-Firmware-Mbed-TLS-project",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/package/Mbed-TLS-modules-crypto-mbedtls",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/license/Apache-2.0",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/rel/hasDeclaredLicense-6",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/agent/Nordic-Semiconductor-ASA-via-the-Zephyr-Project",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/package/Nordic-nrfx-HAL-modules-hal-nordic",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/license/BSD-3-Clause",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/rel/hasDeclaredLicense-10",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/rel/contains-11"
+      ],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "simplelicensing_LicenseExpression",
+      "spdxId": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/license/CC0-1.0",
+      "simplelicensing_licenseExpression": "CC0-1.0",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "SpdxDocument",
+      "spdxId": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/document/peripheral-hr",
+      "name": "peripheral-hr-sbom",
+      "dataLicense": "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/license/CC0-1.0",
+      "profileConformance": [
+        "core",
+        "software"
+      ],
+      "rootElement": [
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/sbom/peripheral-hr"
+      ],
+      "creationInfo": "_:creationinfo",
+      "element": [
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/tool/gangmu-sbom",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/agent/gangmu-sbom",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/package/peripheral-hr",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/agent/Trusted-Firmware-Mbed-TLS-project",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/package/Mbed-TLS-modules-crypto-mbedtls",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/license/Apache-2.0",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/rel/hasDeclaredLicense-6",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/agent/Nordic-Semiconductor-ASA-via-the-Zephyr-Project",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/package/Nordic-nrfx-HAL-modules-hal-nordic",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/license/BSD-3-Clause",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/rel/hasDeclaredLicense-10",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/rel/contains-11",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/sbom/peripheral-hr",
+        "https://gangmu.dev/spdx/d53fabc0-ffda-49cc-a320-dd4a2c52d7a0/license/CC0-1.0"
+      ]
+    }
+  ]
+}

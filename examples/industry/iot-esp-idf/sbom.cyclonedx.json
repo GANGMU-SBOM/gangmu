@@ -1,0 +1,732 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:68abcafd-7bfd-4384-ba06-1edf4f6948ae",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-06T13:17:30Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "gangmu-sbom",
+          "version": "0.6.2"
+        }
+      ]
+    },
+    "component": {
+      "bom-ref": "root-application",
+      "type": "application",
+      "name": "wifi-station",
+      "version": "5.4.1"
+    },
+    "properties": [
+      {
+        "name": "gangmu:generationContext",
+        "value": "build"
+      },
+      {
+        "name": "gangmu:generationContextNote",
+        "value": "Derived from the build's own compile database"
+      },
+      {
+        "name": "gangmu:rulesLoaded",
+        "value": "67"
+      },
+      {
+        "name": "gangmu:buildFactsUsed",
+        "value": "true"
+      },
+      {
+        "name": "gangmu:unidentifiedDirectories",
+        "value": "14"
+      },
+      {
+        "name": "gangmu:possibleComponent",
+        "value": "FreeRTOS-Kernel 10.5.0~10.5.1 at components/freertos/FreeRTOS-Kernel (identity 0.52, rule generic/freertos-kernel)"
+      },
+      {
+        "name": "gangmu:possibleComponent",
+        "value": "hostap (wpa_supplicant / hostapd) 2.10 at components/wpa_supplicant (identity 0.52, rule generic/hostap)"
+      }
+    ]
+  },
+  "components": [
+    {
+      "bom-ref": "components/mbedtls/mbedtls#generic/mbedtls",
+      "type": "library",
+      "name": "Mbed TLS",
+      "scope": "required",
+      "version": "3.6.2",
+      "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+      "cpe": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*",
+      "supplier": {
+        "name": "Trusted Firmware (Mbed TLS project)"
+      },
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "82e83d6b2a7e7cf4b4cef8f79b00fa4274436f47341162c9dbc0aa10aabba305"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/Mbed-TLS/mbedtls"
+        }
+      ],
+      "pedigree": {
+        "ancestors": [
+          {
+            "type": "library",
+            "name": "Mbed TLS",
+            "bom-ref": "upstream/Mbed TLS",
+            "version": "3.6.2",
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "externalReferences": [
+              {
+                "type": "website",
+                "url": "https://github.com/Mbed-TLS/mbedtls"
+              }
+            ]
+          }
+        ],
+        "patches": [
+          {
+            "type": "unofficial"
+          }
+        ],
+        "notes": "This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD."
+      },
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 0.95,
+            "concludedValue": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "methods": [
+              {
+                "technique": "hash-comparison",
+                "confidence": 0.98,
+                "value": "include/mbedtls/build_info.h matches, byte for byte, the hash rule generic/mbedtls records for Mbed TLS 3.6.2"
+              },
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "2766 of 2770 functions of Mbed TLS 3.6.2 are present (0.999 containment, strong); 2908 functions in this directory"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.88,
+                "value": "2722 version-discriminating function(s) matched; 2721 are in 3.6.2 (agreement 1.00), and 1 belong to other recorded versions -- this tree mixes releases, which is what a vendor fork looks like (4 recorded function(s) of 3.6.2 are missing or altered); 141 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 3.6.2 read from include/mbedtls/build_info.h"
+              },
+              {
+                "technique": "manifest-analysis",
+                "confidence": 0.9,
+                "value": "vendor manifest declares Mbed TLS 3.6.2"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory is named as rule generic/mbedtls expects, but is not where that rule says the component lives"
+              }
+            ]
+          },
+          {
+            "field": "cpe",
+            "confidence": 0.95,
+            "concludedValue": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*",
+            "methods": [
+              {
+                "technique": "hash-comparison",
+                "confidence": 0.98,
+                "value": "include/mbedtls/build_info.h matches, byte for byte, the hash rule generic/mbedtls records for Mbed TLS 3.6.2"
+              },
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "2766 of 2770 functions of Mbed TLS 3.6.2 are present (0.999 containment, strong); 2908 functions in this directory"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.88,
+                "value": "2722 version-discriminating function(s) matched; 2721 are in 3.6.2 (agreement 1.00), and 1 belong to other recorded versions -- this tree mixes releases, which is what a vendor fork looks like (4 recorded function(s) of 3.6.2 are missing or altered); 141 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 3.6.2 read from include/mbedtls/build_info.h"
+              },
+              {
+                "technique": "manifest-analysis",
+                "confidence": 0.9,
+                "value": "vendor manifest declares Mbed TLS 3.6.2"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory is named as rule generic/mbedtls expects, but is not where that rule says the component lives"
+              }
+            ]
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "gangmu:rule",
+          "value": "generic/mbedtls"
+        },
+        {
+          "name": "gangmu:directory",
+          "value": "components/mbedtls/mbedtls"
+        },
+        {
+          "name": "gangmu:identityConfidence",
+          "value": "0.950"
+        },
+        {
+          "name": "gangmu:versionConfidence",
+          "value": "0.950"
+        },
+        {
+          "name": "gangmu:rulePack",
+          "value": "community"
+        },
+        {
+          "name": "gangmu:rulePackVersion",
+          "value": "2026.10.6"
+        },
+        {
+          "name": "gangmu:versionSource",
+          "value": "anchor"
+        },
+        {
+          "name": "gangmu:shippedAs",
+          "value": "mbedtls"
+        },
+        {
+          "name": "gangmu:observedLicenses",
+          "value": "Apache-2.0; GPL-2.0-or-later; BSD-3-Clause; GP"
+        },
+        {
+          "name": "gangmu:licenseDiffersFromRule",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:compiledFiles",
+          "value": "112"
+        },
+        {
+          "name": "gangmu:linkedIntoImage",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:supportStatus",
+          "value": "maintained"
+        },
+        {
+          "name": "gangmu:endOfSupport",
+          "value": "2027-03-31"
+        },
+        {
+          "name": "gangmu:supportSource",
+          "value": "https://github.com/Mbed-TLS/mbedtls/blob/development/BRANCHES.md"
+        },
+        {
+          "name": "gangmu:supportAsOf",
+          "value": "2026-10-06"
+        }
+      ]
+    },
+    {
+      "bom-ref": "components/fatfs#zephyrproject/zephyr/fatfs",
+      "type": "library",
+      "name": "FatFs",
+      "scope": "required",
+      "version": "R0.15",
+      "purl": "pkg:generic/fatfs@R0.15",
+      "cpe": "cpe:2.3:a:elm-chan:fatfs:R0.15:*:*:*:*:*:*:*",
+      "supplier": {
+        "name": "Zephyr Project (fork of ChaN FatFs)"
+      },
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "17d6fd16d779c2feacda2fd96fc62fb5b6310cf6b04ba1b1b2423b4864037d8b"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "BSD-1-Clause"
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "http://elm-chan.org/fsw/ff/"
+        }
+      ],
+      "pedigree": {
+        "ancestors": [
+          {
+            "type": "library",
+            "name": "FatFs",
+            "bom-ref": "upstream/FatFs",
+            "version": "R0.15",
+            "purl": "pkg:generic/fatfs@R0.15",
+            "externalReferences": [
+              {
+                "type": "website",
+                "url": "http://elm-chan.org/fsw/ff/"
+              }
+            ]
+          }
+        ],
+        "patches": [
+          {
+            "type": "unofficial"
+          }
+        ],
+        "notes": "Zephyr maintains this fork for build integration; files will not hash to http://elm-chan.org/fsw/ff/. Upstream of this fork: http://elm-chan.org/fsw/ff/ A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD."
+      },
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 0.9,
+            "concludedValue": "pkg:generic/fatfs@R0.15",
+            "methods": [
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.9,
+                "value": "winnowed MinHash similarity 0.926 to FatFs git-4f60a12c58c3 (strong)"
+              },
+              {
+                "technique": "manifest-analysis",
+                "confidence": 0.9,
+                "value": "vendor manifest declares FatFs R0.15"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory is named as rule zephyrproject/zephyr/fatfs expects, but is not where that rule says the component lives"
+              }
+            ]
+          },
+          {
+            "field": "cpe",
+            "confidence": 0.9,
+            "concludedValue": "cpe:2.3:a:elm-chan:fatfs:R0.15:*:*:*:*:*:*:*",
+            "methods": [
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.9,
+                "value": "winnowed MinHash similarity 0.926 to FatFs git-4f60a12c58c3 (strong)"
+              },
+              {
+                "technique": "manifest-analysis",
+                "confidence": 0.9,
+                "value": "vendor manifest declares FatFs R0.15"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory is named as rule zephyrproject/zephyr/fatfs expects, but is not where that rule says the component lives"
+              }
+            ]
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "gangmu:rule",
+          "value": "zephyrproject/zephyr/fatfs"
+        },
+        {
+          "name": "gangmu:directory",
+          "value": "components/fatfs"
+        },
+        {
+          "name": "gangmu:identityConfidence",
+          "value": "0.920"
+        },
+        {
+          "name": "gangmu:versionConfidence",
+          "value": "0.900"
+        },
+        {
+          "name": "gangmu:rulePack",
+          "value": "community"
+        },
+        {
+          "name": "gangmu:rulePackVersion",
+          "value": "2026.10.6"
+        },
+        {
+          "name": "gangmu:versionSource",
+          "value": "manifest"
+        },
+        {
+          "name": "gangmu:vendor",
+          "value": "zephyrproject"
+        },
+        {
+          "name": "gangmu:observedLicenses",
+          "value": "Apache-2.0; CC0-1.0; Unlicense"
+        },
+        {
+          "name": "gangmu:licenseDiffersFromRule",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:compiledFiles",
+          "value": "10"
+        },
+        {
+          "name": "gangmu:linkedIntoImage",
+          "value": "false"
+        },
+        {
+          "name": "gangmu:supportStatus",
+          "value": "unknown"
+        }
+      ]
+    },
+    {
+      "bom-ref": "components/json/cJSON#generic/cjson",
+      "type": "library",
+      "name": "cJSON",
+      "scope": "required",
+      "version": "1.7.18",
+      "purl": "pkg:github/DaveGamble/cJSON@1.7.18",
+      "cpe": "cpe:2.3:a:cjson_project:cjson:1.7.18:*:*:*:*:*:*:*",
+      "supplier": {
+        "name": "Dave Gamble and cJSON contributors"
+      },
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "3359b23c276d774225be86d401a474d36881bbb0946101317eb1cdba60f3285a"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/DaveGamble/cJSON"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 0.85,
+            "concludedValue": "pkg:github/DaveGamble/cJSON@1.7.18",
+            "methods": [
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.9,
+                "value": "winnowed MinHash similarity 0.945 to cJSON 1.7.19 (strong)"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 1.7.18 read from cJSON.h"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory sits where rule generic/cjson expects it"
+              }
+            ]
+          },
+          {
+            "field": "cpe",
+            "confidence": 0.85,
+            "concludedValue": "cpe:2.3:a:cjson_project:cjson:1.7.18:*:*:*:*:*:*:*",
+            "methods": [
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.9,
+                "value": "winnowed MinHash similarity 0.945 to cJSON 1.7.19 (strong)"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 1.7.18 read from cJSON.h"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory sits where rule generic/cjson expects it"
+              }
+            ]
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "gangmu:rule",
+          "value": "generic/cjson"
+        },
+        {
+          "name": "gangmu:directory",
+          "value": "components/json/cJSON"
+        },
+        {
+          "name": "gangmu:identityConfidence",
+          "value": "0.920"
+        },
+        {
+          "name": "gangmu:versionConfidence",
+          "value": "0.850"
+        },
+        {
+          "name": "gangmu:rulePack",
+          "value": "community"
+        },
+        {
+          "name": "gangmu:rulePackVersion",
+          "value": "2026.10.6"
+        },
+        {
+          "name": "gangmu:versionSource",
+          "value": "probe"
+        },
+        {
+          "name": "gangmu:observedLicenses",
+          "value": "MIT"
+        },
+        {
+          "name": "gangmu:compiledFiles",
+          "value": "2"
+        },
+        {
+          "name": "gangmu:linkedIntoImage",
+          "value": "false"
+        },
+        {
+          "name": "gangmu:supportStatus",
+          "value": "unknown"
+        }
+      ]
+    },
+    {
+      "bom-ref": "components/lwip/lwip#generic/lwip",
+      "type": "library",
+      "name": "lwIP",
+      "scope": "required",
+      "version": "2.2.0",
+      "purl": "pkg:generic/lwip@2.2.0",
+      "cpe": "cpe:2.3:a:lwip_project:lwip:2.2.0:*:*:*:*:*:*:*",
+      "supplier": {
+        "name": "lwIP Project (non-GNU)"
+      },
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "52f02a5956040e045cd6888f79ad11914cae106d8b5686580b3fe80fe89ebf93"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://savannah.nongnu.org/projects/lwip/"
+        }
+      ],
+      "pedigree": {
+        "ancestors": [
+          {
+            "type": "library",
+            "name": "lwIP",
+            "bom-ref": "upstream/lwIP",
+            "version": "2.2.0",
+            "purl": "pkg:generic/lwip@2.2.0",
+            "externalReferences": [
+              {
+                "type": "website",
+                "url": "https://savannah.nongnu.org/projects/lwip/"
+              }
+            ]
+          }
+        ],
+        "patches": [
+          {
+            "type": "unofficial"
+          }
+        ],
+        "notes": "This copy is not byte-identical to pristine lwIP. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD."
+      },
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 0.85,
+            "concludedValue": "pkg:generic/lwip@2.2.0",
+            "methods": [
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "1828 of 1934 functions of lwIP 2.2.0 are present (0.945 containment, strong); 2063 functions in this directory"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.88,
+                "value": "1185 version-discriminating function(s) matched; 1166 are in 2.2.0 (agreement 0.92), and 19 belong to other recorded versions -- this tree mixes releases, which is what a vendor fork looks like (106 recorded function(s) of 2.2.0 are missing or altered); 213 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 2.2.0 read from src/include/lwip/init.h"
+              },
+              {
+                "technique": "manifest-analysis",
+                "confidence": 0.9,
+                "value": "vendor manifest declares lwip 2.2.0"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory sits where rule generic/lwip expects it"
+              }
+            ]
+          },
+          {
+            "field": "cpe",
+            "confidence": 0.85,
+            "concludedValue": "cpe:2.3:a:lwip_project:lwip:2.2.0:*:*:*:*:*:*:*",
+            "methods": [
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "1828 of 1934 functions of lwIP 2.2.0 are present (0.945 containment, strong); 2063 functions in this directory"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.88,
+                "value": "1185 version-discriminating function(s) matched; 1166 are in 2.2.0 (agreement 0.92), and 19 belong to other recorded versions -- this tree mixes releases, which is what a vendor fork looks like (106 recorded function(s) of 2.2.0 are missing or altered); 213 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 2.2.0 read from src/include/lwip/init.h"
+              },
+              {
+                "technique": "manifest-analysis",
+                "confidence": 0.9,
+                "value": "vendor manifest declares lwip 2.2.0"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory sits where rule generic/lwip expects it"
+              }
+            ]
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "gangmu:rule",
+          "value": "generic/lwip"
+        },
+        {
+          "name": "gangmu:directory",
+          "value": "components/lwip/lwip"
+        },
+        {
+          "name": "gangmu:identityConfidence",
+          "value": "0.950"
+        },
+        {
+          "name": "gangmu:versionConfidence",
+          "value": "0.850"
+        },
+        {
+          "name": "gangmu:rulePack",
+          "value": "community"
+        },
+        {
+          "name": "gangmu:rulePackVersion",
+          "value": "2026.10.6"
+        },
+        {
+          "name": "gangmu:versionSource",
+          "value": "probe"
+        },
+        {
+          "name": "gangmu:observedLicenses",
+          "value": "BSD-2-Clause"
+        },
+        {
+          "name": "gangmu:licenseDiffersFromRule",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:compiledFiles",
+          "value": "80"
+        },
+        {
+          "name": "gangmu:linkedIntoImage",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:supportStatus",
+          "value": "unknown"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-application",
+      "dependsOn": [
+        "components/fatfs#zephyrproject/zephyr/fatfs",
+        "components/json/cJSON#generic/cjson",
+        "components/lwip/lwip#generic/lwip",
+        "components/mbedtls/mbedtls#generic/mbedtls"
+      ]
+    },
+    {
+      "ref": "components/mbedtls/mbedtls#generic/mbedtls",
+      "dependsOn": []
+    },
+    {
+      "ref": "components/fatfs#zephyrproject/zephyr/fatfs",
+      "dependsOn": []
+    },
+    {
+      "ref": "components/json/cJSON#generic/cjson",
+      "dependsOn": []
+    },
+    {
+      "ref": "components/lwip/lwip#generic/lwip",
+      "dependsOn": []
+    }
+  ]
+}

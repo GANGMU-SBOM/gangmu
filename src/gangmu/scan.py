@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from .build.facts import BuildFacts
 from .licenses import observe
@@ -20,6 +20,7 @@ from .model import Evidence, Finding, ScanResult, Technique
 from .rules.loader import RuleBase
 from .rules.resolve import resolve
 from .rules.schema import Rule
+from .support import stamp as stamp_support
 
 DECLARED_CONFIDENCE = 0.90
 POSSIBLE_BELOW = 0.60       # the engine's "weak" band starts here
@@ -36,6 +37,7 @@ class ScanOptions:
     binaries: bool = True           # inventory prebuilt .a/.lib/.so and read their banners
     declared: bool = True           # read RT-Thread / OpenHarmony declarations
     licenses: bool = True           # read SPDX headers and LICENSE files of what is identified
+    support: Optional[List[Any]] = None     # support.Override entries from --support
     kconfig: Optional[KconfigValues] = None  # sdkconfig / .config: drop components it turns off
     stats: Optional[Dict[str, int]] = None   # filled with work counters if given
 
@@ -159,6 +161,15 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
     if possible:
         findings = [f for f in findings if f.identity_confidence >= options.possible_below]
     _stamp_rule_packs(rulebase, findings, possible, not_built)
+    stamp_support({r.id: r for r in rulebase}, options.support or [],
+                            findings, possible, not_built)
+    if options.support is not None and findings:
+        gaps = sum(1 for f in findings if f.support.status == "unknown")
+        if gaps:
+            notes.append(f"{gaps} of {len(findings)} component(s) have no support "
+                         "status in the rules or the --support file; the SBOM says "
+                         "'unknown' for them. FDA asks for the level of support and "
+                         "the end-of-support date of every component")
     return ScanResult(root=str(root), findings=findings, possible=possible,
                       not_built=not_built,
                       binaries=binaries,
