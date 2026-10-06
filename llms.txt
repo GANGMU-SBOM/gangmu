@@ -29,6 +29,8 @@ Key facts:
 
 - [How to generate an SBOM for ESP-IDF firmware](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/esp-idf-sbom.md): compile database, link map and sdkconfig; Espressif forks marked vendor-modified
 - [How to generate an SBOM for Zephyr firmware](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/zephyr-sbom.md): west build facts, Kconfig, Zephyr modules and Chinese-silicon HALs
+- [SBOM for IAR, Keil and TI CCS firmware](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/iar-keil-ccs-sbom.md): project files plus IAR ilink, Arm armlink or GNU ld link maps
+- [SBOM for STM32, NXP, Nordic and TI firmware](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/stm32-nxp-nordic-sbom.md): Zephyr HAL rules, STM32CubeIDE and MCUXpresso projects, and what is not covered
 - [RT-Thread and OpenHarmony SBOM](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/rt-thread-sbom.md): package declarations read first, kernel versions identified by function signatures
 - [GmSSL and Tongsuo (Chinese commercial cryptography) in an SBOM](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/gmssl-tongsuo-sbom.md): supported versions and why Tongsuo and OpenSSL are not confused
 - [Identifying renamed and vendor-modified open-source components](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/vendor-modified-components.md): function-level containment, with a reproducible experiment

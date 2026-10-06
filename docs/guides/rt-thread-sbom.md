@@ -35,4 +35,4 @@ gangmu scan ~/proj/rt-thread-bsp --format cyclonedx -o sbom.cdx.json
 方法与数字见 [BENCHMARK](../BENCHMARK.md#1b-rtos-kernels-inside-chinese-vendor-sdks)。
 
 - [示例产物](https://github.com/GANGMU-SBOM/gangmu/tree/main/examples/output) · [国产生态覆盖](../CHINA.md)
-- 其他 SDK：[ESP-IDF](esp-idf-sbom.md) · [Zephyr](zephyr-sbom.md)
+- 其他 SDK：[ESP-IDF](esp-idf-sbom.md) · [Zephyr](zephyr-sbom.md) · [IAR / Keil / CCS](iar-keil-ccs-sbom.md) · [STM32 / NXP / Nordic](stm32-nxp-nordic-sbom.md)

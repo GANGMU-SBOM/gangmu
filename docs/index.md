@@ -18,7 +18,7 @@ description: 纲目（Gangmu）是面向嵌入式 C/C++ 固件的开源构建期
 - [常见问题](FAQ.md) · [FAQ (English)](FAQ.en.md) · [术语表](GLOSSARY.md)
 - [CRA 对标](CRA.md) · [国内合规](CHINA.md) · [算法](ALGORITHMS.md) · [评测基准](BENCHMARK.md) · [规则格式](RULE-FORMAT.md)
 - [能力边界](LIMITS.md) · [更新记录](CHANGELOG.md) · [开源版与商业版](EDITIONS.md)
-- 按任务查：[ESP-IDF](guides/esp-idf-sbom.md) · [Zephyr](guides/zephyr-sbom.md) · [RT-Thread / OpenHarmony](guides/rt-thread-sbom.md) · [国密库 GmSSL / 铜锁](guides/gmssl-tongsuo-sbom.md) · [魔改组件识别](guides/vendor-modified-components.md) · [CRA 与工信部报送](guides/cra-and-miit-reporting.md) · [与 Syft / Trivy 等的区别](COMPARE.md)
+- 按任务查：[ESP-IDF](guides/esp-idf-sbom.md) · [Zephyr](guides/zephyr-sbom.md) · [IAR / Keil / CCS](guides/iar-keil-ccs-sbom.md) · [STM32 / NXP / Nordic](guides/stm32-nxp-nordic-sbom.md) · [RT-Thread / OpenHarmony](guides/rt-thread-sbom.md) · [国密库 GmSSL / 铜锁](guides/gmssl-tongsuo-sbom.md) · [魔改组件识别](guides/vendor-modified-components.md) · [CRA 与工信部报送](guides/cra-and-miit-reporting.md) · [与 Syft / Trivy 等的区别](COMPARE.md)
 - 示例产物：[SBOM、CRA 自查、报送草稿](https://github.com/GANGMU-SBOM/gangmu/tree/main/examples/output)
 - 相关仓库：[gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules)（免费规则库，识别不出通用组件去这里；厂商专属规则属于商业版）· [gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench)（识别准确率评测）
 
