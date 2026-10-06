@@ -18,7 +18,7 @@ inputs:
     description: path to compile_commands.json from the real build (optional)
     default: ""
   link-map:
-    description: path to the GNU ld map file from the real build (optional)
+    description: path to the linker map file (GNU ld, lld, IAR ilink or Arm armlink) from the real build (optional)
     default: ""
   app-name:
     description: product name written to the SBOM (optional)

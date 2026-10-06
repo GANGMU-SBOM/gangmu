@@ -7,7 +7,7 @@
 Key facts:
 
 - Identification is function level (after CENTRIS, ICSE 2021, and TIVER, ICSE 2025): identity from containment of upstream functions, version from which releases the matched functions belong to.
-- Reads the build: `compile_commands.json`, GNU ld link maps, IAR `.ewp`, Keil `.uvprojx`, TI CCS / Eclipse projects, or a compiler wrapper (`gangmu wrap`).
+- Reads the build: `compile_commands.json`, GNU ld, lld, IAR ilink and Arm armlink link maps, IAR `.ewp`, Keil `.uvprojx`, TI CCS / Eclipse projects, or a compiler wrapper (`gangmu wrap`).
 - Rules never guess a CPE; PURL/OSV is a first-class matching channel. CI re-derives every rule's evidence from the upstream release it names.
 - Works offline: vulnerability matching reads local NVD / OSV / CNNVD / CNVD directories; `gangmu vuln-fetch` is the separate online step that fills them.
 - Does not do deep binary analysis (only banners and exported symbols in prebuilt libraries and firmware images), security testing, legal conclusions or submission to official platforms (the ENISA Single Reporting Platform has no API at first release).

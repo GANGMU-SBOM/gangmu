@@ -2,6 +2,13 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
+## 未发布
+
+* **`--link-map` 读 IAR ilink、Arm armlink 和 lld 的 map，并能与 IAR、Keil、CCS 工程配合。** 以前链接 map 只认 GNU ld，
+  IDE 工程又不记录目标文件路径，所以这几类工程拿不到“编译了但被链接器丢掉”的信息。现在格式自动识别，
+  IDE 工程按“源文件名 + .o / .obj”生成目标文件名，与 map 里的 `init.c.obj`、`init.o` 按主干名对齐。
+  版式按厂商文档手写测试，尚未用真实工程验证，见 [LIMITS.md](LIMITS.md)。
+
 ## 0.6.2
 
 * **GitHub Action 与 pre-commit 钩子。** 根目录 `action.yml`（`uses: GANGMU-SBOM/gangmu@v0`）在 CI 里生成 SBOM；

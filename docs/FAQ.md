@@ -76,7 +76,7 @@ Zephyr 模块在 `zephyr/module.yml` 里声明的 CPE 和 PURL 也会被读取�
 
 ## 支持哪些构建系统和 IDE？
 
-支持 `compile_commands.json`（CMake、ESP-IDF、Zephyr 等）、GNU ld 链接 map、IAR `.ewp`、
+支持 `compile_commands.json`（CMake、ESP-IDF、Zephyr 等）、GNU ld、lld、IAR ilink、Arm armlink 链接 map、IAR `.ewp`、
 Keil `.uvprojx`、TI CCS 与 Eclipse 工程。没有编译数据库时，可以用 `gangmu wrap -- make`
 旁观一次真实构建来生成。编译器包装器在 POSIX 和 Windows 下都可用，但只能拦截按名字查找的编译器：Makefile 里写死绝对路径（如 `CC=/opt/gcc/bin/gcc`）会绕过它，Windows 下 shim 是真正的 `gcc.exe`，`mingw32-make` 的简单配方和 MSVC `cl.exe`、clang 和 `arm-none-eabi-gcc` 也能记录（CI 已验证）；MSYS/Git `sh` 下的构建未验证。这种情况请用 `--project` 读 IDE 工程。
 
@@ -211,7 +211,7 @@ ONEKEY、Finite State 等固件二进制分析产品面向没有源码的场景�
    "name": "支持哪些构建系统和 IDE？",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "支持 compile_commands.json（CMake、ESP-IDF、Zephyr 等）、GNU ld 链接 map、IAR .ewp、 Keil .uvprojx、TI CCS 与 Eclipse 工程。没有编译数据库时，可以用 gangmu wrap -- make 旁观一次真实构建来生成。编译器包装器在 POSIX 和 Windows 下都可用，但只能拦截按名字查找的编译器：Makefile 里写死绝对路径（如 CC=/opt/gcc/bin/gcc）会绕过它，Windows 下 shim 是真正的 gcc.exe，mingw32-make 的简单配方和 MSVC cl.exe、clang 和 arm-none-eabi-gcc 也能记录（CI 已验证）；MSYS/Git sh 下的构建未验证。这种情况请用 --project 读 IDE 工程。"
+    "text": "支持 compile_commands.json（CMake、ESP-IDF、Zephyr 等）、GNU ld、lld、IAR ilink、Arm armlink 链接 map、IAR .ewp、 Keil .uvprojx、TI CCS 与 Eclipse 工程。没有编译数据库时，可以用 gangmu wrap -- make 旁观一次真实构建来生成。编译器包装器在 POSIX 和 Windows 下都可用，但只能拦截按名字查找的编译器：Makefile 里写死绝对路径（如 CC=/opt/gcc/bin/gcc）会绕过它，Windows 下 shim 是真正的 gcc.exe，mingw32-make 的简单配方和 MSVC cl.exe、clang 和 arm-none-eabi-gcc 也能记录（CI 已验证）；MSYS/Git sh 下的构建未验证。这种情况请用 --project 读 IDE 工程。"
    }
   },
   {
