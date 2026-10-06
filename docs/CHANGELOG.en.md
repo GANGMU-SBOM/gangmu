@@ -47,6 +47,13 @@ wrong directory.
   releases) it makes 853 correct claims beyond the 1,166 exact ones, none wrong.
   Not applied to identification: on a real fork 98.9% of functions already match
   exactly.
+* **The SBOM records which rule pack identified each component.** CycloneDX components gain the properties
+  `gangmu:rulePack` and `gangmu:rulePackVersion` (the pack manifest's `name` and `version`; without a manifest the
+  entry-point name or directory name, and no version). SPDX package comments say "from rule pack ...", and
+  `gangmu scan --format json` carries `rule_pack` and `rule_pack_version` on each finding. When a later pack overlays
+  a rule, the later pack is the one recorded. Components that come from build declarations or binary strings, not a
+  rule, carry neither field. It lets a team see how many components of an SBOM each rule pack is responsible for,
+  which is the data behind a commercial rule pack's value report.
 
 ## 0.6.1
 

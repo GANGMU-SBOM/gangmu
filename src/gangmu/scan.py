@@ -158,6 +158,7 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
     possible = [f for f in findings if f.identity_confidence < options.possible_below]
     if possible:
         findings = [f for f in findings if f.identity_confidence >= options.possible_below]
+    _stamp_rule_packs(rulebase, findings, possible, not_built)
     return ScanResult(root=str(root), findings=findings, possible=possible,
                       not_built=not_built,
                       binaries=binaries,
@@ -165,6 +166,25 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
                       rules_loaded=len(rulebase),
                       build_facts_used=build_facts is not None,
                       notes=notes)
+
+
+def _stamp_rule_packs(rulebase: RuleBase, *groups: List[Finding]) -> None:
+    """Record, on each finding, which rule pack supplied the rule that matched.
+
+    Without it an SBOM cannot say which part of the rule base a component's identity
+    came from, so a team cannot tell what a vendor pack, or its subscription, is
+    actually buying them. Findings from build declarations and binaries match no rule
+    and are left unmarked.
+    """
+    if not rulebase.provenance:
+        return
+    for group in groups:
+        for finding in group:
+            for item in [finding] + list(finding.alternatives):
+                known = rulebase.provenance.get(item.rule_id)
+                if known:
+                    item.rule_pack = known[0]
+                    item.rule_pack_version = known[1] or None
 
 
 def _observe_licenses(root: Path, finding: Finding) -> None:

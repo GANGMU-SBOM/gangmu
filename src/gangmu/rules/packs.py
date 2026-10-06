@@ -49,6 +49,17 @@ class RuleRoot:
     manifest: Optional[dict] = None
 
     @property
+    def pack_name(self) -> str:
+        """The name findings carry as ``rulePack``: the manifest's name, else the
+        installed pack's entry-point name, else the directory's."""
+        name = (self.manifest or {}).get("name")
+        if name:
+            return str(name)
+        if self.origin.startswith("pack:"):
+            return self.origin[len("pack:"):]
+        return self.path.name
+
+    @property
     def label(self) -> str:
         name = (self.manifest or {}).get("name")
         version = (self.manifest or {}).get("version")
