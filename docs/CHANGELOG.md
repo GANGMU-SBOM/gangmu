@@ -4,6 +4,26 @@
 
 ## 未发布
 
+准确率与噪声。用真实上游版本按 SDK 的摆法摆好再扫（lwIP、Mbed TLS、libcoap、littlefs、FreeRTOS-Kernel、nanopb、
+miniz、TinyCrypt、cJSON、wolfSSL、LVGL、RT-Thread，共 12 个真实上游版本，放进两个模拟 SDK）。修复前：第一个 SDK 里
+9 份未改动的上游副本有 7 份被标成 `vendor-modified`；nanopb 被报了三次（其中两个是它自己 `examples/` 里的幻影）；
+第二个 SDK 丢了 RT-Thread 内核，FatFs 也报在错的目录上。
+
+* **`vendor-modified` 现在只表示"已记录的代码缺失或被改动"。** 以前只要出现签名没见过的函数就触发，而在未改动的
+  目录里这指的是签名没覆盖的头文件、移植层和宏（lwIP 2,092 个里有 136 个，FreeRTOS 1,743 个里有 1,487 个），
+  `multi_version` 也会被未改动的 lwIP 触发。`vendor_patched` 会进入漏洞匹配的 `is_fork`，所以每个误标都会把真实
+  通告降成待研判。现在：9 份未改动副本 0 份被标；改动 3 个 lwIP 函数则被标出，证据里带着个数。只"新增"代码的副本不会被标：
+  新增并不改变有漏洞的代码是否还在。
+* **已识别组件内部 example / test 目录里的清单不再当作组件。** 即 nanopb 的 `examples/conan_dependency`（多出一个
+  0.4.6 的 nanopb）和 `examples/platformio`（再多一个没版本的）。项目自己的 `examples/` 目录照常读取，扫描会说明忽略了几条。
+* **组件归到真正存放它的目录。** 函数包含度在每一层祖先目录都会触发，"每目录一个胜者"曾让它把父目录从真正的
+  内核手里抢走（RT-Thread 输给了它自己里面的 FatFs）。现在子目录说了同样的话，就丢掉祖先的那条；更弱的嵌套匹配、
+  或根目录精确版本对内层区间，都不会顶掉根目录。
+
+* **补丁存在性检测。** `gangmu patch-build CVE` 记录一条公告的修复提交改动了哪些函数（提交号从 OSV 记录读，或用 `--repo`
+  和 `--fix` 指定），`gangmu vuln --source ROOT --patches FILE` 看代码而不是看版本：有修复后的函数体就 `resolved`，
+  仍是修复前的函数体就确认为 `exploitable`，被厂商改过的留给人判断。魔改的 fork 只报告它所基于的版本号，
+  过去每条之后才修复的公告都会让它永远停在 `in_triage`，现在不会了。见 [ALGORITHMS.md](ALGORITHMS.md#patch-presence)。
 * **SBOM 记录每个组件是由哪个规则包识别的。** CycloneDX 组件新增属性 `gangmu:rulePack` 与 `gangmu:rulePackVersion`
   （规则包 `rulebase.json` 里的 `name` 与 `version`；没有清单时用入口点名或目录名，且不带版本），SPDX 的组件备注里写
   “from rule pack …”，`gangmu scan --format json` 的每个发现多出 `rule_pack`、`rule_pack_version`。同一条规则被后加载的包

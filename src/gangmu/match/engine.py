@@ -710,12 +710,14 @@ def _is_patched(rule: Rule, exact_copy, version, version_range=None) -> bool:
     evidence answers it directly: a tree carrying functions from more than one
     recorded release, or functions no release explains, has been modified --
     and unlike a similarity score this is a statement about identified code, not
-    about a distance.
+    about a distance. Only recorded functions that are *missing or altered* count:
+    functions the signature never saw (headers, ports, vendor additions in files
+    of their own) do not make a copy differ from the release, and counting them
+    flagged pristine upstream trees as forks and demoted their advisories.
     """
     if rule.patched:
         return True
-    if version_range is not None and (version_range.multi_version
-                                      or version_range.foreign > 0):
+    if version_range is not None and version_range.changed > 0:
         return True
     if exact_copy is False and rule.signature is not None:
         reference = rule.signature.reference_version
