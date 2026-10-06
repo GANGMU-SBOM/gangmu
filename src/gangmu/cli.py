@@ -784,7 +784,7 @@ def cmd_vuln(args: argparse.Namespace) -> int:
         else:
             threat = None
 
-    if args.patches:
+    if args.patches or args.source:
         rc = _apply_patches(args, matches)
         if rc:
             return rc
@@ -880,8 +880,8 @@ def cmd_vuln(args: argparse.Namespace) -> int:
 
 def _apply_patches(args: argparse.Namespace, matches) -> int:
     """Test the code, not the version, for every advisory that has a patch record."""
-    from .patchtest import (PatchError, assess, load_patches, near_names,
-                            records_for)
+    from .patchtest import (PatchError, assess, load_pack_patches, load_patches,
+                            near_names, records_for)
     if not args.source:
         print("error: --patches needs --source: the patch test reads the tree "
               "that was scanned", file=sys.stderr)
@@ -891,12 +891,25 @@ def _apply_patches(args: argparse.Namespace, matches) -> int:
         print(f"error: --source {root} is not a directory", file=sys.stderr)
         return 2
     records: dict = {}
-    for path in args.patches:
+    if not args.no_pack_patches:
+        # Records the installed rule packs ship (patches/*.json): the community
+        # pack first, so a private pack or a --patches file overrides it.
+        given = args.rules or None
+        roots = [Path(p) for p in given] if given else [
+            r.path for r in default_roots(fallback=[Path.cwd() / "rules"])]
+        try:
+            records.update(load_pack_patches(roots))
+        except PatchError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+    for path in args.patches or []:
         try:
             records.update(load_patches(Path(path)))
         except PatchError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
+    if not records:
+        return 0
     cache: dict = {}
     tally: dict = {}
     near = near_names(records.values())
@@ -927,6 +940,31 @@ def _apply_patches(args: argparse.Namespace, matches) -> int:
     return 0
 
 
+def cmd_patch_verify(args: argparse.Namespace) -> int:
+    from .patchtest import PatchError, load_patches, verify_record
+    bad = total = 0
+    for path in args.files:
+        try:
+            records = load_patches(Path(path))
+        except PatchError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        for key, record in sorted(records.items()):
+            total += 1
+            problems = verify_record(record)
+            if problems:
+                bad += 1
+                print(f"FAIL {key} ({path})", file=sys.stderr)
+                for p in problems:
+                    print(f"     {p}", file=sys.stderr)
+            else:
+                print(f"ok   {key}: {len(record.functions)} function(s) re-derived "
+                      f"from {', '.join(c[:12] for c in record.commits)}",
+                      file=sys.stderr)
+    print(f"{total - bad} of {total} record(s) reproduce", file=sys.stderr)
+    return 1 if bad else 0
+
+
 def cmd_patch_build(args: argparse.Namespace) -> int:
     from .patchtest import PatchError, build_record, load_patches, save_patches
     repo, commits = args.repo, list(args.fix or [])
@@ -951,7 +989,8 @@ def cmd_patch_build(args: argparse.Namespace) -> int:
     out = Path(args.output)
     try:
         existing = load_patches(out) if out.exists() else {}
-        record = build_record(args.cve, repo, commits, only=args.function)
+        record = build_record(args.cve, repo, commits, only=args.function,
+                             first_parent=args.first_parent)
     except PatchError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -1800,6 +1839,12 @@ def build_parser() -> argparse.ArgumentParser:
                         "fixed body present resolves the finding, the vulnerable "
                         "one confirms it, an edited one is left for a person. "
                         "Repeatable")
+    v.add_argument("--no-pack-patches", action="store_true",
+                   help="do not load the patch records installed rule packs ship "
+                        "(patches/*.json); only --patches files are used")
+    v.add_argument("--rules", action="append", metavar="DIR",
+                   help="rule directory whose patches/ holds patch records "
+                        "(default: the installed rule packs); repeatable")
     v.add_argument("--patch-near-vex", action="store_true",
                    help="with --patches: let an edited function that is a close "
                         "variant of the fixed (or the vulnerable) code change "
@@ -1822,10 +1867,20 @@ def build_parser() -> argparse.ArgumentParser:
     pb.add_argument("--function", action="append", metavar="NAME",
                     help="record only this function (required when the commit "
                          "changes more than 40)")
+    pb.add_argument("--first-parent", action="store_true",
+                    help="a fix merged as a pull request: take the merge's net "
+                         "change against its first parent (it may carry more "
+                         "than the fix, so check the functions it names)")
     pb.add_argument("--output", "-o", default="patches.json",
                     help="record file; an existing one is added to (default: "
                          "patches.json)")
     pb.set_defaults(func=cmd_patch_build)
+
+    pv = sub.add_parser(
+        "patch-verify",
+        help="rebuild patch records from their upstream commits and compare")
+    pv.add_argument("files", nargs="+", help="patch record files")
+    pv.set_defaults(func=cmd_patch_verify)
 
     cc = sub.add_parser(
         "cn-db-check",

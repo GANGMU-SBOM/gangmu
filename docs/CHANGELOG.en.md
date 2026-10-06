@@ -47,6 +47,13 @@ wrong directory.
   releases) it makes 853 correct claims beyond the 1,166 exact ones, none wrong.
   Not applied to identification: on a real fork 98.9% of functions already match
   exactly.
+* **Patch records ship with rule packs.** `gangmu vuln --source ROOT` reads
+  `patches/*.json` from the installed packs, so the community pack's records
+  apply without being named (`--no-pack-patches`, `--rules DIR`). `gangmu
+  patch-verify` rebuilds each record from the upstream commits it names, and
+  `patch-build --first-parent` records a fix merged as a pull request. Fixes two
+  faults found by verifying real records: several fix commits on one function,
+  and a fix commit left on a shallow boundary by a neighbouring fetch.
 * **The SBOM records which rule pack identified each component.** CycloneDX components gain the properties
   `gangmu:rulePack` and `gangmu:rulePackVersion` (the pack manifest's `name` and `version`; without a manifest the
   entry-point name or directory name, and no version). SPDX package comments say "from rule pack ...", and
