@@ -89,6 +89,12 @@ def _vulnerability(match: Match, bom: Optional[dict]) -> Dict[str, Any]:
                            "value": match.reach.detail})
         properties.append({"name": "gangmu:reachabilityBasis",
                            "value": match.reach.basis or "none"})
+    if match.patch is not None:
+        properties.append({"name": "gangmu:patchPresence", "value": match.patch.status})
+        properties.append({"name": "gangmu:patchPresenceDetail",
+                           "value": match.patch.detail})
+        properties.append({"name": "gangmu:patchPresenceBasis",
+                           "value": match.patch.basis})
     entry["properties"] = properties
     return entry
 

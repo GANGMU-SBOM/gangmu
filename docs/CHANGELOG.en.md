@@ -2,6 +2,44 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
+## Unreleased
+
+Accuracy and noise, found by scanning pristine upstream releases laid out the way
+an SDK lays them out (lwIP, Mbed TLS, libcoap, littlefs, FreeRTOS-Kernel, nanopb,
+miniz, TinyCrypt, cJSON, wolfSSL, LVGL, RT-Thread: 12 real releases in two
+mock SDKs). Before: 7 of 9 pristine copies in the first SDK were labelled
+`vendor-modified`, nanopb was reported three times (two phantoms from its own
+`examples/`), and the second SDK lost the RT-Thread kernel and put FatFs at the
+wrong directory.
+
+* **`vendor-modified` now means recorded code is missing or altered.** It used to
+  fire on any function the signature had never seen, which in a pristine tree
+  means headers, ports and macros the signature does not cover (136 of lwIP's
+  2,092, 1,487 of FreeRTOS's 1,743), and on `multi_version`, which pristine lwIP
+  also triggers. `vendor_patched` feeds `is_fork` in vulnerability matching, so
+  every false flag also demoted real advisories to triage. Now: 0 of 9 pristine
+  copies flagged; three edited lwIP functions are flagged, with the count in the
+  evidence. A copy that only *adds* code is not flagged: additions do not change
+  whether vulnerable code is present.
+* **Example and test manifests inside an identified component are not components.**
+  nanopb's `examples/conan_dependency` (a second nanopb, at 0.4.6) and
+  `examples/platformio` (a third, versionless). A project's own `examples/`
+  directory is still read, and the scan says how many it ignored.
+* **A component is attributed to the directory that holds it.** Function
+  containment fires at every ancestor too, and one winner per directory let that
+  displace the kernel that owns the parent (RT-Thread lost to its own FatFs).
+  An ancestor's claim is now dropped when a descendant says the same thing; a
+  weaker nested match, or an inner range against an exact root release, never
+  displaces the root.
+
+* **Patch presence testing.** `gangmu patch-build CVE` records the functions an
+  advisory's fix changed (fix commit read from the OSV record, or `--repo` and
+  `--fix`), and `gangmu vuln --source ROOT --patches FILE` tests the code instead
+  of the version: the fixed body present resolves the finding, the vulnerable
+  body confirms it, an edited one is left for a person. A vendor fork that
+  reports the release it started from no longer sits in `in_triage` for every
+  advisory fixed since. See [ALGORITHMS.md](ALGORITHMS.md#patch-presence).
+
 ## 0.6.1
 
 Bug fixes found while verifying the 0.6.0 release from PyPI in a clean environment.

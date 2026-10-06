@@ -44,6 +44,7 @@ class Match:
     kev: Optional[Dict[str, Any]] = None          # CISA KEV entry, when listed
     epss: Optional[Any] = None                    # (probability, percentile)
     reach: Optional[Any] = None                   # gangmu.reach.Reach
+    patch: Optional[Any] = None                   # gangmu.patchtest.PatchVerdict
     justification: str = ""                       # CycloneDX analysis.justification
 
     def to_dict(self) -> Dict[str, Any]:
@@ -68,4 +69,6 @@ class Match:
             out["epss"] = {"score": self.epss[0], "percentile": self.epss[1]}
         if self.reach is not None:
             out["reachability"] = self.reach.to_dict()
+        if self.patch is not None:
+            out["patchPresence"] = self.patch.to_dict()
         return out

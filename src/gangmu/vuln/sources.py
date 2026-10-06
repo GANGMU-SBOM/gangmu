@@ -214,7 +214,13 @@ def load_osv(path: Path, wanted: Optional[Wanted] = None) -> List[Advisory]:
                                  .get("extracted_events"))
                     ranges.append({"purl": git_purl, "type": "GIT", "tags": tags,
                                    "open_ended": not kinds & {"fixed", "last_affected"},
-                                   "extracted": extracted if not tags else None})
+                                   "extracted": extracted if not tags else None,
+                                   # What a patch record is built from.
+                                   "repo": rng.get("repo"),
+                                   "fixed_commits": [
+                                       e["fixed"] for e in rng.get("events", []) or []
+                                       if isinstance(e.get("fixed"), str)
+                                       and re.fullmatch(r"[0-9a-fA-F]{7,64}", e["fixed"])]})
                 if not purl:
                     continue
             if not purl:
