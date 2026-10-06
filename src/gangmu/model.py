@@ -81,6 +81,13 @@ class Finding:
     evidence: List[Evidence] = field(default_factory=list)
     alternatives: List["Finding"] = field(default_factory=list)
 
+    rule_pack: Optional[str] = None
+    """The rule pack whose rule identified this component (``gangmu-rules``, a
+    vendor's pack, a private one). None for findings that come from a build
+    declaration or a binary string, not from a rule."""
+    rule_pack_version: Optional[str] = None
+    """That pack's version from its manifest, when it has one."""
+
     # Build facts, when a build was supplied.
     compiled_files: int = 0
     linked: Optional[bool] = None

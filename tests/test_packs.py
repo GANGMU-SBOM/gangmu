@@ -129,3 +129,68 @@ def test_a_plugin_adds_a_command_and_a_broken_one_is_skipped(monkeypatch, capsys
     assert main(["hello"]) == 7
     assert "plug-in 'bad' could not be loaded" in capsys.readouterr().err
     assert "scan" in build_parser()._subparsers._group_actions[0].choices
+
+
+# which pack identified a component ------------------------------------------------
+
+def _scan_json(project_dir, roots, tmp_path, fmt="json"):
+    out = tmp_path / f"out.{fmt}"
+    args = ["scan", str(project_dir), "--format", fmt, "-o", str(out)]
+    for r in roots:
+        args += ["--rules", str(r)]
+    assert main(args) == 0
+    return out.read_text()
+
+
+@pytest.fixture()
+def own_rules(rules_dir, tmp_path):
+    """A private copy of the session's rule root, so a test may add a manifest to it."""
+    copy = tmp_path / "base-rules"
+    shutil.copytree(rules_dir, copy)
+    (copy / packs.MANIFEST_NAME).unlink(missing_ok=True)
+    return copy
+
+
+def _manifest(root: Path, **fields):
+    (root / packs.MANIFEST_NAME).write_text(json.dumps(dict({"format": 1}, **fields)))
+
+
+def test_a_finding_names_the_pack_and_version_of_the_rule_that_matched(own_rules, tmp_path, project_dir):
+    _manifest(own_rules, name="gangmu-rules", version="2026.10.5")
+    base = load_rule_roots([own_rules])
+    assert base.provenance == {"test/tinynet": ("gangmu-rules", "2026.10.5")}
+    data = json.loads(_scan_json(project_dir, [own_rules], tmp_path))
+    found = data["findings"][0]
+    assert (found["rule_pack"], found["rule_pack_version"]) == ("gangmu-rules", "2026.10.5")
+
+
+def test_the_overlaying_pack_gets_the_credit_when_it_replaces_a_rule(own_rules, tmp_path, project_dir):
+    _manifest(own_rules, name="gangmu-rules", version="2026.10.5")
+    pro = _copy_rule(own_rules, tmp_path / "pro", notes="vendor build")
+    _manifest(pro, name="gangmu-rules-pro-nxp", version="2026.10.1")
+    base = load_rule_roots([own_rules, pro])
+    assert base.provenance["test/tinynet"] == ("gangmu-rules-pro-nxp", "2026.10.1")
+    found = json.loads(_scan_json(project_dir, [own_rules, pro], tmp_path))["findings"][0]
+    assert found["rule_pack"] == "gangmu-rules-pro-nxp"
+
+
+def test_pack_name_falls_back_to_the_entry_point_name_then_the_directory(tmp_path):
+    assert RuleRoot(tmp_path / "x", "pack:espressif").pack_name == "espressif"
+    assert RuleRoot(tmp_path / "x", "--rules").pack_name == "x"
+    assert RuleRoot(tmp_path / "x", "pack:nxp", {"name": "nxp-pro"}).pack_name == "nxp-pro"
+
+
+def test_the_sbom_says_which_pack_identified_each_component(own_rules, tmp_path, project_dir):
+    _manifest(own_rules, name="gangmu-rules", version="2026.10.5")
+    bom = json.loads(_scan_json(project_dir, [own_rules], tmp_path, "cyclonedx"))
+    props = {p["name"]: p["value"] for p in bom["components"][0]["properties"]}
+    assert props["gangmu:rulePack"] == "gangmu-rules" and props["gangmu:rulePackVersion"] == "2026.10.5"
+    spdx = _scan_json(project_dir, [own_rules], tmp_path, "spdx")
+    assert "from rule pack gangmu-rules 2026.10.5" in spdx
+
+
+def test_without_a_manifest_the_pack_is_named_by_its_directory_and_has_no_version(own_rules, tmp_path, project_dir):
+    (own_rules / packs.MANIFEST_NAME).unlink(missing_ok=True)
+    bom = json.loads(_scan_json(project_dir, [own_rules], tmp_path, "cyclonedx"))
+    props = {p["name"]: p["value"] for p in bom["components"][0]["properties"]}
+    assert props["gangmu:rulePack"] == own_rules.name and "gangmu:rulePackVersion" not in props

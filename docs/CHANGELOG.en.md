@@ -39,6 +39,13 @@ wrong directory.
   body confirms it, an edited one is left for a person. A vendor fork that
   reports the release it started from no longer sits in `in_triage` for every
   advisory fixed since. See [ALGORITHMS.md](ALGORITHMS.md#patch-presence).
+* **The SBOM records which rule pack identified each component.** CycloneDX components gain the properties
+  `gangmu:rulePack` and `gangmu:rulePackVersion` (the pack manifest's `name` and `version`; without a manifest the
+  entry-point name or directory name, and no version). SPDX package comments say "from rule pack ...", and
+  `gangmu scan --format json` carries `rule_pack` and `rule_pack_version` on each finding. When a later pack overlays
+  a rule, the later pack is the one recorded. Components that come from build declarations or binary strings, not a
+  rule, carry neither field. It lets a team see how many components of an SBOM each rule pack is responsible for,
+  which is the data behind a commercial rule pack's value report.
 
 ## 0.6.1
 

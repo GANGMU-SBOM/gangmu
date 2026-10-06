@@ -24,6 +24,11 @@ miniz、TinyCrypt、cJSON、wolfSSL、LVGL、RT-Thread，共 12 个真实上游�
   和 `--fix` 指定），`gangmu vuln --source ROOT --patches FILE` 看代码而不是看版本：有修复后的函数体就 `resolved`，
   仍是修复前的函数体就确认为 `exploitable`，被厂商改过的留给人判断。魔改的 fork 只报告它所基于的版本号，
   过去每条之后才修复的公告都会让它永远停在 `in_triage`，现在不会了。见 [ALGORITHMS.md](ALGORITHMS.md#patch-presence)。
+* **SBOM 记录每个组件是由哪个规则包识别的。** CycloneDX 组件新增属性 `gangmu:rulePack` 与 `gangmu:rulePackVersion`
+  （规则包 `rulebase.json` 里的 `name` 与 `version`；没有清单时用入口点名或目录名，且不带版本），SPDX 的组件备注里写
+  “from rule pack …”，`gangmu scan --format json` 的每个发现多出 `rule_pack`、`rule_pack_version`。同一条规则被后加载的包
+  覆盖时，记的是后者。来自构建声明或二进制字符串、不经规则识别的组件不带这两个字段。这样团队能看出一份 SBOM 里有多少
+  组件是靠哪个规则包识别的，也是商业规则包“价值报告”的数据来源。
 
 ## 0.6.1
 
