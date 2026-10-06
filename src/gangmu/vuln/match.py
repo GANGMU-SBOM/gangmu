@@ -89,6 +89,11 @@ class Candidate:
     is_fork: bool = False
     fork_note: str = ""
     confidence: float = 1.0
+    subsystem_advisories: bool = False
+    """The component is an OS/SDK tree whose advisories each concern one subsystem."""
+    linked: Optional[bool] = None
+    """False when a link map showed none of the component's objects in the image;
+    None when no link map was used (unknown, not "linked")."""
 
 
 def candidates_from_scan(result) -> List[Candidate]:
@@ -101,7 +106,9 @@ def candidates_from_scan(result) -> List[Candidate]:
             purls=[p for p in [finding.purl] if p],
             is_fork=finding.vendor_patched,
             fork_note=finding.patch_hint or "",
-            confidence=finding.confidence))
+            confidence=finding.confidence,
+            subsystem_advisories=finding.advisory_scope == "subsystem",
+            linked=finding.linked))
     return out
 
 
@@ -117,6 +124,7 @@ def candidates_from_cyclonedx(bom: dict) -> List[Candidate]:
             confidence = float(props.get("gangmu:identityConfidence", 1.0))
         except (TypeError, ValueError):
             confidence = 1.0
+        linked = props.get("gangmu:linkedIntoImage")
         out.append(Candidate(
             name=component.get("name", "?"),
             directory=props.get("gangmu:directory", ""),
@@ -125,7 +133,9 @@ def candidates_from_cyclonedx(bom: dict) -> List[Candidate]:
             purls=[p for p in [component.get("purl")] if p],
             is_fork=bool(pedigree.get("patches")),
             fork_note=pedigree.get("notes", ""),
-            confidence=confidence))
+            confidence=confidence,
+            subsystem_advisories=props.get("gangmu:advisoryScope") == "subsystem",
+            linked={"true": True, "false": False}.get(linked)))
     return out
 
 
@@ -255,6 +265,49 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
     out.sort(key=lambda m: (order.get(m.state, 3), -(m.advisory.cvss or 0),
                             m.advisory.id))
     return out
+
+
+UNLINKED_NOTE = ("the link map shows none of this component's objects in the image, "
+                 "so its code is probably not in the firmware; a map cannot see LTO "
+                 "or code loaded another way, so confirm before relying on it")
+
+
+SUBSYSTEM_NOTE = ("this component is an OS/SDK tree and the advisory concerns one subsystem "
+                  "or driver; the version is in range, but whether the firmware builds "
+                  "that code needs the file named in the advisory checked against the build")
+
+
+def apply_linkage(matches: Sequence[Match], candidates: Sequence[Candidate],
+                  mark_not_affected: bool = False) -> int:
+    """Take the build's link map into account; return how many findings changed.
+
+    A version-range match on a component that is in the source tree but not in the
+    image is not an exploitable finding, and "exploitable" would cry wolf. By
+    default such a finding drops to ``in_triage`` with the reason written down:
+    a link map is strong evidence, not proof. With *mark_not_affected* it is
+    recorded as ``not_affected`` / ``code_not_present`` for the team that has
+    checked the build and wants the VEX to say so.
+    """
+    unlinked = {c.directory for c in candidates if c.linked is False}
+    umbrella = {c.directory for c in candidates if c.subsystem_advisories}
+    changed = 0
+    for m in matches:
+        if (m.directory in umbrella and m.directory not in unlinked
+                and m.state is VexState.EXPLOITABLE):
+            m.state = VexState.IN_TRIAGE
+            m.detail = (m.detail + "; " if m.detail else "") + "subsystem: " + SUBSYSTEM_NOTE
+            changed += 1
+        if m.directory not in unlinked or m.state not in (VexState.EXPLOITABLE,
+                                                          VexState.IN_TRIAGE):
+            continue
+        before = m.state
+        if mark_not_affected:
+            m.state, m.justification = VexState.NOT_AFFECTED, "code_not_present"
+        elif m.state is VexState.EXPLOITABLE:
+            m.state = VexState.IN_TRIAGE
+        m.detail = (m.detail + "; " if m.detail else "") + "not linked: " + UNLINKED_NOTE
+        changed += m.state is not before
+    return changed
 
 
 def unmatched_components(candidates: Sequence[Candidate]) -> List[Candidate]:

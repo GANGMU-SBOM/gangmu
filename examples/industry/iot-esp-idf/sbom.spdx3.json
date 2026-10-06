@@ -1,0 +1,323 @@
+{
+  "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+  "@graph": [
+    {
+      "type": "CreationInfo",
+      "@id": "_:creationinfo",
+      "specVersion": "3.0.1",
+      "created": "2026-10-06T14:12:00Z",
+      "createdBy": [
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/agent/gangmu-sbom"
+      ],
+      "createdUsing": [
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/tool/gangmu-sbom"
+      ]
+    },
+    {
+      "type": "Tool",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/tool/gangmu-sbom",
+      "name": "gangmu-sbom-0.6.2",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "SoftwareAgent",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/agent/gangmu-sbom",
+      "name": "gangmu-sbom",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/wifi-station",
+      "name": "wifi-station",
+      "software_packageVersion": "5.4.1",
+      "software_primaryPurpose": "firmware",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "Organization",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/agent/Trusted-Firmware-Mbed-TLS-project",
+      "name": "Trusted Firmware (Mbed TLS project)",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/Mbed-TLS-components-mbedtls-mbedtls",
+      "name": "Mbed TLS",
+      "software_packageVersion": "3.6.2",
+      "software_primaryPurpose": "library",
+      "comment": "identified by gangmu rule generic/mbedtls\ndirectory: components/mbedtls/mbedtls\nidentity confidence: 0.950\nversion confidence: 0.950 (source: anchor)\nVENDOR-MODIFIED copy of upstream Mbed TLS\nshipped by the vendor as 'mbedtls'\nlicences seen in the files: Apache-2.0; GPL-2.0-or-later; BSD-3-Clause; GP -- differs from the rule's licence\nsupport status: maintained; end of support 2027-03-31 (source: https://github.com/Mbed-TLS/mbedtls/blob/development/BRANCHES.md, checked 2026-10-06)\nevidence[hash-comparison]: include/mbedtls/build_info.h matches, byte for byte, the hash rule generic/mbedtls records for Mbed TLS 3.6.2\nevidence[ast-fingerprint]: 2766 of 2770 functions of Mbed TLS 3.6.2 are present (0.999 containment, strong); 2908 functions in this directory\nevidence[source-code-analysis]: 2722 version-discriminating function(s) matched; 2721 are in 3.6.2 (agreement 1.00), and 1 belong to other recorded versions -- this tree mixes releases, which is what a vendor fork looks like (4 recorded function(s) of 3.6.2 are missing or altered); 141 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)\nevidence[source-code-analysis]: version 3.6.2 read from include/mbedtls/build_info.h\nevidence[manifest-analysis]: vendor manifest declares Mbed TLS 3.6.2\nevidence[filename]: directory is named as rule generic/mbedtls expects, but is not where that rule says the component lives",
+      "software_packageUrl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+      "software_homePage": "https://github.com/Mbed-TLS/mbedtls",
+      "externalIdentifier": [
+        {
+          "type": "ExternalIdentifier",
+          "externalIdentifierType": "cpe23",
+          "identifier": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+        }
+      ],
+      "verifiedUsing": [
+        {
+          "type": "Hash",
+          "algorithm": "sha256",
+          "hashValue": "82e83d6b2a7e7cf4b4cef8f79b00fa4274436f47341162c9dbc0aa10aabba305"
+        }
+      ],
+      "suppliedBy": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/agent/Trusted-Firmware-Mbed-TLS-project",
+      "supportLevel": [
+        "support"
+      ],
+      "validUntilTime": "2027-03-31T00:00:00Z",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "simplelicensing_LicenseExpression",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/Apache-2.0",
+      "simplelicensing_licenseExpression": "Apache-2.0",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/rel/hasDeclaredLicense-6",
+      "from": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/Mbed-TLS-components-mbedtls-mbedtls",
+      "relationshipType": "hasDeclaredLicense",
+      "to": [
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/Apache-2.0"
+      ],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/FatFs-components-fatfs",
+      "name": "FatFs",
+      "software_packageVersion": "R0.15",
+      "software_primaryPurpose": "library",
+      "comment": "identified by gangmu rule zephyrproject/zephyr/fatfs\ndirectory: components/fatfs\nidentity confidence: 0.920\nversion confidence: 0.900 (source: manifest)\nVENDOR-MODIFIED copy of upstream FatFs\nlicences seen in the files: Apache-2.0; CC0-1.0; Unlicense -- differs from the rule's licence\nNOT LINKED into the firmware image according to the link map\nsupport status: unknown\nevidence[ast-fingerprint]: winnowed MinHash similarity 0.926 to FatFs git-4f60a12c58c3 (strong)\nevidence[manifest-analysis]: vendor manifest declares FatFs R0.15\nevidence[filename]: directory is named as rule zephyrproject/zephyr/fatfs expects, but is not where that rule says the component lives\nevidence[other]: rule zephyrproject/zephyr/fatfs describes zephyrproject's copy and this directory is not where that rule says it lives (a matching name alone is not it), so the supplier is not asserted",
+      "software_packageUrl": "pkg:generic/fatfs@R0.15",
+      "software_homePage": "http://elm-chan.org/fsw/ff/",
+      "externalIdentifier": [
+        {
+          "type": "ExternalIdentifier",
+          "externalIdentifierType": "cpe23",
+          "identifier": "cpe:2.3:a:elm-chan:fatfs:R0.15:*:*:*:*:*:*:*"
+        }
+      ],
+      "verifiedUsing": [
+        {
+          "type": "Hash",
+          "algorithm": "sha256",
+          "hashValue": "17d6fd16d779c2feacda2fd96fc62fb5b6310cf6b04ba1b1b2423b4864037d8b"
+        }
+      ],
+      "supportLevel": [
+        "noAssertion"
+      ],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "simplelicensing_LicenseExpression",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/BSD-1-Clause",
+      "simplelicensing_licenseExpression": "BSD-1-Clause",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/rel/hasDeclaredLicense-9",
+      "from": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/FatFs-components-fatfs",
+      "relationshipType": "hasDeclaredLicense",
+      "to": [
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/BSD-1-Clause"
+      ],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "Organization",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/agent/Dave-Gamble-and-cJSON-contributors",
+      "name": "Dave Gamble and cJSON contributors",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/cJSON-components-json-cJSON",
+      "name": "cJSON",
+      "software_packageVersion": "1.7.18",
+      "software_primaryPurpose": "library",
+      "comment": "identified by gangmu rule generic/cjson\ndirectory: components/json/cJSON\nidentity confidence: 0.920\nversion confidence: 0.850 (source: probe)\nlicences seen in the files: MIT\nNOT LINKED into the firmware image according to the link map\nsupport status: unknown\nevidence[ast-fingerprint]: winnowed MinHash similarity 0.945 to cJSON 1.7.19 (strong)\nevidence[source-code-analysis]: version 1.7.18 read from cJSON.h\nevidence[filename]: directory sits where rule generic/cjson expects it",
+      "software_packageUrl": "pkg:github/DaveGamble/cJSON@1.7.18",
+      "software_homePage": "https://github.com/DaveGamble/cJSON",
+      "externalIdentifier": [
+        {
+          "type": "ExternalIdentifier",
+          "externalIdentifierType": "cpe23",
+          "identifier": "cpe:2.3:a:cjson_project:cjson:1.7.18:*:*:*:*:*:*:*"
+        }
+      ],
+      "verifiedUsing": [
+        {
+          "type": "Hash",
+          "algorithm": "sha256",
+          "hashValue": "3359b23c276d774225be86d401a474d36881bbb0946101317eb1cdba60f3285a"
+        }
+      ],
+      "suppliedBy": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/agent/Dave-Gamble-and-cJSON-contributors",
+      "supportLevel": [
+        "noAssertion"
+      ],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "simplelicensing_LicenseExpression",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/MIT",
+      "simplelicensing_licenseExpression": "MIT",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/rel/hasDeclaredLicense-13",
+      "from": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/cJSON-components-json-cJSON",
+      "relationshipType": "hasDeclaredLicense",
+      "to": [
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/MIT"
+      ],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "Organization",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/agent/lwIP-Project-non-GNU",
+      "name": "lwIP Project (non-GNU)",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/lwIP-components-lwip-lwip",
+      "name": "lwIP",
+      "software_packageVersion": "2.2.0",
+      "software_primaryPurpose": "library",
+      "comment": "identified by gangmu rule generic/lwip\ndirectory: components/lwip/lwip\nidentity confidence: 0.950\nversion confidence: 0.850 (source: probe)\nVENDOR-MODIFIED copy of upstream lwIP\nlicences seen in the files: BSD-2-Clause -- differs from the rule's licence\nsupport status: unknown\nevidence[ast-fingerprint]: 1828 of 1934 functions of lwIP 2.2.0 are present (0.945 containment, strong); 2063 functions in this directory\nevidence[source-code-analysis]: 1185 version-discriminating function(s) matched; 1166 are in 2.2.0 (agreement 0.92), and 19 belong to other recorded versions -- this tree mixes releases, which is what a vendor fork looks like (106 recorded function(s) of 2.2.0 are missing or altered); 213 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)\nevidence[source-code-analysis]: version 2.2.0 read from src/include/lwip/init.h\nevidence[manifest-analysis]: vendor manifest declares lwip 2.2.0\nevidence[filename]: directory sits where rule generic/lwip expects it",
+      "software_packageUrl": "pkg:generic/lwip@2.2.0",
+      "software_homePage": "https://savannah.nongnu.org/projects/lwip/",
+      "externalIdentifier": [
+        {
+          "type": "ExternalIdentifier",
+          "externalIdentifierType": "cpe23",
+          "identifier": "cpe:2.3:a:lwip_project:lwip:2.2.0:*:*:*:*:*:*:*"
+        }
+      ],
+      "verifiedUsing": [
+        {
+          "type": "Hash",
+          "algorithm": "sha256",
+          "hashValue": "52f02a5956040e045cd6888f79ad11914cae106d8b5686580b3fe80fe89ebf93"
+        }
+      ],
+      "suppliedBy": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/agent/lwIP-Project-non-GNU",
+      "supportLevel": [
+        "noAssertion"
+      ],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "simplelicensing_LicenseExpression",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/BSD-3-Clause",
+      "simplelicensing_licenseExpression": "BSD-3-Clause",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/rel/hasDeclaredLicense-17",
+      "from": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/lwIP-components-lwip-lwip",
+      "relationshipType": "hasDeclaredLicense",
+      "to": [
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/BSD-3-Clause"
+      ],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/rel/contains-18",
+      "from": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/wifi-station",
+      "relationshipType": "contains",
+      "to": [
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/Mbed-TLS-components-mbedtls-mbedtls",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/FatFs-components-fatfs",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/cJSON-components-json-cJSON",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/lwIP-components-lwip-lwip"
+      ],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "software_Sbom",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/sbom/wifi-station",
+      "name": "wifi-station-sbom",
+      "software_sbomType": [
+        "build"
+      ],
+      "rootElement": [
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/wifi-station"
+      ],
+      "element": [
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/tool/gangmu-sbom",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/agent/gangmu-sbom",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/agent/Trusted-Firmware-Mbed-TLS-project",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/Mbed-TLS-components-mbedtls-mbedtls",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/Apache-2.0",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/rel/hasDeclaredLicense-6",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/FatFs-components-fatfs",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/BSD-1-Clause",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/rel/hasDeclaredLicense-9",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/agent/Dave-Gamble-and-cJSON-contributors",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/cJSON-components-json-cJSON",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/MIT",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/rel/hasDeclaredLicense-13",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/agent/lwIP-Project-non-GNU",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/lwIP-components-lwip-lwip",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/BSD-3-Clause",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/rel/hasDeclaredLicense-17",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/rel/contains-18"
+      ],
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "simplelicensing_LicenseExpression",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/CC0-1.0",
+      "simplelicensing_licenseExpression": "CC0-1.0",
+      "creationInfo": "_:creationinfo"
+    },
+    {
+      "type": "SpdxDocument",
+      "spdxId": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/document/wifi-station",
+      "name": "wifi-station-sbom",
+      "dataLicense": "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/CC0-1.0",
+      "profileConformance": [
+        "core",
+        "software"
+      ],
+      "rootElement": [
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/sbom/wifi-station"
+      ],
+      "creationInfo": "_:creationinfo",
+      "element": [
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/tool/gangmu-sbom",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/agent/gangmu-sbom",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/wifi-station",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/agent/Trusted-Firmware-Mbed-TLS-project",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/Mbed-TLS-components-mbedtls-mbedtls",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/Apache-2.0",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/rel/hasDeclaredLicense-6",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/FatFs-components-fatfs",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/BSD-1-Clause",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/rel/hasDeclaredLicense-9",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/agent/Dave-Gamble-and-cJSON-contributors",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/cJSON-components-json-cJSON",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/MIT",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/rel/hasDeclaredLicense-13",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/agent/lwIP-Project-non-GNU",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/package/lwIP-components-lwip-lwip",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/BSD-3-Clause",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/rel/hasDeclaredLicense-17",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/rel/contains-18",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/sbom/wifi-station",
+        "https://gangmu.dev/spdx/b629d2cf-eeae-43a8-bee6-e96fa49a80e9/license/CC0-1.0"
+      ]
+    }
+  ]
+}

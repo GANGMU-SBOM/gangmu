@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from .support import Support
+
 
 class Technique(str, Enum):
     """How a claim was arrived at.
@@ -90,6 +92,7 @@ class Finding:
 
     # Build facts, when a build was supplied.
     compiled_files: int = 0
+    advisory_scope: Optional[str] = None
     linked: Optional[bool] = None
     config_off: List[str] = field(default_factory=list)
     """Kconfig symbols the build configuration has switched off for this component."""
@@ -116,6 +119,11 @@ class Finding:
     depends_on: List[str] = field(default_factory=list)
     """Component names this one declares it depends on (OpenHarmony
     ``bundle.json`` deps). Resolved to SBOM references where they were found."""
+
+    support: Optional[Support] = None
+    """Maintenance status and end-of-support date of the upstream component
+    (FDA asks for both per SBOM component). ``unknown`` when no rule and no
+    ``--support`` entry says; None only before a scan has stamped it."""
 
     path_match: int = 0
     """2 = the directory is where the rule says the component lives, 1 = only the

@@ -1,0 +1,47 @@
+warning: no gangmu.yaml found. Several obligations can only be satisfied by a declaration; run `gangmu init` first.
+part AI-II-1   Annex I Part II (1)      Identify and document components, including an SBOM
+         + CycloneDX 1.6: a commonly used, machine-readable format
+         + 4 component(s) listed
+         ! 14 director(ies) look like components and were not identified. Top-level coverage cannot be claimed while they are unexplained.
+         -> Write a rule for each unidentified directory, or record in the technical documentation why it is not a component (generated code, your own source).
+ok   AI-II-2   Annex I Part II (2)      Address and remediate vulnerabilities without delay
+         + 36 vulnerability record(s), each with a recorded state
+         + 36 still in triage -- these are the ones a human must close before a declaration of conformity
+         -> Close the in_triage findings: for a vendor fork, check the fork's history for the fix.
+---- AI-II-3   Annex I Part II (3)      Effective and regular tests and reviews of security
+         ! security testing is not what this tool does
+         -> Record your test regime in the technical documentation.
+part AI-II-4   Annex I Part II (4)      Publicly disclose information about fixed vulnerabilities
+         + the VEX document carries descriptions, affected components and severities
+         -> Publish the VEX alongside each security update.
+FAIL AI-II-5   Annex I Part II (5)      Coordinated vulnerability disclosure policy
+         ! manufacturer.cvd_policy_url is not declared
+         -> Declare your coordinated vulnerability disclosure policy in gangmu.yaml under manufacturer.cvd_policy_url.
+FAIL AI-II-6   Annex I Part II (6)      Contact address for reporting vulnerabilities
+         ! manufacturer.vulnerability_contact is not declared
+         -> Declare the address people report vulnerabilities to in gangmu.yaml under manufacturer.vulnerability_contact.
+---- AI-II-7   Annex I Part II (7)      Mechanisms to securely distribute updates
+         ! update distribution is product engineering, not SBOM tooling
+         -> Describe the update mechanism in the technical documentation.
+---- AI-II-8   Annex I Part II (8)      Security updates disseminated without delay and free of charge
+         ! update distribution is product engineering, not SBOM tooling
+         -> Describe the update mechanism in the technical documentation.
+FAIL ART-13-8  Article 13(8) and Annex VII Technical documentation, kept for ten years
+         ! no evidence bundle was produced
+         ! retention.years is not declared in the configuration
+         ! market.placed_on_market is not declared, so the retention period has no start date
+         -> gangmu evidence --out cra-evidence/
+part ART-14    Article 14               Reporting actively exploited vulnerabilities and severe incidents
+         + component name and CVE can be filled from the SBOM, which is what makes the 24-hour deadline survivable
+         ! product.name is missing -- the notification names the product
+         ! product.version is missing -- the notification names the affected version
+         ! manufacturer.name is missing -- the notification names the manufacturer
+         ! market.member_states is missing -- the notification lists the member states the product is available in
+         ! reporting.assigned_representative is missing -- the platform needs a named person holding the EU Login account
+         -> Fill the missing fields in gangmu.yaml; the 24-hour clock is not the moment to look them up.
+
+met=1  not met=3  out of scope=3  partial=3
+
+Blocking: AI-II-5, AI-II-6, ART-13-8
+
+'out of scope' means the obligation is real and this tool does not address it. Those are yours to document.

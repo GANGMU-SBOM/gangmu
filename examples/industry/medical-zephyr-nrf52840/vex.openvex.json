@@ -1,0 +1,2996 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://gangmu.dev/openvex/32462489-ed15-4d0c-848d-54acc6bd0f9a",
+  "author": "Example Co (sample, not a real publisher)",
+  "role": "Document Creator",
+  "timestamp": "2026-10-06T14:11:33Z",
+  "version": 1,
+  "tooling": "gangmu-sbom 0.6.2",
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2026-5067",
+        "description": "A remote, unauthenticated attacker can trigger memory corruption in Zephyr's HTTP server WebSocket upgrade path by sending a crafted Sec-WebSocket-Key header. The HTTP/1 header parser copies the header into a fixed-size buffer using a bounded copy that does not guarantee NUL termination when the input length reaches the buffer size. During upgrade handling the buffer is copied to a local stack buffer and passed to strlen(); if no NUL exists in-bounds, strlen() reads beyond the stack buffer and subsequent concatenation with the WebSocket magic string can write out of bounds. This leads to out-of-bounds read and write on stack memory, resulting in crash (denial of service) and potentially code execution. The path is reachable when CONFIG_HTTP_SERVER_WEBSOCKET is enabled."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-1678",
+        "description": "dns_unpack_name() caches the buffer tailroom once and reuses it while appending DNS labels. As the buffer grows, the cached size becomes incorrect, and the final null terminator can be written past the buffer. With assertions disabled (default), a malicious DNS response can trigger an out-of-bounds write when CONFIG_DNS_RESOLVER is enabled."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10643",
+        "description": "Zephyr's IP socket recvmsg() implementation (subsys/net/lib/sockets/sockets_inet.c, insert_pktinfo()) validated the user-supplied ancillary (msg_control) buffer using only the payload length (msg->msg_controllen < pktinfo_len) before writing a full control message consisting of an aligned cmsg header plus the payload. Because the check omitted the cmsg header size, a control buffer whose length falls in the under-checked window (e.g. 16-27 bytes for IPv4 IP_PKTINFO on a 64-bit target, where a single element actually occupies 28 bytes) passes the guard yet causes a fixed-size out-of-bounds write of up to one cmsg header (~12 bytes) past the end of the buffer.\n\nUnder CONFIG_USERSPACE the recvmsg verifier allocates a kernel-heap copy of the control buffer sized to msg_controllen and runs the implementation against it, so the overflow corrupts kernel heap memory and is triggerable from an unprivileged userspace thread; in supervisor mode it corrupts the caller's buffer.\n\nThe path is reacha"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10673",
+        "description": "The Zephyr ADIN2111/ADIN1110 10BASE-T1S/T1L Ethernet driver (drivers/ethernet/eth_adin2111.c) reassembles received Ethernet frames in OPEN Alliance (OA) SPI mode by copying device-supplied 64-byte data chunks into a fixed static buffer ctx->buf of size CONFIG_ETH_ADIN2111_BUFFER_SIZE (default 1524 bytes). In eth_adin2111_oa_data_read(), each valid chunk was memcpy'd into ctx->buf[ctx->scur] and the write cursor scur advanced, with no check that scur + len stayed within the buffer. The number of chunks (up to 255, from the BUFSTS RCA field) and the per-chunk length are taken entirely from the frame data received off the wire; the cursor is only reset on a start-of-frame chunk. An attacker on the single-pair Ethernet segment can therefore send a frame whose reassembled size exceeds the configured buffer, causing the driver's RX offload thread to write attacker-controlled frame bytes past the end of the static buffer into adjacent driver/kernel memory (up to roughly 14.8 KB in the worst c"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10849",
+        "description": "The hawkBit device management client in subsys/mgmt/hawkbit accumulates the body of an HTTP response from the update server into a heap buffer in response_json_cb() (subsys/mgmt/hawkbit/hawkbit.c). The buffer is sized to hold the received body bytes but reserves no space for a terminating NUL. When the full response has arrived, the code writes response_data[downloaded_size] = '\\0' — and whenever the accumulated body length equals the allocation, that terminator lands one byte past the end of the heap object (a heap-based out-of-bounds write, CWE-122 / CWE-787).\n\nThe body length and fragmentation are taken directly from the parsed HTTP response (rsp->body_frag_start / rsp->body_frag_len) and are fully controlled by the remote hawkBit server, which chooses its own response length. The precise trigger depends on how the buffer grows, and both forms are remotely reachable. Since v4.0.0 the reallocation is sized to exactly downloaded_size + body_len, so any response body larger than the 11"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10666",
+        "description": "parse_ipv4() in subsys/net/ip/utils.c (reached via net_ipaddr_parse() for strings of the form \"a.b.c.d:port\") copies the port substring into a fixed 17-byte stack buffer (char ipaddr[NET_IPV4_ADDR_LEN + 1]) using a length of str_len - end - 1, where str_len is the full, unbounded input length and end is only the (<=15-byte) offset of the ':' delimiter. Because the destination size is never consulted, a crafted address string with a long suffix after the colon (e.g. \"1.2.3.4:\" followed by hundreds of bytes) causes an out-of-bounds stack write whose length and contents are fully attacker-controlled (memcpy of the suffix plus a trailing NUL), enabling memory corruption and at minimum a denial of service, and potentially control-flow hijack. The parser is reached from the standard socket API (zsock_getaddrinfo / literal-address resolution), DNS server-string configuration, and the eswifi Wi-Fi co-processor DNS-response path, so an application that resolves a network-influenced address stri"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-7656",
+        "description": "The IPv6 Neighbor Discovery handlers in subsys/net/ip/ipv6_nbr.c (handle_ra_input, handle_ns_input, handle_na_input) used an incorrect boolean expression that combined the RFC 4861 validity checks with the ICMPv6 code check using the wrong operator precedence: the form was ((length/hop/source/target checks) && (icmp_hdr->code != 0)). Because every legitimate ND message carries ICMPv6 code 0, an attacker setting code == 0 (the normal value) caused the entire predicate to evaluate false, so the packet was never dropped and all of the other checks were silently skipped. The bypassed checks include the mandatory Hop Limit == 255 verification (which proves an ND packet originated on-link and was not forwarded) and, for Router Advertisements, the requirement that the source be a link-local address, as well as multicast-target sanity checks. As a result, an adjacent on-link attacker — and, because the Hop-Limit-255 guard is bypassed, potentially a remote/off-link attacker whose packets would "
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10667",
+        "description": "Zephyr's dynamic kernel-object tracking (kernel/userspace/userspace.c, formerly kernel/userspace.c) maintains a doubly-linked list (obj_list) of dynamically allocated kernel objects. Iteration over this list in k_object_wordlist_foreach() was performed under lists_lock using the SAFE iterator (which caches the next node), but list removal and freeing of nodes was performed under different, disjoint spinlocks: objfree_lock in k_object_free() and obj_lock in unref_check(). On an SMP system, while one CPU iterated obj_list under lists_lock, another CPU could unlink and k_free() the dyn_obj node that the iterator had cached as its next pointer, causing the iterator to dereference freed kernel memory (use-after-free / dangling list traversal). All of the racing operations are reachable from unprivileged user-mode threads via system calls: k_object_alloc/k_object_alloc_size and k_object_release drive removals through unref_check() (under obj_lock), while k_thread_abort and thread creation dr"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10669",
+        "description": "On Xtensa SoCs built with CONFIG_XTENSA_MPU and CONFIG_USERSPACE, arch_buffer_validate() in arch/xtensa/core/mpu.c — the architecture hook that verifies a user-mode-supplied buffer is accessible to the calling user thread with the requested permission — defaulted its return value to 0 (access permitted) and only set a denial result inside its per-MPU-region probe loop. When the rounded extent of the buffer wraps the 32-bit address space (size + alignment offset near SIZE_MAX, or ROUND_UP(size + offset) overflowing to 0), the loop executes zero iterations and the function returns 0 = permitted without probing any MPU region.\n\nThe syscall-layer pre-checks (K_SYSCALL_MEMORY_SIZE_CHECK / Z_DETECT_POINTER_OVERFLOW) only catch a raw addr+size wrap and do not cover the ROUND_UP-induced wrap, and the string path (arch_user_string_nlen -> arch_buffer_validate) has no syscall-layer guard at all.\n\nAn unprivileged user-mode thread can therefore pass a crafted (addr, size) to any syscall that valid"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-10458",
+        "description": "Parameters are not validated or sanitized, and are later used in various internal operations."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-7403",
+        "description": "Unsafe handling in bt_conn_tx_processor causes a use-after-free, resulting in a write-before-zero. The written 4 bytes are attacker-controlled, enabling precise memory corruption."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10685",
+        "description": "The Zephyr Bluetooth GATT client CCC-write response handler gatt_write_ccc_rsp() in subsys/bluetooth/host/gatt.c invoked the application's params->subscribe() callback after it had already called params->notify(conn, params, NULL, 0).\n\nPer the public GATT API, a notify callback with NULL data is the documented signal that the subscription has terminated and the bt_gatt_subscribe_params struct may be freed or reused by the application; calling subscribe() on the struct afterwards is a use-after-free, including an indirect call through the freed params->subscribe function pointer.\n\nThe error branch is remotely (adjacent) reachable: a Zephyr device acting as a GATT client that calls bt_gatt_subscribe() can be driven into this ordering when a connected GATT server peer answers the CCC write with an ATT Error Response (the peer-supplied error code flows through att_error_rsp -> att_handle_rsp into gatt_write_ccc_rsp).\n\nFor applications that free or recycle subscription parameters in their n"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-5068",
+        "description": "A remote, unauthenticated BLE peer can trigger a 2-byte out-of-bounds write in the Bluetooth host during L2CAP LE CoC SDU reassembly. When the application enables segmentation (via chan_ops.alloc_buf) and the chosen RX pool has a user_data_size smaller than 2 bytes, the segmentation counter stored in the net_buf user_data area is written out of bounds in l2cap_chan_le_recv_seg (subsys/bluetooth/host/l2cap.c). The observed effects are an AddressSanitizer abort and, without ASan, heap corruption / fatal error."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-2962",
+        "description": "A denial-of-service issue in the dns implemenation could cause an infinite loop."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-13351",
+        "description": "Zephyr's IPv6 network stack can be prevented from receiving or processing future incoming packets by sending a small number of maliciously fragmented IPv6 packets. When such a packet is handled by the fragment-header processing path, the associated RX network packet buffer (allocated from a memory slab) is not released back to the pool. Repeating the malicious packet exhausts all RX buffer slots, after which the device can no longer obtain RX buffers and stops receiving traffic, resulting in a denial of service."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-8023",
+        "description": "Zephyr's HTTP server (subsys/net/lib/http) provides a static-filesystem resource type (HTTP_RESOURCE_TYPE_STATIC_FS, available when CONFIG_FILE_SYSTEM is enabled) that serves files from a configured root directory. Before this fix, both the HTTP/1 and HTTP/2 front-ends placed the raw, attacker-controlled request path into client->url_buffer (assembled in on_url() for HTTP/1 and copied verbatim from the :path pseudo-header for HTTP/2) without resolving ./.. segments. The static-FS handler then built the on-disk filename by directly concatenating the configured root with that raw URL (snprintk(fname, ..., \"%s%s\", static_fs_detail->fs_path, client->url_buffer) at http_server_http1.c:603 and http_server_http2.c:490) and opened it with fs_open(fname, FS_O_READ). Because the handler is reached via wildcard/leading-dir (fnmatch FNM_LEADING_DIR) or fallback resource matching, a request such as GET /<prefix>/../../<file> is dispatched to the handler and, after the underlying filesystem (e.g. Li"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10646",
+        "description": "Zephyr's BSD-sockets getaddrinfo() implementation (subsys/net/lib/sockets/getaddrinfo.c) passes a pointer to a stack-allocated state object (struct getaddrinfo_state ai_state) as the user_data of an asynchronous DNS resolver query. The socket layer waits on a semaphore with a timeout deliberately set slightly longer than the resolver's own per-query timeout. When that semaphore wait nonetheless times out (-EAGAIN) - which can occur when the resolver's timeout work is delayed by workqueue contention, or in the documented multi-retry configuration where CONFIG_NET_SOCKETS_DNS_TIMEOUT exceeds CONFIG_NET_SOCKETS_DNS_BACKOFF_INTERVAL - the pre-fix code retries the query (goto again) without cancelling the previous one and without resetting the semaphore.\n\nThe previous query slot remains active in the resolver with its callback and the stack pointer as user_data, and ai_state->dns_id is overwritten so the stale query can no longer be cancelled. A subsequent DNS response delivered over UDP an"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-1679",
+        "description": "The eswifi socket offload driver copies user-provided payloads into a fixed buffer without checking available space; oversized sends overflow `eswifi->buf`, corrupting kernel memory (CWE-120). Exploit requires local code that can call the socket send API; no remote attacker can reach it directly."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-10456",
+        "description": "A vulnerability was identified in the handling of Bluetooth Low Energy (BLE) fixed channels (such as SMP or ATT). Specifically, an attacker could exploit a flaw that causes the BLE target (i.e., the device under attack) to attempt to disconnect a fixed channel, which is not allowed per the Bluetooth specification. This leads to undefined behavior, including potential assertion failures, crashes, or memory corruption, depending on the BLE stack implementation."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10641",
+        "description": "Zephyr's Bluetooth Classic Hands-Free Profile (HFP) Hands-Free role parser (subsys/bluetooth/host/classic/hfp_hf.c) contains an out-of-bounds write. During Service Level Connection setup the HF sends AT+CIND=? and parses the AG's +CIND: response in cind_handle(), which assigns a per-entry counter index and calls cind_handle_values() for each list element. cind_handle_values() then wrote hf->ind_table[index] = i without verifying that index is within the 20-element int8_t ind_table[] array of struct bt_hfp_hf. Because the parser places no cap on the number of +CIND: list entries, a remote Attendant Gateway (a malicious, compromised, or spoofed peer the device connects to over Bluetooth) can send a response with more than 20 recognized indicator entries and drive index arbitrarily large, writing a small attacker-positioned value past the array into adjacent struct fields (feature masks, SDP/version state, the calls[] array, work/atomic bookkeeping) and potentially beyond the static conne"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10651",
+        "description": "bt_sdp_parse_attribute() in subsys/bluetooth/host/classic/sdp.c validated only that the SDP record buffer held the type-marker byte plus the 2-byte attribute ID (a check of buf->len < 3) but then read a fourth byte, the data-element descriptor (type), via net_buf_simple_pull_u8(). Because net_buf_simple_pull_u8() dereferences buf->data[0] before its only bounds guard (an __ASSERT_NO_MSG that compiles out when CONFIG_ASSERT is disabled, the production default), a record of exactly three bytes (0x09 followed by a 2-byte attribute ID) causes a one-byte read past the end of the logical buffer. The parser is reachable from inbound, remote-controlled data: a Bluetooth BR/EDR peer acting as an SDP server returns discovery-response records that are stored verbatim in the client receive buffer and parsed via the public bt_sdp_get_attr()/bt_sdp_has_attr()/bt_sdp_record_parse() helpers. The over-read is bounded to a single byte that is used only as an internal length selector and is never leaked "
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10658",
+        "description": "bt_iso_recv() in subsys/bluetooth/host/iso.c pulled the ISO SDU header (4 bytes) or, when the timestamp flag is set, the timestamped SDU header (8 bytes) from the inbound HCI ISO Data buffer via net_buf_pull_mem() without first checking buf->len. The upstream hci_iso() handler enforces buf->len == the controller-declared ISO Data_Load length, so a malicious or buggy controller / adjacent BLE peer on an established CIS/BIS can present a first-fragment (BT_ISO_START) or single (BT_ISO_SINGLE) PDU shorter than the SDU header. Because net_buf_simple_pull_mem only guards length with __ASSERT_NO_MSG (compiled out when CONFIG_ASSERT is disabled, the production default), the pull underflows buf->len (uint16_t, e.g. 0 - 8 = 0xFFF8) and advances buf->data past valid data: the subsequent reads of hdr->slen and hdr->sn are out-of-bounds reads of adjacent pool memory. For the multi-fragment (START) case the corrupted buffer is retained as iso->rx, and a following CONT/END fragment's net_buf_tailroo"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10671",
+        "description": "In Zephyr's kernel pipe implementation, the userspace syscall verifier z_vrfy_k_pipe_init() in kernel/pipe.c used K_SYSCALL_OBJ() (which requires the kernel object to already be initialized) instead of K_SYSCALL_OBJ_NEVER_INIT() (which rejects an already-initialized object). As a result, on CONFIG_USERSPACE builds an unprivileged user thread that has been granted access to a k_pipe object can invoke the k_pipe_init syscall to re-initialize a pipe that is already in use.\n\nz_impl_k_pipe_init() unconditionally resets the ring buffer, sets pipe->waiting to 0, and re-initializes both wait queues (z_waitq_init on pipe->data and pipe->space) without waking or accounting for threads currently blocked on the pipe. Any thread already pended in k_pipe_read()/k_pipe_write() is left orphaned: still marked pending with pended_on pointing at the cleared wait queue and with stale qnode_dlist links into the (now re-initialized) embedded list head.\n\nWhen such an orphaned waiter is later timed out or wok"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10682",
+        "description": "The userspace verifier z_vrfy_log_filter_set() for the log_filter_set syscall in subsys/logging/log_mgmt.c performed a signed comparison against the int16_t src_id parameter: src_id < (int16_t)log_src_cnt_get(domain_id). Any negative value for src_id (e.g. -1) trivially satisfied this check and was forwarded into z_impl_log_filter_set, where it propagated to filter_set() and ultimately to get_dynamic_filter(), which uses source_id as an unsigned index into the linker-section array &TYPE_SECTION_START(log_dynamic)[source_id].filters.\n\nAfter implicit conversion through uint32_t, an int16_t -1 becomes 0xFFFFFFFF, indexing log_dynamic far out of bounds and causing the kernel to perform an OOB read and an OOB read-modify-write (LOG_FILTER_SLOT_GET/SET) against memory adjacent to the log_dynamic section.\n\nThe written value is a constrained 3-bit log level slot within the targeted 32-bit word, but the target address is attacker-chosen (a small negative offset from log_dynamic) and the write o"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10677",
+        "description": "The CONFIG_USERSPACE syscall verifier z_vrfy_k_poll() in kernel/poll.c allocates a kernel-side copy of the user-supplied k_poll_event[] via z_thread_malloc() and then validates each event's object handle. Before this fix, validation used K_OOPS(K_SYSCALL_OBJ(...)) inline inside the loop, which kills the calling thread without freeing events_copy.\n\nA user thread can pass num_events >= 1 with a forged object handle to leak the allocation; because newly spawned user threads inherit the parent's resource_pool (kernel/thread.c), an attacker spawns sacrificial threads to repeat the leak until the shared kernel heap is exhausted. Once depleted, legitimate kernel allocations from that pool (k_queue alloc nodes, k_msgq buffers, future k_poll calls, etc.) fail, causing a system-level denial of service.\n\nThe fix replaces each inline K_OOPS with a conditional goto oops_free so the buffer is freed before the thread is killed. Affects Zephyr releases from v1.12.0 (when k_poll was first exposed to us"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10681",
+        "description": "In Zephyr's userspace dynamic-objects subsystem, thread_idx_alloc() in kernel/userspace/userspace.c allocated a new thread permission index from the global _thread_idx_map[] bitmap without holding lists_lock.\n\nOn SMP systems, two user-mode threads invoking the k_object_alloc(K_OBJ_THREAD) syscall concurrently can both observe the same low free bit, perform the same non-atomic RMW to clear it, and return the identical tidx.\n\nThe two newly created K_OBJ_THREAD objects are then assigned the same thread_id, so the two user threads alias a single bit position in every kernel object's perms[] bitfield: any subsequent grant of access on a kernel object to one thread is implicitly a grant to the other, defeating userspace ACL isolation. A secondary lost-update window between the unlocked &=~BIT() in alloc and the locked |= BIT() in thread_idx_free() can also leak entries from the thread-index pool.\n\nThe defect is reachable from any user-mode thread via the unrestricted __syscall k_object_alloc"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-2411",
+        "description": "Zephyr's Bluetooth host declares a GATT characteristic as two consecutive attributes: a Characteristic Declaration whose permission is hard-coded to BT_GATT_PERM_READ, and a Characteristic Value attribute that carries the application-specified security permissions (e.g. BT_GATT_PERM_READ_ENCRYPT / READ_AUTHEN / READ_LESC). The public notify and indicate APIs explicitly accept either attribute, and passing the declaration is the documented, common idiom. Before sending each notification or indication, the host re-checks link security with bt_gatt_check_perm() against params->attr in gatt_notify(), gatt_indicate(), and gatt_notify_multiple_verify_params() (subsys/bluetooth/host/gatt.c).\n\nWhen the application passed the Characteristic Declaration attribute, the host correctly redirected the value handle but left params->attr pointing at the declaration, so the security check evaluated the declaration's permissions (no security required) instead of the value's. As a result the encryption/a"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-5072",
+        "description": "A bitwise shift vulnerability in Zephyr's PTP subsystem allows a remote attacker to cause undefined behavior and potential system crashes. An attacker sends a crafted PTP_MSG_MANAGEMENT message to set an unvalidated negative log_announce_interval value in the port's data set. When a subsequent PTP_MSG_ANNOUNCE message is processed, port_timer_set_timeout_random computes a timeout as NSEC_PER_SEC >> -log_seconds; if the attacker-supplied value is sufficiently negative (e.g., -127), the shift amount exceeds the 64-bit integer width, triggering undefined behavior in C. This can cause a system crash via a compiler-generated illegal instruction trap on some architectures, or produce an erroneous zero timeout leading to resource starvation loops or other logical errors."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-9263",
+        "description": "The Zephyr Bluetooth controller ISO Adaptation Layer (subsys/bluetooth/controller/ll_sw/isoal.c) fails to validate the length field of a framed ISO PDU start segment. Per the Bluetooth specification a start segment (sc=0) always carries a 3-byte time_offset, so its segment-header len must be at least PDU_ISO_SEG_TIMEOFFSET_SIZE (3). isoal_check_seg_header() accepted start segments with len < 3 as valid, and isoal_rx_framed_consume() then computed length = seg_hdr->len - 3 in a uint8_t, underflowing to 253-255 when len is 0-2. That oversized length is passed to isoal_rx_append_to_sdu(), whose copy is clamped only against the destination SDU buffer size, not the source PDU length, so up to ~255 bytes of controller memory beyond the received PDU are copied (via sink_sdu_write_hci()/net_buf_add_mem) into an HCI ISO data packet and delivered to the host. The PDU and its segment headers are entirely attacker-controlled and arrive over the air, reachable through both the CIS and BIS-sync HCI "
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10653",
+        "description": "The Zephyr net_buf library (lib/net_buf/buf.c) manipulated both of its reference counts -- the per-header buf->ref and the per-data-block ref_count at the start of each variable/heap data allocation -- with plain non-atomic C operators (buf->ref++, if (--buf->ref > 0), if (--(*ref_count))).\n\nThe API is documented as self-synchronizing: callers may share one buffer across threads (e.g. via k_fifo) and each holder independently calls net_buf_unref() with no surrounding lock. Under true concurrency (SMP, or single-core preemption between the non-atomic load and store while another context unrefs the same buffer), two holders can both observe the same prior reference value and both conclude they are the last reference.\n\nFor heap/variable-data pools (mem_pool_data_unref/heap_data_unref, used by zbus message subscribers, the IP stack RX/TX buffers when CONFIG_NET_BUF_FIXED_DATA_SIZE=n, capture, wireguard, ISO-TP and usbip) this produces a double k_heap_free()/k_free() of the same block -- he"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-5590",
+        "description": "A race condition during TCP connection teardown can cause tcp_recv() to operate on a connection that has already been released. If tcp_conn_search() returns NULL while processing a SYN packet, a NULL pointer derived from stale context data is passed to tcp_backlog_is_full() and dereferenced without validation, leading to a crash."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-5066",
+        "description": "A potential out-of-bounds write/read exists in the TLS socket connect path of the network sockets subsystem (subsys/net/lib/sockets/sockets_tls.c). When the TLS session cache is enabled, tls_session_store() and tls_session_restore() memcpy the caller-supplied address into a fixed-size buffer using the caller-controlled addrlen value without validating it against the destination size. struct net_sockaddr is an opaque type, so an application can pass an addrlen larger than sizeof(struct net_sockaddr) (for example 128 bytes into a 24-byte stack buffer), causing the memcpy to read and write past the end of the address memory used by the TLS session cache. This out-of-bounds write can lead to a crash and denial of service, and potentially to arbitrary code execution."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-5589",
+        "description": "An integer underflow in bt_mesh_sol_recv() in the Bluetooth Mesh solicitation handling (subsys/bluetooth/mesh/solicitation.c) leads to an out-of-bounds write. When CONFIG_BT_MESH_OD_PRIV_PROXY_SRV is enabled, the function parses solicitation PDUs from raw BLE advertising payloads. The AD parsing loop reads an attacker-controlled length byte (reported_len) and computes reported_len - 3 without checking that reported_len >= 3. When reported_len is less than 3, the subtraction is performed in signed int arithmetic and yields a negative value that bypasses the length guard and is then implicitly converted to a very large size_t when passed to net_buf_simple_pull_mem(). In builds without assertions, this wraps the buffer length and advances the data pointer far out of bounds, so subsequent reads dereference invalid memory. A nearby BLE device can trigger this with a non-connectable advertisement carrying a UUID16 AD structure and a crafted length byte, with no pairing or prior association r"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-1681",
+        "description": "Issuing an ICMP ping via the `net ping` shell command to a device's own IPv4 address causes the network stack to recursively re-enter the input path on the same system work-queue stack. Because the destination is recognized as a local address, both the echo request and the resulting echo reply are processed inline before the current frame returns. The nested input-path frames exceed the work-queue stack and trigger a stack overflow."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-4179",
+        "description": "Issues in stm32 USB device driver (drivers/usb/device/usb_dc_stm32.c) can lead to an infinite while loop."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-5071",
+        "description": "The SocketCAN implementation validates the length of a user-provided buffer containing a socketcan_frame object using only a NET_ASSERT statement in zcan_sendto_ctx() before dereferencing it in socketcan_to_can_frame(). In production builds where assertions are disabled, a userspace application that controls the length passed to a sendto syscall can supply an incomplete or truncated frame, causing socketcan_to_can_frame() to dereference fields beyond the end of the buffer. This results in an out-of-bounds read that can cause denial-of-service crashes or, because the parsed frame contents are transmitted on the network, leak adjacent memory."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10637",
+        "description": "subsys/net/ip/ipv6_mld.c:mld_send() read the packet interface via net_pkt_iface(pkt) after net_send_data(pkt) returned successfully. Per the network stack's ownership contract (include/zephyr/net/net_core.h, and the explicit warning in subsys/net/ip/net_core.c:453-460 'do not use pkt after that call'), a successful send transfers ownership of the net_pkt and the L2 driver frees it (e.g. ethernet_send() unrefs the packet on success, subsys/net/l2/ethernet/ethernet.c:790), returning it to its k_mem_slab.\n\nThe subsequent net_pkt_iface(pkt) is therefore a read of a freed object; the recovered interface pointer is then dereferenced and incremented by the per-interface statistics path (net_stats.h UPDATE_STAT/SET_STAT) when CONFIG_NET_STATISTICS_PER_INTERFACE is enabled. If the freed slot is concurrently reallocated, pkt->iface may read back as NULL (NULL-pointer dereference / crash) or as a stale/garbage pointer (stray increment write / memory corruption).\n\nThe path is reachable remotely on"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10686",
+        "description": "Zephyr's IPv6 forwarding path re-sent routed unicast packets without ever decrementing the IPv6 hop limit. Both routing branches of ipv6_route_packet() (subsys/net/ip) were affected: the explicit-route path (net_route_packet()) and the on-link cross-interface path (net_route_packet_if()). Each set the packet forwarding flag and called net_send_data() with the hop limit untouched and no expiry check.\n\nPer RFC 8200 the hop-limit decrement is the mechanism that bounds packet lifetime and terminates routing loops; without it, a device acting as an IPv6 router relays looping packets indefinitely. An on-path attacker who can induce or exploit a transient L3 loop turns it into a permanent forwarding storm, causing CPU/bandwidth resource exhaustion (availability DoS) on the forwarder and adjacent links; path-discovery and loop diagnostics that rely on hop-limit expiry are also defeated.\n\nAffected configurations. In every affected release the forwarding path is reached via CONFIG_NET_ROUTE (ena"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10670",
+        "description": "The CONFIG_USERSPACE verification handler for the k_thread_name_copy() system call (z_vrfy_k_thread_name_copy() in kernel/thread.c) calls k_object_find() on the caller-supplied thread pointer and then dereferences the returned struct k_object without checking it for NULL. k_object_find() returns NULL whenever the supplied pointer is not a registered (static or dynamic) kernel object.\n\nThe pre-fix guard tested thread == NULL instead of ko == NULL, so an unprivileged user-mode thread that invokes k_thread_name_copy() with any non-NULL but unregistered pointer (e.g. an arbitrary address) passes the NULL test, after which the verifier reads ko->type through a NULL pointer.\n\nBecause the syscall verifier runs in supervisor mode, this NULL dereference is a kernel-mode fault that halts or reboots the system, allowing untrusted user code to crash the kernel across the userspace security boundary (denial of service). The marshaller passes the thread argument to the verifier without any prior K_S"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10674",
+        "description": "The NXP LPUART serial driver (drivers/serial/uart_mcux_lpuart.c), when CONFIG_UART_USE_RUNTIME_CONFIGURE is enabled, called LPUART_Deinit() at the start of mcux_lpuart_configure(), which disables the LPUART peripheral clocks. The requested configuration is validated only afterwards (in mcux_lpuart_configure_basic), and unsupported parity/data-bit/stop-bit/flow-control values return -ENOTSUP before the clock is re-enabled.\n\nAs a result, a uart_configure() request with an unsupported configuration left the LPUART in a clock-disabled state; any subsequent access to LPUART registers (poll_out/poll_in, interrupt handling, or a later reconfigure) faults on the gated peripheral and escalates to a hard fault, crashing the system.\n\nuart_configure() is a Zephyr syscall whose verifier (z_vrfy_uart_configure) only checks that cfg is readable user memory and forwards the caller-supplied configuration unchanged, so an unprivileged userspace thread with access to an LPUART device can deterministicall"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10773",
+        "description": "The DHCPv4 client helper net_dhcpv4_msg_type_name() in subsys/net/lib/dhcpv4/dhcpv4.c indexes a static 8-element const char * name table after a faulty bounds check. The guard used msg_type <= sizeof(name) instead of msg_type <= ARRAY_SIZE(name); sizeof returns the byte size of the pointer array (32 on 32-bit, 64 on 64-bit targets) rather than the element count of 8, so message-type values from 9 up to that byte size pass the check and cause name[msg_type - 1] to read past the end of the array.\n\nThe msg_type value originates from the DHCP MESSAGE TYPE option, which is read as an unchecked raw byte from a received packet (net_pkt_read_u8) and passed unmodified into the lookup. A DHCP server, or any host able to inject a spoofed DHCP reply onto the client's link, can therefore drive the index out of bounds. The out-of-range slot yields a garbage const char * that is then dereferenced by a %s log conversion.\n\nThe lookup is reached only from a debug log statement (NET_DBG / LOG_DBG), so th"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-13481",
+        "description": "The IEEE 1588 PTP management-message parser in subsys/net/lib/ptp/tlv.c mishandles the PTP_MGMT_TIME management id. In tlv_mgmt_post_recv(), the PTP_MGMT_TIME case casts mgmt_tlv->data to a 10-byte struct ptp_timestamp and reads it (then byte-swaps and writes it back) without first checking that the TLV data field is at least sizeof(struct ptp_timestamp). Every sibling management id in the same switch validates its length first; PTP_MGMT_TIME was the only case lacking that check.\n\nThe length passed in is the management data size (tlv->length - 2), and the upstream guard in ptp_tlv_post_recv() only requires tlv->length > 2, while msg_tlv_post_recv() validates only that the TLV fits within the received byte count, not a per-id minimum. A peer on the local PTP segment can therefore send a PTP_MSG_MANAGEMENT message carrying a short PTP_MGMT_TIME TLV (data as small as 2 bytes), causing the parser to read and write 8 bytes beyond the validated data. The message type and TLV contents are tak"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10647",
+        "description": "The USB CDC-NCM device class (subsys/usb/device_next/class/usbd_cdc_ncm.c) ignores the return value of usbd_ep_enqueue() in its ethernet transmit callback cdc_ncm_send(). When the enqueue fails, the function still calls k_sem_take(&data->sync_sem, K_FOREVER), blocking on a completion semaphore that is only ever signaled from the bulk-IN transfer-completion callback. Because nothing was enqueued, that callback never fires and the calling thread — a shared network traffic-class TX thread — deadlocks permanently while holding the interface TX lock, halting transmission until reboot (and leaking the transmit buffer).\n\nThe enqueue fails under conditions controlled by the attached USB host: usbd_ep_enqueue() returns -EPERM whenever the bus is suspended (a standard, persistent host operation), and the underlying udc_ep_enqueue() returns -EPERM/-ENODEV on disconnect, bus reset, or endpoint disable. The cdc_ncm_send() guard only checks the DATA_IFACE_ENABLED and IFACE_UP flags, not the suspende"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-1677",
+        "description": "Zephyr sockets created with `IPPROTO_TLS_1_3` can still negotiate a TLS 1.2 connection when both TLS versions are enabled in Kconfig, because the socket-level protocol selection is not propagated to mbedTLS (e.g. via `mbedtls_ssl_conf_min_tls_version`). The ClientHello advertises both versions and the peer can establish TLS 1.2, so applications that assumed `IPPROTO_TLS_1_3` enforces TLS 1.3 may silently use TLS 1.2 and remain exposed to TLS 1.2-specific weaknesses. As a workaround, the `TLS_CIPHERSUITE_LIST` socket option can be restricted to TLS 1.3-only cipher suites."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10664",
+        "description": "The nRF70 Wi-Fi driver's power-save event handler nrf_wifi_event_proc_get_power_save_info() in drivers/wifi/nrf_wifi/src/wifi_mgmt.c copied TWT (Target Wake Time) flow entries from an nrf_wifi_umac_event_power_save_info event into the fixed-size twt_flows[WIFI_MAX_TWT_FLOWS] (8-element) array of a caller-supplied struct wifi_ps_config, looping over event-provided num_twt_flows without validating it against WIFI_MAX_TWT_FLOWS or checking event_len. When num_twt_flows exceeds 8, the handler writes past the destination array (which is typically on the caller's stack, e.g. the wifi ps shell command) -- an out-of-bounds write of ~40-byte TWT entries -- and reads twt_flow_info[i] past the event buffer. The event is delivered by the nRF70 co-processor firmware in response to a host-initiated power-save GET, so reaching the overflow requires the firmware to emit a malformed or out-of-range event; the trust boundary is host-to-trusted-coprocessor rather than a direct remote-AP write, with over-"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10645",
+        "description": "The Zephyr ext2 filesystem driver (subsys/fs/ext2) trusted the on-disk directory entry fields de_rec_len and de_name_len when walking a directory block. ext2_fetch_direntry() guarded only with de_name_len > EXT2_MAX_FILE_NAME, but de_name_len is a uint8_t and EXT2_MAX_FILE_NAME is 255, so the check is always false; the function then memcpy'd up to 255 name bytes and the lookup/readdir paths advanced traversal by an unvalidated de_rec_len. Each directory block is read into a block_size-sized slab buffer, and block_off can be driven near the block end by preceding entries' rec_len, so the 8-byte header read and the subsequent name memcpy can read up to ~263 bytes past the end of the block buffer into adjacent heap/slab memory. On the readdir path those bytes are returned to the caller in fs_dirent.name, leaking adjacent kernel heap memory; a de_rec_len of 0 also causes a zero-progress infinite loop (denial of service), and the unlink path's memmove(de, next, next_reclen) over unvalidated"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10634",
+        "description": "Zephyr's native TCP stack iterates the global connection list in net_tcp_foreach() (subsys/net/ip/tcp.c) using the SYS_SLIST_FOR_EACH_CONTAINER_SAFE macro, which caches a pointer to the next list node. Prior to this fix the function released tcp_lock while invoking the per-connection callback and re-acquired it afterwards.\n\nDuring that window a concurrent tcp_conn_release(), running on the dedicated TCP work-queue thread when a connection's reference count drops to zero (e.g. a remote peer closing or resetting the connection), can remove and k_mem_slab_free() the cached next connection. When the iterator advances it dereferences the freed (and possibly reallocated) slab memory — a use-after-free that can crash the system (denial of service) and, if the slot has been reused, cause the callback to operate on an attacker-influenced object (potential information disclosure or further fault).\n\nnet_tcp_foreach() is reached in production via the net conn network shell command and via net_tcp_"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10639",
+        "description": "In Zephyr's native IPv4 stack, icmpv4_handle_echo_request() in subsys/net/ip/icmpv4.c builds an echo-reply packet (reply), hands it to net_try_send_data(), and then, on success, calls net_stats_update_icmp_sent(net_pkt_iface(reply)). net_try_send_data() transfers ownership of reply to the TX path (net_if_try_queue_tx -> net_if_tx -> L2/driver send, or the asynchronous net_if_tx_thread), which can unref it to refcount 0 and return the struct net_pkt to its slab (net_pkt_unref -> k_mem_slab_free) before the stats line runs. net_core.c documents this exact contract ('the pkt might contain garbage already ... do not use pkt after that call').\n\nThe post-send net_pkt_iface(reply) therefore reads reply->iface out of a freed (and possibly already reallocated) net_pkt, a use-after-free read; with CONFIG_NET_STATISTICS_PER_INTERFACE the stats macro additionally increments a counter through that value, i.e. a dereference/write through a stale or recycled-slot pointer.\n\nThe path is reached unauthe"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10642",
+        "description": "The Zephyr PL011 UART driver (drivers/serial/uart_pl011.c) contains an unbounded software loop in pl011_irq_tx_enable() that repeatedly invokes the interrupt-driven application callback while the TX interrupt mask bit (PL011_IMSC_TXIM) is set, to work around the controller's level-transition TX-interrupt behavior.\n\nWhen CTS hardware flow control is enabled (devicetree hw-flow-control or runtime UART_CFG_FLOW_CTRL_RTS_CTS) and the wired serial peer de-asserts CTS, the controller stops draining the TX FIFO; pl011_fifo_fill() then returns 0 on every call while the application still has pending data and therefore never disables the TX interrupt. The loop condition never clears, so the thread that called uart_irq_tx_enable() (e.g. h4_send() in the Bluetooth HCI H4 driver) spins indefinitely, hanging the executing context and stalling the transport — a denial of service (CWE-835).\n\nAn attacker controlling the device attached to the UART's CTS line can trigger the hang by withholding CTS duri"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-7007",
+        "description": "The Zephyr ext2 file system validates the on-disk superblock in ext2_verify_disk_superblock() (subsys/fs/ext2/ext2_impl.c) before completing a mount. The validator checked the magic number, block size, revision and feature flags, but did not verify that the on-disk fields s_blocks_per_group and s_inodes_per_group are non-zero. Both fields are read directly from the image and are later used as divisors during mount-time initialization.\n\nDuring mount, get_ngroups() divides and modulos s_blocks_count by s_blocks_per_group (reached via ext2_fetch_block_group() from ext2_init_fs()), and get_itable_entry() divides (ino - 1) by s_inodes_per_group when fetching the root inode (both in subsys/fs/ext2/ext2_diskops.c). A superblock with either field set to zero therefore causes an integer division by zero during the mount sequence.\n\nAn attacker who can present a crafted ext2 image to a device that mounts ext2 — removable media such as an SD card or a USB mass-storage device — can trigger this. On"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-10457",
+        "description": "The function responsible for handling BLE connection responses does not verify whether a response is expected—that is, whether the device has initiated a connection request. Instead, it relies solely on identifier matching."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10675",
+        "description": "In Zephyr's Bluetooth Mesh PB-ADV provisioning bearer (subsys/bluetooth/mesh/pb_adv.c), prov_msg_recv() rescheduled the provisioning protocol watchdog timer unconditionally at the top of the function, before the FCS check and before the ADV_LINK_INVALID check. Once a provisioning attempt fails, prov_failed() sets ADV_LINK_INVALID and the only recovery path is the protocol timer firing (protocol_timeout -> prov_link_close -> close_link -> reset_adv_link and re-enabling of scanning and the unprovisioned device beacon).\n\nA remote, unauthenticated attacker on the BLE advertising channel can first induce a provisioning failure (e.g. with a malformed generic-provisioning PDU) and then transmit any FCS-valid PB-ADV transaction PDU on the same link ID more often than once per protocol timeout (60 s, or 120 s for OOB input/output). Because each such packet reset the timer even on an invalidated link, protocol_timeout never fired, the dead link was never torn down, and the device remained pinned"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10640",
+        "description": "Zephyr's IPv6 Neighbor Discovery send paths (net_ipv6_send_na, net_ipv6_send_ns, net_ipv6_send_rs in subsys/net/ip/ipv6_nbr.c) updated the per-interface ICMP-sent statistics by calling net_pkt_iface(pkt) after net_send_data(pkt) had already returned successfully. On the success path the network stack owns and releases the packet's reference (the L2/driver send unrefs it, e.g. ethernet_send -> net_pkt_unref), so for a freshly allocated packet with refcount 1 the net_pkt slab block can be freed before the statistics line runs (synchronously when no TX queue thread is configured, or via a concurrent TX thread otherwise).\n\nThe subsequent net_pkt_iface(pkt) reads pkt->iface from the freed slab block, and with CONFIG_NET_STATISTICS_PER_INTERFACE enabled that loaded pointer is dereferenced to increment iface->stats.icmp.sent, a use-after-free (CWE-416). If the slab block was reallocated in the meantime the read/increment targets unrelated or attacker-influenced memory, yielding corrupted stat"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10636",
+        "description": "In Zephyr's IPv4 IGMP implementation, igmp_send() in subsys/net/ip/igmp.c read the network interface back out of the packet via net_pkt_iface(pkt) after the packet had been handed to net_send_data(). On the successful-send path the packet's last reference may already have been released by the L2 driver or by the network stack's TX handling (synchronously in the default NET_TC_TX_COUNT=0 immediate-transmit configuration), returning the net_pkt slab block to its free list. The subsequent net_pkt_iface(pkt) dereferences the freed packet, a use-after-free read; with CONFIG_NET_STATISTICS_PER_INTERFACE the resulting dangling interface pointer is further dereferenced for a statistics-counter write.\n\nThe IGMP send path is reachable without authentication from inbound IPv4 IGMP membership queries addressed to 224.0.0.1 (net_ipv4_igmp_input -> send_igmp_report/send_igmp_v3_report -> igmp_send), as well as from local multicast join/leave/rejoin operations.\n\nRealistic impact is undefined behavior"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10657",
+        "description": "Zephyr's DNS resolver detects mDNS (.local) queries in dns_resolve_name_internal() (subsys/net/lib/dns/resolve.c) with memcmp(strrchr(query, '.'), \".local\", 7), which always reads a fixed 7 bytes from the suffix pointer. When the resolved hostname's final label is shorter than 7 bytes (e.g. names ending in .org, .com, .net, .io, or a trailing dot), the comparison reads 1-2 bytes past the string's NUL terminator.\n\nThe hostname (query) is the caller-supplied name passed through the standard getaddrinfo()/dns_get_addr_info()/dns_resolve_name() path and is influenceable by operators or remote inputs (server names from configuration, parsed URLs, or app-facing interfaces).\n\nOn a tightly-sized buffer with no slack (for example a userspace getaddrinfo call where the hostname is copied with k_usermode_string_alloc_copy to exactly strlen+1 bytes), the over-read crosses the allocation boundary; if that boundary is unmapped (guard page, memory-domain boundary under MPU, or an address sanitizer) t"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10679",
+        "description": "The DesignWare SPI driver (drivers/spi/spi_dw.c) computed the SPI BAUDR clock divider as info->clock_frequency / config->frequency without validating config->frequency.\n\nspi_transceive is a Zephyr __syscall and its verify handler (drivers/spi/spi_handlers.c) copies the caller-supplied spi_config from userspace without checking the frequency field, so a userspace thread that has been granted access to a DesignWare SPI device kernel object can pass frequency = 0 and trigger an unsigned integer divide-by-zero in spi_dw_configure().\n\nOn Cortex-M Mainline (SCB->CCR.DIV_0_TRP is set in z_arm_fault_init()) and on ARC (a dedicated __ev_div_zero vector) this raises a CPU exception, resulting in a kernel fault and local denial of service.\n\nThe fix rejects zero frequency and frequencies above clock_frequency / 2 (the DesignWare SSI databook minimum SCKDIV of 2) with -EINVAL. The defect affects all Zephyr releases up to and including v4.4.0; exploitation requires CONFIG_USERSPACE=y and an unprivil"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10654",
+        "description": "A race condition in the Zephyr Bluetooth Classic RFCOMM host stack (subsys/bluetooth/host/classic/rfcomm.c) mishandles a simultaneous bidirectional session disconnect. When the local device has initiated a session teardown (state BT_RFCOMM_STATE_DISCONNECTING, DISC sent, RTX timer armed) and the connected peer concurrently sends its own DISC frame for dlci 0, rfcomm_handle_disc() invokes rfcomm_session_disconnected(), which unconditionally forced the session to BT_RFCOMM_STATE_DISCONNECTED without ever calling bt_l2cap_chan_disconnect().\n\nBecause the recovery timer was also cancelled and a later UA is ignored in the DISCONNECTED state, the session becomes permanently wedged: the underlying L2CAP channel is never released and the session slot in the fixed bt_rfcomm_pool[CONFIG_BT_MAX_CONN] array is never reclaimed (its conn pointer stays set).\n\nSubsequent bt_rfcomm_dlc_connect() calls on that connection fail with -EINVAL due to the invalid session state, so RFCOMM service is denied for "
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-13479",
+        "description": "The LoRaWAN application-layer clock-synchronization service parses downlinks in clock_sync_package_callback() (subsys/lorawan/services/clock_sync.c). Its command loop only guarantees that the one-byte command id is in bounds; for the CLOCK_SYNC_CMD_APP_TIME (AppTimeAns) command the handler then reads a 4-byte time correction via sys_get_le32() plus a 1-byte token without checking that 5 bytes remain in the receive buffer (len - rx_pos). A short or crafted AppTimeAns therefore reads up to 5 bytes past the end of the decrypted payload.\n\nThe payload (rx_buf/len) is the decrypted application frame delivered to the registered downlink callback (mcps_indication->Buffer/BufferSize). Reaching the handler requires a frame on the clock-sync port that passes LoRaWAN's MAC integrity check and FRMPayload decryption, so the practical attacker is a malicious or compromised network/application server (the designated sender of AppTimeAns) or a party holding the session keys, rather than an arbitrary ra"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-13480",
+        "description": "The LoRaWAN TS004 Fragmented Data Block Transport handler frag_transport_package_callback() in subsys/lorawan/services/frag_transport.c parses downlink command bytes without validating that enough payload bytes remain before each access. The loop's only bound is rx_pos < len; after consuming the one-byte command id the handler cast rx_buf + rx_pos to a 10-byte struct frag_transport_setup_req, and for a DATA_FRAGMENT command passed &rx_buf[rx_pos] to the fragment decoder, which reads exactly ctx.frag_size bytes — with no remaining-length check in either case.\n\nThe fragment size is attacker-chosen in a preceding FRAG_SESSION_SETUP command (ctx.frag_size = req->frag_size, capped at CONFIG_LORAWAN_FRAG_TRANSPORT_MAX_FRAG_SIZE, default 232). rx_buf aliases the 255-byte static MacCtx.RxPayload buffer in the loramac-node MAC layer, while len is the actual decrypted payload length. By padding a downlink with mismatched-index DATA_FRAGMENT filler commands (each advancing rx_pos by three bytes w"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10683",
+        "description": "In the Synopsys DesignWare I2C driver (drivers/i2c/i2c_dw.c) operating in target/slave mode, the rx_full interrupt handler gates the write_requested() callback on dw->state != CMD_SEND, and dw->state is only reset to READY on a STOP interrupt. The START_DET interrupt, whose handler in i2c_dw_slave_read_clear_intr_bits() would reset the state on every (re)START, was never added to the enabled interrupt mask in i2c_dw_slave_register(), so that recovery path was dead code.\n\nAs a result, if the STOP interrupt is lost (bus glitch/reset, or a concurrent master driving STOP) or the bus master issues a legal WRITE-repeated-START-WRITE sequence with the same direction, the driver remains in CMD_SEND permanently and never invokes write_requested() again for the life of the target.\n\nAn I2C master on the same physical bus can deliberately trigger this, causing the I2C target function to malfunction for all subsequent write transactions and desynchronizing consumer framing state (e.g. MCTP-over-I2C"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10774",
+        "description": "Zephyr's Bluetooth Mesh subnet key management leaks one PSA Crypto key slot on every subnet-key teardown. In subsys/bluetooth/mesh/subnet.c, net_keys_create() imports the Private Beacon Key into a PSA key slot under CONFIG_BT_MESH_PRIV_BEACONS (enabled by default), but subnet_keys_destroy() guarded the matching psa_destroy_key() with CONFIG_BT_MESH_V1d1. That Kconfig symbol was removed when explicit Mesh 1.0.1 support was dropped, so the destroy branch became permanently dead code and the import is never balanced by a destroy.\n\nThe imbalanced teardown is reached every time subnet keys are destroyed: deleting a subnet (Config Server NetKey Delete), completing a Key Refresh Procedure (which retires the old key set), and resetting/re-provisioning the node. The over-the-air triggers are processed only under the node's device key, so they are exercisable by the provisioner or network administrator that owns the node, reachable over the Bluetooth Mesh network.\n\nWith the default CONFIG_MBEDTL"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-12035",
+        "aliases": [
+          "GHSA-p793-3456-h7w3"
+        ],
+        "description": "Bluetooth: Integer Overflow in Bluetooth Classic (BR/EDR) L2CAP"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-12890",
+        "aliases": [
+          "GHSA-8hrf-pfww-83v9"
+        ],
+        "description": "Bluetooth: peripheral: Invalid handling of malformed connection request"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-12899",
+        "aliases": [
+          "GHSA-c2vg-hj83-c2vg"
+        ],
+        "description": "net: icmp: Out of bound memory read"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-9408",
+        "aliases": [
+          "GHSA-3r6j-5mp3-75wr"
+        ],
+        "description": "Userspace privilege escalation vulnerability on Cortex M"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-9557",
+        "aliases": [
+          "GHSA-r3j3-c5v7-2ppf"
+        ],
+        "description": "Bluetooth: Mesh: Out-of-Bound Write in gen_prov_cont"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-9558",
+        "aliases": [
+          "GHSA-8wvr-688x-68vr"
+        ],
+        "description": "Bluetooth: Mesh: Out-of-Bound Write in gen_prov_start"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-0849",
+        "aliases": [
+          "GHSA-ff4p-3ggg-prp6"
+        ],
+        "description": "crypto: ATAES132A response length allows stack buffer overflow"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10656",
+        "aliases": [
+          "GHSA-58p9-6mjq-rf2m"
+        ],
+        "description": "NULL-pointer dereference DoS in MAX32 USB device controller transfer-completion handlers"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10660",
+        "aliases": [
+          "GHSA-73c7-3rh7-v5p9"
+        ],
+        "description": "Shared reassembly buffer in Bluetooth BAP Broadcast Assistant enables cross-connection memory corruption"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10663",
+        "aliases": [
+          "GHSA-26q8-xjq3-f5p6"
+        ],
+        "description": "Use-after-free / double-free of the root USB device in the experimental USB host stack"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10665",
+        "aliases": [
+          "GHSA-3wqm-wgx2-9367"
+        ],
+        "description": "Heap buffer overflow on WireGuard receive path via unbounded incoming packet length"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10668",
+        "aliases": [
+          "GHSA-rm28-x84j-4qrx"
+        ],
+        "description": "Host-triggerable control-endpoint wedge (DoS) in Nuvoton NuMaker HSUSBD UDC driver"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10672",
+        "aliases": [
+          "GHSA-rf6j-4mpp-j9mf"
+        ],
+        "description": "Unterminated URI buffer causes out-of-bounds read in LwM2M firmware pull (Package URI)"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-10678",
+        "aliases": [
+          "GHSA-pmwm-5rcm-39rr"
+        ],
+        "description": "NULL-pointer / out-of-bounds write in Zephyr MCTP I2C+GPIO target binding driven by an unauthenticated I2C controller"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-11742",
+        "aliases": [
+          "GHSA-8xm3-4w69-29mm"
+        ],
+        "description": "Use-after-free race in kernel `k_queue_peek_head/tail` due to missing spinlock"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-11809",
+        "aliases": [
+          "GHSA-6r86-hvv2-h6g4"
+        ],
+        "description": "UpdateHub probe: uninitialized-heap out-of-bounds read of network-supplied metadata"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-11810",
+        "aliases": [
+          "GHSA-jfpc-324j-84ww"
+        ],
+        "description": "NULL-pointer dereference in UpdateHub OTA agent on empty inner metadata array (remote DoS)"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-11811",
+        "aliases": [
+          "GHSA-q3mh-4wj7-mq7f"
+        ],
+        "description": "Socket file-descriptor leak in UpdateHub OTA client start_coap_client() leading to resource-exhaustion DoS"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-11812",
+        "aliases": [
+          "GHSA-vprh-rff6-46xp"
+        ],
+        "description": "UpdateHub: race condition on shared context causes out-of-bounds write and DoS"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-11985",
+        "aliases": [
+          "GHSA-qxr9-wh3c-hvgv"
+        ],
+        "description": "Cross-thread FPU register leak on ARM when FPU enabled without register sharing"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12052",
+        "aliases": [
+          "GHSA-vr4p-6rg5-qgpx"
+        ],
+        "description": "Out-of-bounds write in USB CDC NCM control handler when host wLength is smaller than the response"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12232",
+        "aliases": [
+          "GHSA-3557-j848-pv24"
+        ],
+        "description": "Out-of-bounds read via unvalidated stream_id in Intel ALH DAI get_properties"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12233",
+        "aliases": [
+          "GHSA-57c4-xcq2-fqj7"
+        ],
+        "description": "Uninitialized mutex in TLS trusted-credential backend causes kernel NULL-deref DoS under contention"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12234",
+        "aliases": [
+          "GHSA-fcp3-vrr2-xfjv"
+        ],
+        "description": "TOCTOU double-fetch in `zsock_sendmsg`/`recvmsg` userspace verifiers allows kernel-heap out-of-bounds write"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12235",
+        "aliases": [
+          "GHSA-xv9q-6mrf-8j49"
+        ],
+        "description": "Out-of-bounds write in Xtensa llext PLT relocation from malformed ELF (CWE-787)"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12236",
+        "aliases": [
+          "GHSA-483r-jq2x-5cp9"
+        ],
+        "description": "Infinite loop (DoS) in Bluetooth GATT client parsing of Read-By-Type responses with zero data length"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12363",
+        "aliases": [
+          "GHSA-fvm7-7whg-8gj6"
+        ],
+        "description": "Out-of-bounds write in LoRaWAN fragmented transport from a fragment index of 0"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12364",
+        "aliases": [
+          "GHSA-h7rf-g9mg-g23f"
+        ],
+        "description": "Missing user-space pointer validation in logging syscall z_log_msg_static_create allows kernel memory disclosure and denial of service"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12365",
+        "aliases": [
+          "GHSA-rhmh-r93p-6g99"
+        ],
+        "description": "Use-after-free in Zephyr delayable work-queue cancellation under SMP timing race"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12366",
+        "aliases": [
+          "GHSA-x96g-542c-gccq"
+        ],
+        "description": "Use-after-free freeing an armed dynamically-allocated k_timer in Zephyr userspace object disposal"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12519",
+        "aliases": [
+          "GHSA-8hrc-q8cp-6xhf"
+        ],
+        "description": "Out-of-bounds stack read and write in Zephyr WNC-M14A2A modem socket-notify parsing"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12520",
+        "aliases": [
+          "GHSA-9xc4-j5x8-v6jx"
+        ],
+        "description": "Stack buffer overflow and off-by-one writes in Zephyr HL7800 modem AT response handlers"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12522",
+        "aliases": [
+          "GHSA-hchc-6489-w66v"
+        ],
+        "description": "Stack buffer overflow in Zephyr hl7800 modem driver parsing network-supplied +CGCONTRDP address fields"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12629",
+        "aliases": [
+          "GHSA-36rp-2hcp-f5hv"
+        ],
+        "description": "PL011 UART error interrupts never cleared, enabling an external-peer interrupt-storm denial of service"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12630",
+        "aliases": [
+          "GHSA-45c8-pmgj-6jrc"
+        ],
+        "description": "6LoWPAN IPHC uncompression out-of-bounds read on reserved destination addressing mode"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12631",
+        "aliases": [
+          "GHSA-crfw-75jw-hjm3"
+        ],
+        "description": "Broken access-control denial in k_thread_join/k_thread_abort syscall validation in Zephyr kernel"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12632",
+        "aliases": [
+          "GHSA-frjr-h396-7wh4"
+        ],
+        "description": "Out-of-bounds read in Zephyr PTP message parsing from unvalidated message type"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12633",
+        "aliases": [
+          "GHSA-h5m5-hm6j-cgpf"
+        ],
+        "description": "Out-of-bounds write in IPv6 6LoWPAN Context Option handling via unauthenticated Router Advertisement"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12634",
+        "aliases": [
+          "GHSA-q7c8-m2qg-385c"
+        ],
+        "description": "Out-of-bounds stack write in the settings NVS backend from over-reported nvs_read length"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-12999",
+        "aliases": [
+          "GHSA-8w97-ghfm-5wjp"
+        ],
+        "description": "Infineon Airoc Wi-Fi driver leaks TX buffers on send failure, leading to permanent pool exhaustion"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-13213",
+        "aliases": [
+          "GHSA-9rj8-3fvm-cc9f"
+        ],
+        "description": "Bluetooth HAS: NULL-pointer dereference DoS when a bonded peer reconnects before bt_has_register"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-13215",
+        "aliases": [
+          "GHSA-j52j-gfj9-rwjm"
+        ],
+        "description": "Zephyr ext2 mount: unvalidated superblock block size causes out-of-bounds write from a crafted filesystem image"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-13478",
+        "aliases": [
+          "GHSA-gj29-7f7m-4c29"
+        ],
+        "description": "Out-of-bounds read in Zephyr ext2 block-bitmap validation from a crafted s_blocks_count"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-14366",
+        "aliases": [
+          "GHSA-f9qq-jv4w-pqxg"
+        ],
+        "description": "SiWx91x WiFi driver double-unref / use-after-free of caller-owned TX net_pkt"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-14367",
+        "aliases": [
+          "GHSA-gfj5-gcxv-9jqm"
+        ],
+        "description": "I3C IBI work-node free-list data race between ISR and workqueue thread"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-14368",
+        "aliases": [
+          "GHSA-vg53-h6qq-xx7h"
+        ],
+        "description": "Off-by-one out-of-bounds NUL write in Zephyr LwM2M JSON string parser"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-15460",
+        "aliases": [
+          "GHSA-hx89-rm6c-hjrh"
+        ],
+        "description": "Missing channel-state validation in Zephyr Bluetooth Classic L2CAP receive path"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-15891",
+        "aliases": [
+          "GHSA-c4g8-4f9p-4746"
+        ],
+        "description": "NULL pointer dereference in Zephyr MQTT-SN client when removing a non-responsive gateway"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-15892",
+        "aliases": [
+          "GHSA-rq68-wgv4-hcq3"
+        ],
+        "description": "Heap memory leak in mcumgr settings-management handlers on access-hook rejection leads to denial of service"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-15893",
+        "aliases": [
+          "GHSA-8v32-9xf8-r765"
+        ],
+        "description": "Zephyr IPv6 Neighbor Discovery zero reachable time from crafted Router Advertisement causes assertion/DoS"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-15923",
+        "aliases": [
+          "GHSA-4pvm-wrcp-jjf5"
+        ],
+        "description": "Infinite loop denial of service in Zephyr SDIO byte-I/O from a card-supplied zero max_blk_size"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-15924",
+        "aliases": [
+          "GHSA-wcgm-pq6x-v2gf"
+        ],
+        "description": "Use-after-free / double-free from unsynchronized concurrent access to the TLS client session cache in Zephyr sockets"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-16147",
+        "aliases": [
+          "GHSA-3q4g-7w6j-8qfp"
+        ],
+        "description": "it82xx2 USB device controller submits incomplete OUT transfer buffers, causing use-after-free and event-list corruption"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-16148",
+        "aliases": [
+          "GHSA-fvp9-j2pq-477x"
+        ],
+        "description": "Kernel panic in the it82xx2 USB device controller driver via re-initialization of a busy delayable work item"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-16512",
+        "aliases": [
+          "GHSA-89r6-q468-45xq"
+        ],
+        "description": "Out-of-bounds read in the Zephyr gPTP receive path when handling short Ethernet frames"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-16513",
+        "aliases": [
+          "GHSA-fwmc-q8qg-jcxq"
+        ],
+        "description": "Missing write validation of user-supplied handle pointer in the RTIO syscall verifier allows arbitrary kernel write"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-16514",
+        "aliases": [
+          "GHSA-mgxg-89rr-6855"
+        ],
+        "description": "Out-of-bounds read in gPTP Announce path-trace validation via unvalidated stepsRemoved"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-16515",
+        "aliases": [
+          "GHSA-v5vw-m78m-h46g"
+        ],
+        "description": "ICMPv6 error messages sent for multicast-destined packets and non-unique source addresses enable network amplification in Zephyr's IPv6 stack"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-17050",
+        "aliases": [
+          "GHSA-r7xw-9jhg-88cm"
+        ],
+        "description": "Double free of the USB host configuration descriptor when device enumeration fails"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-17051",
+        "aliases": [
+          "GHSA-78p3-4gv3-qjh9"
+        ],
+        "description": "Out-of-bounds write in the Intel SEDI IPM driver from an unvalidated inbound doorbell length"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-17052",
+        "aliases": [
+          "GHSA-8qw6-x76h-8mpc"
+        ],
+        "description": "Missing user-pointer validation in tgpio_pin_read_ts_ec syscall handler allows arbitrary supervisor-memory write from userspace"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-17053",
+        "aliases": [
+          "GHSA-hqh5-956f-5x2r"
+        ],
+        "description": "SMBus callback-removal syscalls accept an unvalidated user pointer, letting user threads manipulate kernel callback state"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-18413",
+        "aliases": [
+          "GHSA-7jqq-2g5q-hcrp"
+        ],
+        "description": "Out-of-bounds write in the NXP MCUX LPADC ADC driver due to missing adc_sequence buffer size validation"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-18414",
+        "aliases": [
+          "GHSA-ghm4-78mm-8v2c"
+        ],
+        "description": "Out-of-bounds write in the ADI MAX32 ADC driver due to incorrect adc_sequence buffer size validation"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-18415",
+        "aliases": [
+          "GHSA-j76j-jrjc-xgvp"
+        ],
+        "description": "Out-of-bounds write in the IEEE 802.15.4 L2 transmit path for oversized non-6LoWPAN frames"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-18416",
+        "aliases": [
+          "GHSA-m3mv-vvm4-h58g"
+        ],
+        "description": "Out-of-bounds read in CoAP well-known-core Uri-Query href matching (match_path_uri)"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-18746",
+        "aliases": [
+          "GHSA-4q9g-2mhh-m7w7"
+        ],
+        "description": "NULL pointer dereference in Zephyr LwM2M client when the CoAP Block1 context pool is exhausted"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-18747",
+        "aliases": [
+          "GHSA-g6cx-xj75-hvfw"
+        ],
+        "description": "Integer underflow of net_buf length in the MCUmgr serial (SMP over console) transport leads to out-of-bounds read"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-8718",
+        "aliases": [
+          "GHSA-p3r6-mx6c-33gq"
+        ],
+        "description": "Out-of-bounds write in DTLS peer Connection ID getsockopt (`TLS_DTLS_PEER_CID_VALUE`) in Zephyr net sockets/TLS"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-9728",
+        "aliases": [
+          "GHSA-47q2-w832-7w67"
+        ],
+        "description": "TOCTOU race in mbox_send syscall verifier allows userspace to leak kernel memory"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-9771",
+        "aliases": [
+          "GHSA-68cj-3hg4-5vpm"
+        ],
+        "description": "Missing device-pointer validation in flash_copy() syscall allows userspace privilege escalation"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+          "identifiers": {
+            "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "cpe23": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range; subsystem: this component is an OS/SDK tree and the advisory concerns one subsystem or driver; the version is in range, but whether the firmware builds that code needs the file named in the advisory checked against the build"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-34877",
+        "description": "An issue was discovered in Mbed TLS versions from 2.19.0 up to 3.6.5, Mbed TLS 4.0.0. Insufficient protection of serialized SSL context or session structures allows an attacker who can modify the serialized structures to induce memory corruption, leading to arbitrary code execution. This is caused by Incorrect Use of Privileged APIs."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-34872",
+        "description": "An issue was discovered in Mbed TLS 3.5.x and 3.6.x through 3.6.5 and TF-PSA-Crypto 1.0. There is a lack of contributory behavior in FFDH due to improper input validation. Using finite-field Diffie-Hellman, the other party can force the shared secret into a small set of values (lack of contributory behavior). This is a problem for protocols that depend on contributory behavior (which is not the case for TLS). The attack can be carried by the peer, or depending on the protocol by an active network attacker (person in the middle)."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-47917",
+        "description": "Mbed TLS before 3.6.4 allows a use-after-free in certain situations of applications that are developed in accordance with the documentation. The function mbedtls_x509_string_to_names() takes a head argument that is documented as an output argument. The documentation does not suggest that the function will free that pointer; however, the function does call mbedtls_asn1_free_named_data_list() on that argument, which performs a deep free(). As a result, application code that uses this function (relying only on documented behavior) is likely to still hold pointers to the memory blocks that were freed, resulting in a high risk of use-after-free or double-free. In particular, the two sample programs x509/cert_write and x509/cert_req are affected (use-after-free if the san string contains more than one DN)."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-52496",
+        "description": "Mbed TLS before 3.6.4 has a race condition in AESNI detection if certain compiler optimizations occur. An attacker may be able to extract an AES key from a multithreaded program, or perform a GCM forgery."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-25835",
+        "description": "Mbed TLS before 3.6.6 and TF-PSA-Crypto before 1.1.0 misuse seeds in a Pseudo-Random Number Generator (PRNG)."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-34871",
+        "description": "An issue was discovered in Mbed TLS before 3.6.6 and 4.x before 4.1.0 and TF-PSA-Crypto before 1.1.0. There is a Predictable Seed in a Pseudo-Random Number Generator (PRNG)."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-54764",
+        "description": "Mbed TLS before 3.6.5 allows a local timing attack against certain RSA operations, and direct calls to mbedtls_mpi_mod_inv or mbedtls_mpi_gcd."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-59438",
+        "description": "Mbed TLS through 3.6.4 has an Observable Timing Discrepancy."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-66442",
+        "description": "In Mbed TLS through 4.0.0, there is a compiler-induced timing side channel (in RSA and CBC/ECB decryption) that only occurs with LLVM's select-optimize feature. TF-PSA-Crypto through 1.0.0 is also affected."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-52497",
+        "description": "Mbed TLS before 3.6.4 has a PEM parsing one-byte heap-based buffer underflow, in mbedtls_pem_read_buffer and two mbedtls_pk_parse functions, via untrusted PEM input."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-48965",
+        "description": "Mbed TLS before 3.6.4 has a NULL pointer dereference because mbedtls_asn1_store_named_data can trigger conflicting data with val.p of NULL but val.len greater than zero."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-28836",
+        "description": "An issue was discovered in Mbed TLS 3.5.x before 3.6.0. When negotiating the TLS version on the server side, it can fall back to the TLS 1.2 implementation of the protocol if it is disabled. If the TLS 1.2 implementation was disabled at build time, a TLS 1.2 client could put a TLS 1.3-only server in"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2024-45159",
+        "description": "An issue was discovered in Mbed TLS 3.x before 3.6.1. With TLS 1.3, when a server enables optional authentication of the client, if the client-provided certificate does not have appropriate values in if keyUsage or extKeyUsage extensions, then the return value of mbedtls_ssl_get_verify_result() woul"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-27809",
+        "description": "Mbed TLS before 2.28.10 and 3.x before 3.6.3, on the client side, accepts servers that have trusted certificates for arbitrary hostnames unless the TLS client application calls mbedtls_ssl_set_hostname."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-27810",
+        "description": "Mbed TLS before 2.28.10 and 3.x before 3.6.3, in some cases of failed memory allocation or hardware errors, uses uninitialized stack memory to compose the TLS Finished message, potentially leading to authentication bypasses such as replays."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-49087",
+        "description": "In Mbed TLS 3.6.1 through 3.6.3 before 3.6.4, a timing discrepancy in block cipher padding removal allows an attacker to recover the plaintext when PKCS#7 padding mode is used."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-49600",
+        "description": "In MbedTLS 3.3.0 before 3.6.4, mbedtls_lms_verify may accept invalid signatures if hash computation fails and internal errors go unchecked, enabling LMS (Leighton-Micali Signature) forgery in a fault scenario. Specifically, unchecked return values in mbedtls_lms_verify allow an attacker (who can ind"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2025-49601",
+        "description": "In MbedTLS 3.3.0 before 3.6.4, mbedtls_lms_import_public_key does not check that the input buffer is at least 4 bytes before reading a 32-bit field, allowing a possible out-of-bounds read on truncated input. Specifically, an out-of-bounds read in mbedtls_lms_import_public_key allows context-dependen"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-34873",
+        "description": "An issue was discovered in Mbed TLS 3.5.0 through 4.0.0. Client impersonation can occur while resuming a TLS 1.3 session."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-34875",
+        "description": "An issue was discovered in Mbed TLS through 3.6.5 and TF-PSA-Crypto 1.0.0. A buffer overflow can occur in public key export for FFDH keys."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-34876",
+        "description": "An issue was discovered in Mbed TLS 3.x before 3.6.6. An out-of-bounds read vulnerability in mbedtls_ccm_finish() in library/ccm.c allows attackers to obtain adjacent CCM context data via invocation of the multipart CCM API with an oversized tag_len parameter. This is caused by missing validation of"
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2026-73064",
+        "description": "In Mbed TLS 3.2.0 though 3.6.6 and 4.0.0 through 4.1.0, an attacker who can cause an entropy source to fail can remove or inject bytes into the start of the TLS stream. This only affects TLS 1.3 servers."
+      },
+      "products": [
+        {
+          "@id": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+          "identifiers": {
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "cpe23": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*"
+          }
+        }
+      ],
+      "timestamp": "2026-10-06T14:11:33Z",
+      "status": "under_investigation",
+      "status_notes": "version is inside the advisory's range, but this is a vendor fork (This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD.). Whether the vendor already carries the fix cannot be read from the version; check the fork's history."
+    }
+  ]
+}

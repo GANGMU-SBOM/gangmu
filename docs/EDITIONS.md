@@ -23,11 +23,12 @@ gangmu 的核心能力全部开源，并会一直开源：识别引擎、构建�
 | 函数级识别引擎 | 多版本函数签名、自适应版本区间、厂商修改检测 |
 | 构建期采集 | `compile_commands.json`、链接 map、IAR / Keil / CCS 工程、编译器包装器 |
 | 生态声明直读 | RT-Thread、OpenHarmony、ESP-IDF 的组件声明 |
-| SBOM 输出与评分 | CycloneDX 1.6、SPDX 2.3，NTIA 2021 与 CISA 2026 最小要素评分 |
-| 漏洞比对 | 本地 NVD / OSV / 国内漏洞库目录，输出 CycloneDX VEX |
+| SBOM 输出与评分 | CycloneDX 1.6、SPDX 2.3 与 3.0.1，NTIA 2021 与 CISA 2026 最小要素评分；组件维护状态与停止支持日期字段 |
+| 漏洞比对 | 本地 NVD / OSV / 国内漏洞库目录，输出 CycloneDX VEX、OpenVEX、CSAF 2.0 VEX |
 | CRA 自查与技术文档包 | `cra-check`、`evidence` |
 | 报送草稿 | CRA 第 14 条与工信部《网络产品安全漏洞管理规定》第七条 |
 | 评测基准 | `gangmu eval`，可复现 |
+| CI 模板 | GitHub Action、GitLab CI、Jenkinsfile（`examples/ci/`） |
 
 ## 商业版与服务
 

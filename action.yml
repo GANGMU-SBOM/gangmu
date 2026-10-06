@@ -1,6 +1,6 @@
 name: gangmu SBOM
 description: >
-  Generate a CycloneDX or SPDX SBOM for embedded C/C++ firmware with gangmu.
+  Generate a CycloneDX or SPDX (2.3 or 3.0.1) SBOM for embedded C/C++ firmware with gangmu.
 branding:
   icon: package
   color: blue
@@ -9,7 +9,7 @@ inputs:
     description: source tree to scan
     default: "."
   format:
-    description: cyclonedx, spdx, json or table
+    description: cyclonedx, spdx (SPDX 2.3), spdx3 (SPDX 3.0.1), json or table
     default: cyclonedx
   output:
     description: file to write the SBOM to
@@ -19,6 +19,9 @@ inputs:
     default: ""
   link-map:
     description: path to the linker map file (GNU ld, lld, IAR ilink or Arm armlink) from the real build (optional)
+    default: ""
+  support:
+    description: JSON or YAML file naming each component's maintenance status and end-of-support date (optional)
     default: ""
   app-name:
     description: product name written to the SBOM (optional)
@@ -56,6 +59,7 @@ runs:
         IN_OUTPUT: ${{ inputs.output }}
         IN_COMPILE_DB: ${{ inputs.compile-db }}
         IN_LINK_MAP: ${{ inputs.link-map }}
+        IN_SUPPORT: ${{ inputs.support }}
         IN_APP_NAME: ${{ inputs.app-name }}
         IN_APP_VERSION: ${{ inputs.app-version }}
         IN_FAIL_UNDER: ${{ inputs.fail-under }}
@@ -63,6 +67,7 @@ runs:
         args=(scan "$IN_PATH" --format "$IN_FORMAT" -o "$IN_OUTPUT")
         [ -n "$IN_COMPILE_DB" ] && args+=(--compile-db "$IN_COMPILE_DB")
         [ -n "$IN_LINK_MAP" ] && args+=(--link-map "$IN_LINK_MAP")
+        [ -n "$IN_SUPPORT" ] && args+=(--support "$IN_SUPPORT")
         [ -n "$IN_APP_NAME" ] && args+=(--app-name "$IN_APP_NAME")
         [ -n "$IN_APP_VERSION" ] && args+=(--app-version "$IN_APP_VERSION")
         [ -n "$IN_FAIL_UNDER" ] && args+=(--fail-under "$IN_FAIL_UNDER")

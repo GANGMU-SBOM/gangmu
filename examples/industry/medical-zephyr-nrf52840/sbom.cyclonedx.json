@@ -1,0 +1,547 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:2eb45eda-114c-4ae9-adca-e615369b2c50",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-06T14:11:08Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "gangmu-sbom",
+          "version": "0.6.2"
+        }
+      ]
+    },
+    "component": {
+      "bom-ref": "root-application",
+      "type": "application",
+      "name": "peripheral-hr",
+      "version": "4.1.0"
+    },
+    "properties": [
+      {
+        "name": "gangmu:generationContext",
+        "value": "build"
+      },
+      {
+        "name": "gangmu:generationContextNote",
+        "value": "Derived from the build's own compile database"
+      },
+      {
+        "name": "gangmu:rulesLoaded",
+        "value": "68"
+      },
+      {
+        "name": "gangmu:buildFactsUsed",
+        "value": "true"
+      },
+      {
+        "name": "gangmu:unidentifiedDirectories",
+        "value": "1"
+      }
+    ]
+  },
+  "components": [
+    {
+      "bom-ref": "modules/crypto/mbedtls#generic/mbedtls",
+      "type": "library",
+      "name": "Mbed TLS",
+      "scope": "required",
+      "version": "3.6.2",
+      "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+      "cpe": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*",
+      "supplier": {
+        "name": "Trusted Firmware (Mbed TLS project)"
+      },
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "fce40f395edccb8dee8cb3bbfa2a40ba104f7a09d164ed5d7679a253f5bd5b8c"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/Mbed-TLS/mbedtls"
+        }
+      ],
+      "pedigree": {
+        "ancestors": [
+          {
+            "type": "library",
+            "name": "Mbed TLS",
+            "bom-ref": "upstream/Mbed TLS",
+            "version": "3.6.2",
+            "purl": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "externalReferences": [
+              {
+                "type": "website",
+                "url": "https://github.com/Mbed-TLS/mbedtls"
+              }
+            ]
+          }
+        ],
+        "patches": [
+          {
+            "type": "unofficial"
+          }
+        ],
+        "notes": "This copy is not byte-identical to pristine Mbed TLS. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD."
+      },
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 0.95,
+            "concludedValue": "pkg:github/Mbed-TLS/mbedtls@3.6.2",
+            "methods": [
+              {
+                "technique": "hash-comparison",
+                "confidence": 0.98,
+                "value": "include/mbedtls/build_info.h matches, byte for byte, the hash rule generic/mbedtls records for Mbed TLS 3.6.2"
+              },
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "2528 of 2770 functions of Mbed TLS 3.6.2 are present (0.913 containment, strong); 2722 functions in this directory"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.88,
+                "value": "2486 version-discriminating function(s) matched; 2483 are in 3.6.2 (agreement 0.91), and 3 belong to other recorded versions -- this tree mixes releases, which is what a vendor fork looks like (242 recorded function(s) of 3.6.2 are missing or altered); 191 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 3.6.2 read from include/mbedtls/build_info.h"
+              },
+              {
+                "technique": "manifest-analysis",
+                "confidence": 0.9,
+                "value": "vendor manifest declares mbedtls 3.6.2"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory is named as rule generic/mbedtls expects, but is not where that rule says the component lives"
+              }
+            ]
+          },
+          {
+            "field": "cpe",
+            "confidence": 0.95,
+            "concludedValue": "cpe:2.3:a:arm:mbed_tls:3.6.2:*:*:*:*:*:*:*",
+            "methods": [
+              {
+                "technique": "hash-comparison",
+                "confidence": 0.98,
+                "value": "include/mbedtls/build_info.h matches, byte for byte, the hash rule generic/mbedtls records for Mbed TLS 3.6.2"
+              },
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "2528 of 2770 functions of Mbed TLS 3.6.2 are present (0.913 containment, strong); 2722 functions in this directory"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.88,
+                "value": "2486 version-discriminating function(s) matched; 2483 are in 3.6.2 (agreement 0.91), and 3 belong to other recorded versions -- this tree mixes releases, which is what a vendor fork looks like (242 recorded function(s) of 3.6.2 are missing or altered); 191 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 3.6.2 read from include/mbedtls/build_info.h"
+              },
+              {
+                "technique": "manifest-analysis",
+                "confidence": 0.9,
+                "value": "vendor manifest declares mbedtls 3.6.2"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory is named as rule generic/mbedtls expects, but is not where that rule says the component lives"
+              }
+            ]
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "gangmu:rule",
+          "value": "generic/mbedtls"
+        },
+        {
+          "name": "gangmu:directory",
+          "value": "modules/crypto/mbedtls"
+        },
+        {
+          "name": "gangmu:identityConfidence",
+          "value": "0.950"
+        },
+        {
+          "name": "gangmu:versionConfidence",
+          "value": "0.950"
+        },
+        {
+          "name": "gangmu:rulePack",
+          "value": "community"
+        },
+        {
+          "name": "gangmu:rulePackVersion",
+          "value": "2026.10.6"
+        },
+        {
+          "name": "gangmu:versionSource",
+          "value": "anchor"
+        },
+        {
+          "name": "gangmu:shippedAs",
+          "value": "mbedtls"
+        },
+        {
+          "name": "gangmu:observedLicenses",
+          "value": "Apache-2.0; GPL-2.0-or-later; BSD-3-Clause; GP"
+        },
+        {
+          "name": "gangmu:licenseDiffersFromRule",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:compiledFiles",
+          "value": "108"
+        },
+        {
+          "name": "gangmu:linkedIntoImage",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:supportStatus",
+          "value": "maintained"
+        },
+        {
+          "name": "gangmu:endOfSupport",
+          "value": "2027-03-31"
+        },
+        {
+          "name": "gangmu:supportSource",
+          "value": "https://github.com/Mbed-TLS/mbedtls/blob/development/BRANCHES.md"
+        },
+        {
+          "name": "gangmu:supportAsOf",
+          "value": "2026-10-06"
+        }
+      ]
+    },
+    {
+      "bom-ref": "zephyr#zephyrproject/zephyr/zephyr-kernel",
+      "type": "library",
+      "name": "Zephyr",
+      "scope": "required",
+      "version": "4.1.0",
+      "purl": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+      "cpe": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*",
+      "supplier": {
+        "name": "Zephyr Project"
+      },
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b2ab65e0511dcaacbc9359023df5ce71e79878af6bd80bb9dac58671bfead766"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://www.zephyrproject.org/"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 0.95,
+            "concludedValue": "pkg:github/zephyrproject-rtos/zephyr@4.1.0",
+            "methods": [
+              {
+                "technique": "hash-comparison",
+                "confidence": 0.98,
+                "value": "VERSION matches, byte for byte, the hash rule zephyrproject/zephyr/zephyr-kernel records for Zephyr 4.1.0"
+              },
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "winnowed MinHash similarity 1.000 to Zephyr 4.1.0 (exact)"
+              },
+              {
+                "technique": "hash-comparison",
+                "confidence": 0.98,
+                "value": "every file matches the reference release byte for byte"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 4.1.0 read from VERSION"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory sits where rule zephyrproject/zephyr/zephyr-kernel expects it"
+              }
+            ]
+          },
+          {
+            "field": "cpe",
+            "confidence": 0.95,
+            "concludedValue": "cpe:2.3:o:zephyrproject:zephyr:4.1.0:*:*:*:*:*:*:*",
+            "methods": [
+              {
+                "technique": "hash-comparison",
+                "confidence": 0.98,
+                "value": "VERSION matches, byte for byte, the hash rule zephyrproject/zephyr/zephyr-kernel records for Zephyr 4.1.0"
+              },
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "winnowed MinHash similarity 1.000 to Zephyr 4.1.0 (exact)"
+              },
+              {
+                "technique": "hash-comparison",
+                "confidence": 0.98,
+                "value": "every file matches the reference release byte for byte"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.85,
+                "value": "version 4.1.0 read from VERSION"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory sits where rule zephyrproject/zephyr/zephyr-kernel expects it"
+              }
+            ]
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "gangmu:rule",
+          "value": "zephyrproject/zephyr/zephyr-kernel"
+        },
+        {
+          "name": "gangmu:directory",
+          "value": "zephyr"
+        },
+        {
+          "name": "gangmu:identityConfidence",
+          "value": "0.950"
+        },
+        {
+          "name": "gangmu:versionConfidence",
+          "value": "0.950"
+        },
+        {
+          "name": "gangmu:rulePack",
+          "value": "community"
+        },
+        {
+          "name": "gangmu:rulePackVersion",
+          "value": "2026.10.6"
+        },
+        {
+          "name": "gangmu:versionSource",
+          "value": "anchor"
+        },
+        {
+          "name": "gangmu:vendor",
+          "value": "zephyrproject"
+        },
+        {
+          "name": "gangmu:observedLicenses",
+          "value": "Apache-2.0"
+        },
+        {
+          "name": "gangmu:compiledFiles",
+          "value": "179"
+        },
+        {
+          "name": "gangmu:linkedIntoImage",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:advisoryScope",
+          "value": "subsystem"
+        },
+        {
+          "name": "gangmu:supportStatus",
+          "value": "unknown"
+        }
+      ]
+    },
+    {
+      "bom-ref": "modules/hal/nordic#zephyrproject/zephyr/nordic",
+      "type": "library",
+      "name": "Nordic nrfx HAL",
+      "scope": "required",
+      "purl": "pkg:github/zephyrproject-rtos/hal_nordic",
+      "supplier": {
+        "name": "Nordic Semiconductor ASA, via the Zephyr Project"
+      },
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "603716a355b24619820dd9824bf4c227c075ef43e1e9d50317996a69fa4a0930"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/zephyrproject-rtos/hal_nordic"
+        }
+      ],
+      "pedigree": {
+        "ancestors": [
+          {
+            "type": "library",
+            "name": "Nordic nrfx HAL",
+            "bom-ref": "upstream/Nordic nrfx HAL",
+            "purl": "pkg:github/zephyrproject-rtos/hal_nordic",
+            "externalReferences": [
+              {
+                "type": "website",
+                "url": "https://github.com/zephyrproject-rtos/hal_nordic"
+              }
+            ]
+          }
+        ],
+        "patches": [
+          {
+            "type": "unofficial"
+          }
+        ],
+        "notes": "zephyrproject maintains this fork; files will not hash to the upstream project they were forked from. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD."
+      },
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 0.385,
+            "concludedValue": "pkg:github/zephyrproject-rtos/hal_nordic",
+            "methods": [
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.75,
+                "value": "winnowed MinHash similarity 0.738 to Nordic nrfx HAL git-c708b9fe1b7a (partial)"
+              },
+              {
+                "technique": "filename",
+                "confidence": 0.3,
+                "value": "directory sits where rule zephyrproject/zephyr/nordic expects it"
+              }
+            ]
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "gangmu:rule",
+          "value": "zephyrproject/zephyr/nordic"
+        },
+        {
+          "name": "gangmu:directory",
+          "value": "modules/hal/nordic"
+        },
+        {
+          "name": "gangmu:identityConfidence",
+          "value": "0.770"
+        },
+        {
+          "name": "gangmu:versionConfidence",
+          "value": "0.000"
+        },
+        {
+          "name": "gangmu:rulePack",
+          "value": "community"
+        },
+        {
+          "name": "gangmu:rulePackVersion",
+          "value": "2026.10.6"
+        },
+        {
+          "name": "gangmu:shippedAs",
+          "value": "nordic"
+        },
+        {
+          "name": "gangmu:vendor",
+          "value": "zephyrproject"
+        },
+        {
+          "name": "gangmu:observedLicenses",
+          "value": "BSD-3-Clause; Apache-2.0; LicenseRef-Nordic-5-Clause"
+        },
+        {
+          "name": "gangmu:licenseDiffersFromRule",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:compiledFiles",
+          "value": "8"
+        },
+        {
+          "name": "gangmu:linkedIntoImage",
+          "value": "true"
+        },
+        {
+          "name": "gangmu:supportStatus",
+          "value": "unknown"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-application",
+      "dependsOn": [
+        "modules/crypto/mbedtls#generic/mbedtls",
+        "modules/hal/nordic#zephyrproject/zephyr/nordic",
+        "zephyr#zephyrproject/zephyr/zephyr-kernel"
+      ]
+    },
+    {
+      "ref": "modules/crypto/mbedtls#generic/mbedtls",
+      "dependsOn": []
+    },
+    {
+      "ref": "zephyr#zephyrproject/zephyr/zephyr-kernel",
+      "dependsOn": []
+    },
+    {
+      "ref": "modules/hal/nordic#zephyrproject/zephyr/nordic",
+      "dependsOn": []
+    }
+  ]
+}

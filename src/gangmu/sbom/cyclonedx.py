@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional
 
 from .. import __version__
 from ..licenses import cyclonedx_licenses, differs, observed_ids
+from ..support import support_properties
 from ..model import Finding, ScanResult
 
 SPEC_VERSION = "1.6"
@@ -131,10 +132,13 @@ def _properties(finding: Finding) -> List[Dict[str, str]]:
     if finding.linked is not None:
         props.append({"name": "gangmu:linkedIntoImage",
                       "value": "true" if finding.linked else "false"})
+    if finding.advisory_scope:
+        props.append({"name": "gangmu:advisoryScope", "value": finding.advisory_scope})
     for alt in finding.alternatives:
         props.append({"name": "gangmu:alternative",
                       "value": f"{alt.upstream_name} ({alt.identity_confidence:.2f}, "
                                f"rule {alt.rule_id})"})
+    props.extend(support_properties(finding.support))
     return props
 
 
@@ -146,7 +150,8 @@ def _component(finding: Finding) -> Dict[str, Any]:
         "type": ("framework" if finding.rule_id.startswith("declared/vendor-sdk/")
                  else "library"),
         "name": finding.upstream_name,
-        "scope": "required",
+        # CycloneDX: "excluded" documents what is in the tree but not in the image.
+        "scope": "excluded" if finding.linked is False else "required",
     }
     if finding.version:
         comp["version"] = finding.version
@@ -206,7 +211,7 @@ def _binary_component(blob) -> Dict[str, Any]:
         "bom-ref": f"binary:{blob.path}",
         "type": "file",
         "name": blob.path,
-        "scope": "required",
+        "scope": "excluded" if blob.linked is False else "required",
         "hashes": [{"alg": "SHA-256", "content": blob.sha256}],
         "properties": props,
     }

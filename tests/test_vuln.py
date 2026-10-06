@@ -191,3 +191,61 @@ def test_candidates_come_out_of_a_real_cyclonedx_document():
     assert candidate.is_fork is True
     assert candidate.confidence == 0.9
     assert candidate.directory == "d"
+
+
+# ------------------------------------------------- link map: not in the image
+
+def _unlinked_lwip():
+    c = _lwip()
+    c.linked = False
+    return c
+
+
+def test_a_component_the_link_map_dropped_is_not_reported_exploitable(advisories):
+    c = _unlinked_lwip()
+    found = match([c], advisories)
+    assert found
+    from gangmu.vuln import apply_linkage
+    apply_linkage(found, [c])
+    assert all(m.state is VexState.IN_TRIAGE for m in found)
+    assert all("not linked" in m.detail for m in found)
+
+
+def test_unlinked_findings_can_be_recorded_not_affected_on_request(advisories):
+    c = _unlinked_lwip()
+    found = match([c], advisories)
+    from gangmu.vuln import apply_linkage
+    changed = apply_linkage(found, [c], mark_not_affected=True)
+    assert changed == len(found)
+    assert all(m.state is VexState.NOT_AFFECTED and m.justification == "code_not_present"
+               for m in found)
+
+
+def test_no_link_map_means_unknown_not_unlinked(advisories):
+    c = _lwip()
+    assert c.linked is None
+    found = match([c], advisories)
+    states = [m.state for m in found]
+    from gangmu.vuln import apply_linkage
+    assert apply_linkage(found, [c]) == 0
+    assert [m.state for m in found] == states
+
+
+def test_linked_flag_is_read_from_the_cyclonedx_properties():
+    bom = {"components": [{"name": "x", "version": "1", "purl": "pkg:generic/x@1",
+                           "properties": [{"name": "gangmu:linkedIntoImage", "value": "false"}]},
+                          {"name": "y", "version": "1", "purl": "pkg:generic/y@1",
+                           "properties": [{"name": "gangmu:linkedIntoImage", "value": "true"}]},
+                          {"name": "z", "version": "1", "purl": "pkg:generic/z@1"}]}
+    assert [c.linked for c in candidates_from_cyclonedx(bom)] == [False, True, None]
+
+
+def test_a_subsystem_scoped_component_is_not_reported_exploitable_on_version_alone(advisories):
+    c = _lwip()
+    c.subsystem_advisories = True
+    found = match([c], advisories)
+    assert any(m.state is VexState.EXPLOITABLE for m in found)
+    from gangmu.vuln import apply_linkage
+    apply_linkage(found, [c])
+    assert not any(m.state is VexState.EXPLOITABLE for m in found)
+    assert any("subsystem" in m.detail for m in found)

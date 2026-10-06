@@ -30,13 +30,13 @@ from .rules.loader import RuleBase, load_rule_roots, load_rules
 from .rules.schema import RuleError
 from .plugins import register_commands
 from .rules.packs import RulePackError, RuleRoot, default_roots
-from .sbom import to_cyclonedx, to_spdx
+from .sbom import to_cyclonedx, to_spdx, to_spdx3
 from .globbing import matches_suffix
 from .importers import (build_function_signature, dump_rule, import_gitmodules,
                         import_west, list_tags, pick_releases, tag_to_version)
 from .scan import POSSIBLE_BELOW, ScanOptions, scan
 from .vuln.model import VexState
-from .vuln import (candidates_from_cyclonedx, enrich as cn_enrich, load_cn_report,
+from .vuln import (apply_linkage, candidates_from_cyclonedx, enrich as cn_enrich, load_cn_report,
                    load_database, match as match_vulns, wanted_for, summary as vex_summary,
                    to_vex, unmatched_components, without_cpe)
 from .verify import verify_rule, verify_with_fetch
@@ -229,10 +229,19 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 return 2
             print(f"build configuration: {kc_path} ({len(kconfig)} option(s))",
                   file=sys.stderr)
+    support = None
+    if args.support:
+        from .support import SupportError, load_overrides
+        try:
+            support = load_overrides(Path(args.support))
+        except (OSError, SupportError) as exc:
+            print(f"error: --support: {exc}", file=sys.stderr)
+            return 2
     result = scan(Path(args.root), rulebase, facts,
                   ScanOptions(deep=args.deep, kconfig=kconfig, min_confidence=args.min_confidence,
                               jobs=_resolve_jobs(args.jobs),
                               cache_dir=_resolve_cache(args),
+                              support=support,
                               declared=not args.no_declared,
                               licenses=not args.no_licenses,
                               binaries=not args.no_binaries,
@@ -248,6 +257,9 @@ def cmd_scan(args: argparse.Namespace) -> int:
         _write(json.dumps(result.to_dict(), indent=2, ensure_ascii=False), args.output)
     elif args.format == "spdx":
         _write(json.dumps(to_spdx(result, args.app_name, args.app_version),
+                          indent=2, ensure_ascii=False), args.output)
+    elif args.format == "spdx3":
+        _write(json.dumps(to_spdx3(result, args.app_name, args.app_version),
                           indent=2, ensure_ascii=False), args.output)
     else:
         _write(json.dumps(to_cyclonedx(result, args.app_name, args.app_version),
@@ -777,6 +789,21 @@ def cmd_vuln(args: argparse.Namespace) -> int:
 
     matches = match_vulns(candidates, advisories,
                           include_not_affected=args.include_not_affected)
+    if any(c.subsystem_advisories for c in candidates):
+        n = apply_linkage(matches, [c for c in candidates if c.subsystem_advisories])
+        if n:
+            print(f"{n} finding(s) on an OS/SDK tree lowered from exploitable to in_triage: "
+                  "the advisory names one subsystem, check it against the build",
+                  file=sys.stderr)
+    if any(c.linked is False for c in candidates):
+        n = apply_linkage(matches, candidates, mark_not_affected=args.unlinked_vex)
+        print(f"{sum(1 for c in candidates if c.linked is False)} component(s) are in "
+              f"the tree but not linked into the image (link map); "
+              + (f"{n} finding(s) recorded as not_affected (code_not_present)"
+                 if args.unlinked_vex else
+                 f"{n} finding(s) lowered from exploitable to in_triage. "
+                 "--unlinked-vex records them as not_affected once you have confirmed"),
+              file=sys.stderr)
 
     threat = None
     if not args.no_threat:
@@ -869,6 +896,22 @@ def cmd_vuln(args: argparse.Namespace) -> int:
         _write(json.dumps({"matches": [m.to_dict() for m in matches],
                            "summary": counts, "notLookedUp": blind},
                           indent=2, ensure_ascii=False), args.output)
+    elif args.format in ("openvex", "csaf"):
+        from .vuln.csaf import to_csaf
+        from .vuln.openvex import to_openvex
+        try:
+            if args.format == "openvex":
+                doc = to_openvex(matches, bom, author=args.publisher or "")
+            else:
+                doc = to_csaf(matches, bom,
+                              app_name=(bom.get("metadata", {}).get("component", {})
+                                        .get("name") or "firmware"),
+                              publisher=args.publisher or "",
+                              publisher_url=args.publisher_url or "")
+        except ValueError as exc:
+            print(f"error: {exc}" if matches else f"note: {exc}", file=sys.stderr)
+            return 2 if matches else 0
+        _write(json.dumps(doc, indent=2, ensure_ascii=False), args.output)
     else:
         _write(json.dumps(to_vex(matches, bom, blind_spots=blind),
                           indent=2, ensure_ascii=False), args.output)
@@ -1587,8 +1630,16 @@ def build_parser() -> argparse.ArgumentParser:
                         "built file list from, when there is no compile database")
     s.add_argument("--configuration",
                    help="IDE configuration or target name (default: the first)")
-    s.add_argument("--format", choices=["cyclonedx", "spdx", "json", "table"],
-                   default="table")
+    s.add_argument("--format",
+                   choices=["cyclonedx", "spdx", "spdx3", "json", "table"],
+                   default="table",
+                   help="spdx is SPDX 2.3; spdx3 is SPDX 3.0.1 JSON-LD")
+    s.add_argument("--support", metavar="FILE",
+                   help="JSON or YAML naming each component's maintenance status "
+                        "and end-of-support date (status: maintained, limited, "
+                        "no_longer_maintained, abandoned). Overrides the rules' "
+                        "own upstream.support; components nobody names are "
+                        "written as 'unknown'")
     s.add_argument("--output", "-o")
     s.add_argument("--deep", action="store_true",
                    help="also consider directories with no manifest or licence file")
@@ -1812,12 +1863,26 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("sbom", help="a CycloneDX document from `gangmu scan`")
     v.add_argument("--db", required=True,
                    help="directory of NVD 2.0 and/or OSV JSON files")
-    v.add_argument("--format", choices=["table", "cyclonedx", "json"],
-                   default="table")
+    v.add_argument("--format",
+                   choices=["table", "cyclonedx", "openvex", "csaf", "json"],
+                   default="table",
+                   help="cyclonedx: the SBOM with vulnerabilities and analysis; "
+                        "openvex: OpenVEX 0.2.0; csaf: CSAF 2.0 csaf_vex "
+                        "(draft). openvex and csaf need --publisher")
+    v.add_argument("--publisher", metavar="NAME",
+                   help="who stands behind the statements: OpenVEX author, CSAF "
+                        "publisher name. Never invented by the tool")
+    v.add_argument("--publisher-url", metavar="URL",
+                   help="CSAF publisher namespace, the issuing party's own URL")
     v.add_argument("--output", "-o")
     v.add_argument("--cn-db",
                    help="目录：CNNVD / CNVD / 工信部 NVDB 的 JSON 导出。"
                         "NVD 与 OSV 都不收国内厂商自报的漏洞")
+    v.add_argument("--unlinked-vex", action="store_true",
+                   help="components the link map shows are not in the image: write "
+                        "their findings as not_affected (code_not_present) instead "
+                        "of leaving them in_triage. Off by default: a map cannot "
+                        "see LTO or code loaded another way")
     v.add_argument("--include-not-affected", action="store_true",
                    help="also report advisories ruled out by version")
     v.add_argument("--fail-on", action="append",

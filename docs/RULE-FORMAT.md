@@ -35,6 +35,12 @@ upstream:
   cpe: "cpe:2.3:a:lwip_project:lwip:*:*:*:*:*:*:*:*"
   homepage: "https://savannah.nongnu.org/projects/lwip/"
   license: BSD-3-Clause
+  advisory_scope: subsystem         # optional; OS/SDK trees whose advisories each name one subsystem
+  support:                          # optional; omit unless you can cite a source
+    status: maintained              # maintained | limited | no_longer_maintained | abandoned
+    end_of_support: 2027-03-31      #   YYYY-MM-DD, only when the project states one
+    source: https://example.org/BRANCHES.md   # where a reviewer checks it
+    as_of: 2026-10-06               #   the day it was checked
   source:                           # REQUIRED -- what CI re-derives the evidence from
     kind: git
     url: https://github.com/espressif/esp-lwip
@@ -155,6 +161,13 @@ review:
   mirror was searched), `none-found` (searched, nothing registered) or
   `unverified` (nobody could look, for instance with no network). `unverified`
   is the one a reviewer should chase; none of them is a guess;
+* `upstream.advisory_scope: subsystem` marks an OS or SDK tree (Zephyr, ESP-IDF). `gangmu vuln` then reports
+  a version-range match on it as `in_triage`, not `exploitable`, with a note: the advisory names one
+  subsystem or driver and the version alone cannot say whether the firmware builds it.
+* `upstream.support`, when present, has a `status` from the list above and
+  `YYYY-MM-DD` dates. It is a claim about the upstream project at `as_of`, so it
+  needs a `source` a reviewer can open; do not guess. A scan can override it with
+  `--support FILE`, and components nobody names are written as `unknown`;
 * `purl` starts with `pkg:`;
 * every anchor digest is 64 hex characters;
 * every probe pattern compiles;

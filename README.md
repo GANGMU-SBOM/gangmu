@@ -310,14 +310,14 @@ ONEKEY、Finite State、Cybellum、NetRise 面向大型企业做固件二进制�
 | 命令 | 作用 |
 | --- | --- |
 | `gangmu init` | 生成项目配置 |
-| `gangmu scan ROOT` | 识别组件，输出 `cyclonedx` / `spdx` / `json` / `table` |
+| `gangmu scan ROOT` | 识别组件，输出 `cyclonedx` / `spdx`（2.3） / `spdx3`（3.0.1） / `json` / `table`；`--support FILE` 写入每个组件的维护状态与停止支持日期 |
 | `gangmu wrap -- make` | 以编译器垫片运行构建，生成编译数据库 |
 | `gangmu vuln-fetch --db DIR` | 联网填充漏洞库目录：`--sbom` 只拉相关产品（秒级），`--all` 全量 NVD（按年分片，之后增量）；`--threat` 另外下载 CISA KEV 和 EPSS 到 `DIR/threat/`，`gangmu vuln` 会据此按「已被利用 → EPSS → CVSS」排序，`--fail-on kev` 遇到已被利用的漏洞就失败（Article 14 的 24 小时报送由「已被积极利用」触发） |
 | `gangmu vuln SBOM --db DIR --source ROOT` | 函数级可达性：按每条 CVE 的漏洞函数（`--symbols FILE` 给出；没有就从公告文字里猜）判断它在你的源码里是「不存在 / 已定义但无人引用 / 可达」。调用图按名字、宏、函数指针表做保守的过近似，看不到二进制库和汇编，所以默认只标注；加 `--reachability-vex` 才把不存在/不可达的写成 `not_affected`（`code_not_present` / `code_not_reachable`） |
 | `gangmu patch-build CVE --db DIR -o patches.json`；`gangmu vuln SBOM --db DIR --source ROOT --patches patches.json` | 补丁存在性检测：用修复提交改动过的函数（修复前、修复后各记一份函数体哈希；提交号可从 OSV 记录里读，或用 `--repo URL --fix SHA` 指定）去测你源码里的那个目录——有修复后的函数体就写成 `resolved`，仍是修复前的函数体就确认为 `exploitable`，被厂商改过的函数体（既不是修复前也不是修复后）留给人判断。魔改的 fork 只报告它所基于的版本号，版本区间匹配会让它永远停在 `in_triage`；这一项直接看代码，不看版本 |
 | `gangmu rules index DIR` | 预编译规则目录，写出 `DIR/.rule-index.json`，加载时不再解析 YAML（规则越多越明显：125 条规则加载 0.67 秒 → 0.02 秒）。每条按文件哈希校验，规则改了或索引过期只会变慢，不会读错；规则包在打包时运行一次 |
 | `gangmu keygen` / `gangmu sign FILE --key K` / `gangmu sign-verify FILE --pubkey P` | 给 SBOM 或证据包的 `manifest.json` 做 Ed25519 分离签名并校验（`pip install gangmu-sbom[sign]`；密钥是标准 PEM，OpenSSL 可直接验）。只证明“这把密钥签过”，不含时间戳和密钥托管；要时间戳或免密钥签名，对同一文件用 `cosign sign-blob` |
-| `gangmu vuln SBOM --db DIR` | 漏洞比对，输出 CycloneDX VEX |
+| `gangmu vuln SBOM --db DIR` | 漏洞比对，输出 CycloneDX VEX；`--format openvex` / `--format csaf`（须加 `--publisher`）输出 OpenVEX 0.2.0 或 CSAF 2.0 VEX |
 | `gangmu cn-db-check DIR` | 检查 CNNVD / CNVD 导出目录：每个文件能读出多少条，读不了的明确报出来 |
 | `gangmu cra-check` | 对照 CRA 条款审查产物 |
 | `gangmu report CVE` | 生成 CRA 或工信部报送草稿 |

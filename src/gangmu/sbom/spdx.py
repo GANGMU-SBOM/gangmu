@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional
 from .. import __version__
 from ..licenses import differs, observed_ids, spdx_license_declared
 from ..model import Finding, ScanResult
+from ..support import describe as describe_support
 
 _SAFE = re.compile(r"[^A-Za-z0-9.\-]+")
 
@@ -52,6 +53,9 @@ def _package(finding: Finding) -> Dict[str, Any]:
         comment_lines.append("licences seen in the files: " + "; ".join(observed)
                              + (" -- differs from the rule's licence"
                                 if differs(finding.declared_license, observed) else ""))
+    if finding.linked is False:
+        comment_lines.append("NOT LINKED into the firmware image according to the link map")
+    comment_lines.append(describe_support(finding.support))
     for ev in finding.evidence:
         comment_lines.append(f"evidence[{ev.technique.value}]: {ev.summary}")
     for alt in finding.alternatives:
@@ -83,6 +87,9 @@ def _package(finding: Finding) -> Dict[str, Any]:
     }
     if refs:
         pkg["externalRefs"] = refs
+    if finding.support and finding.support.end_of_support:
+        # SPDX 2.3's field for "do not use after": the end-of-support date.
+        pkg["validUntilDate"] = f"{finding.support.end_of_support}T00:00:00Z"
     return pkg
 
 
