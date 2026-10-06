@@ -226,3 +226,26 @@ def test_a_relative_cproject_resolves_linked_resources(tmp_path, monkeypatch):
     parsed = parse_project(Path("app/ide/.cproject"))
     assert [p.name for p in parsed.sources] == ["startup.c"]
     assert parsed.sources[0].is_file()
+
+
+def _blob_tree(tmp_path):
+    for rel in ("libs/libm.a", "media/audio.bin", "other/Bin/app.bin", "fw.elf"):
+        f = tmp_path / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_bytes(b"\x00" * 64)
+    return tmp_path
+
+
+def test_with_a_link_map_images_that_are_not_the_build_product_are_not_linked(tmp_path):
+    from gangmu.binaries import collect_binaries
+    blobs = {b.path: b for b in collect_binaries(_blob_tree(tmp_path), {"libs/libm.a"},
+                                                 product_stem="fw")}
+    assert blobs["media/audio.bin"].linked is False
+    assert blobs["other/Bin/app.bin"].linked is False
+    assert blobs["fw.elf"].linked is True                 # same stem as fw.map: this build's own output
+    assert blobs["libs/libm.a"].linked is True
+
+
+def test_without_a_link_map_images_stay_unknown(tmp_path):
+    from gangmu.binaries import collect_binaries
+    assert all(b.linked is None for b in collect_binaries(_blob_tree(tmp_path)))

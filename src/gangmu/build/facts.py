@@ -43,6 +43,7 @@ class BuildFacts:
     ambiguous_objects: List[str] = field(default_factory=list)
     have_link_map: bool = False
     linked_archives: Set[str] = field(default_factory=set)   # archive paths the link map names
+    link_map_stem: str = ""          # fw.map -> "fw": the build's own product is fw.elf / fw.bin
 
     def sources_under(self, directory: Path) -> Set[Path]:
         directory = directory.resolve()
@@ -94,6 +95,7 @@ def collect_build_facts(root: Path, compile_db: Optional[Path] = None,
     lmap: LinkMap = parse_link_map(link_map)
     facts.have_link_map = True
     facts.linked_archives = set(lmap.archives)
+    facts.link_map_stem = Path(link_map).stem.lower()
 
     obj_to_sources: Dict[str, List[Path]] = {}
     obj_paths: Dict[Path, Path] = {}
