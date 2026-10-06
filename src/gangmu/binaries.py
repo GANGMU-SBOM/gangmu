@@ -152,10 +152,14 @@ def _kind(path: Path) -> str:
 
 def collect_binaries(root: Path, linked_archives: Optional[Set[str]] = None,
                      string_signatures: Sequence = (),
-                     function_prints: Sequence = ()) -> List[Binary]:
+                     function_prints: Sequence = (),
+                     product_stem: str = "") -> List[Binary]:
     """*string_signatures*: ``(display name, name, FunctionSignature)`` per rule that
     can recognise its component from string constants (see ``binsig``); *function_prints*
-    the same triple with a ``fprint.FunctionPrints`` (per-function fingerprints)."""
+    the same triple with a ``fprint.FunctionPrints`` (per-function fingerprints).
+    *product_stem*: with a link map, the map's file stem; a firmware image is the build's own
+    product only when it shares that stem (``fw.map`` and ``fw.elf``). Any other image in the
+    tree belongs to some other build, so it is marked not linked."""
     root = Path(root).resolve()
     out: List[Binary] = []
     for here, dirs, files in os.walk(root):
@@ -170,19 +174,25 @@ def collect_binaries(root: Path, linked_archives: Optional[Set[str]] = None,
                 continue
             try:
                 out.append(_inspect(path, root, linked_archives, string_signatures,
-                                    function_prints))
+                                    function_prints, product_stem))
             except OSError:
                 continue
     return out
 
 
 def _inspect(path: Path, root: Path, linked_archives: Optional[Set[str]],
-             string_signatures: Sequence = (), function_prints: Sequence = ()) -> Binary:
+             string_signatures: Sequence = (), function_prints: Sequence = (),
+             product_stem: str = "") -> Binary:
     data = path.read_bytes() if path.stat().st_size <= MAX_BANNER_BYTES else b""
     digest = hashlib.sha256(data if data else path.read_bytes()).hexdigest()
     rel = path.relative_to(root).as_posix()
     blob = Binary(path=rel, sha256=digest, size=path.stat().st_size, kind=_kind(path))
-    if linked_archives is not None and path.suffix.lower() not in IMAGE_SUFFIXES:
+    if path.suffix.lower() in IMAGE_SUFFIXES:
+        # A link map names link inputs, never images. With one in hand, an image that is not
+        # this build's product (an audio .bin, another example's firmware) did not ship in it.
+        if linked_archives is not None and product_stem:
+            blob.linked = path.stem.lower() == product_stem
+    elif linked_archives is not None:
         parent = path.parent.name
         blob.linked = any(
             Path(a.replace("\\", "/")).name == path.name

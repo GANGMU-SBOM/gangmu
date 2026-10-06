@@ -143,7 +143,8 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
         facts_map = build_facts is not None and build_facts.have_link_map
         binaries = collect_binaries(
             root, build_facts.linked_archives if facts_map else None,
-            _string_signatures(rulebase), _function_prints(rulebase))
+            _string_signatures(rulebase), _function_prints(rulebase),
+            build_facts.link_map_stem if facts_map else "")
         findings.extend(_binary_findings(binaries, rulebase))
         unlinked = sum(1 for b in binaries if b.linked is False)
         if unlinked:

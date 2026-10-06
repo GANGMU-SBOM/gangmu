@@ -4,6 +4,10 @@
 
 ## 未发布
 
+* **有链接 map 时，不属于本次构建的固件镜像不再算“已出货”。** 整库扫描 STM32CubeF1 时，示例工程的 `.bin`、音频文件 `audio.bin` 等 5 个镜像曾以 `required` 进 SBOM，
+  而链接 map 只列链接输入，从不列镜像，所以此前没法判断。现在给了链接 map 时，只有与 map 同名的镜像（`fw.map` 对 `fw.elf`、`fw.bin`，即这次构建自己的产物）
+  算已链接，其余记为未链接，CycloneDX 里 `scope` 为 `excluded`（和未链接的预编译库一致）。没有链接 map 时行为不变（未知）。
+  核对：同一个 STM32CubeF1 整库扫描，`required` 只剩 HAL 和 lwIP 两项，10 个预编译文件全部 `excluded`。
 * **新输出格式：SPDX 3.0.1、OpenVEX 0.2.0、CSAF 2.0（csaf_vex）。** `gangmu scan --format spdx3` 写 SPDX 3.0.1 JSON-LD（Software 配置：
   供应商是独立的 Agent、组件哈希进 `verifiedUsing`、许可证是元素并用关系挂接）；`gangmu vuln --format openvex|csaf` 把同一份分析写成 OpenVEX 或 CSAF。
   三种格式都用官方 JSON schema 在测试里校验（schema 放在 `tests/fixtures/schemas/`）。SPDX 2.3 仍是 `--format spdx`，默认输出不变。

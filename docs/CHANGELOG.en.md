@@ -4,6 +4,12 @@ What each release added and what was measured at the time, newest first. For the
 
 ## Unreleased
 
+* **With a link map, firmware images that are not this build's product no longer count as shipped.** Scanning the whole of
+  STM32CubeF1, the examples' `.bin` files and `audio.bin` (5 images) went into the SBOM as `required`, because a link map names link
+  inputs and never images, so there was nothing to judge them by. Now, when a link map is given, only an image that shares the map's
+  stem (`fw.map` and `fw.elf`/`fw.bin`, the build's own output) is linked; every other image is marked not linked, and CycloneDX gives it
+  `scope: excluded`, like an unlinked prebuilt library. Without a link map nothing changes (unknown).
+  Checked on the same whole-repo scan: only the HAL and lwIP stay `required`; all 10 prebuilt files are `excluded`.
 * **Four problems found by scanning a real project** (ST's STM32CubeF1 LwIP echo-server example).
   1. An IAR (`.ewp`) or Eclipse/CCS project given to `--project` by a relative path had its source
      paths joined to the project directory twice, so every source went missing: 0 components, while the
