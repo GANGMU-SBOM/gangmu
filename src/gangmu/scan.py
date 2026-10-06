@@ -100,6 +100,7 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
 
     if options.stats is not None:
         options.stats.update(engine.stats)
+    raw = _drop_shadowing_ancestors(raw)
     findings = resolve(raw, specificity)
     findings = _drop_nested_duplicates(findings)
 
@@ -276,6 +277,7 @@ def _apply_declarations(root: Path, findings: List[Finding], rulebase: RuleBase,
     of its own -- that is the case package managers exist for.
     """
     notes: List[str] = []
+    ignored = 0
     by_dir = {f.directory: f for f in findings}
     out = list(findings)
     for decl in declarations:
@@ -292,6 +294,9 @@ def _apply_declarations(root: Path, findings: List[Finding], rulebase: RuleBase,
         if (not decl.manifest_only and build_facts and build_facts.compiled
                 and not build_facts.sources_under(decl.directory)):
             # Same test discovery applies to every other candidate.
+            continue
+        if _is_sample_of_component(rel, findings):
+            ignored += 1
             continue
         evidence = Evidence(
             technique=Technique.MANIFEST_ANALYSIS,
@@ -332,7 +337,36 @@ def _apply_declarations(root: Path, findings: List[Finding], rulebase: RuleBase,
         out.append(finding)
         if existing is None and not decl.manifest_only:
             by_dir[rel] = finding
+    if ignored:
+        notes.append(f"{ignored} declaration(s) under example, test or doc "
+                     "directories of an identified component were not reported "
+                     "as components of their own: they describe how that "
+                     "component is demonstrated, not what this firmware ships")
     return out, notes
+
+
+# Directories that hold a component's demonstrations rather than its product.
+_NON_SHIPPING = frozenset({"example", "examples", "sample", "samples", "demo",
+                           "demos", "test", "tests", "doc", "docs"})
+
+
+def _is_sample_of_component(rel: str, findings: List[Finding]) -> bool:
+    """Is *rel* an example or test directory inside an identified component?
+
+    nanopb's tree carries a ``conanfile.py`` and a ``platformio.ini`` under
+    ``examples/``; reading them as dependencies of the firmware reported nanopb
+    a second time, at a different version, under a path that is not shipped.
+    Only a directory inside a component the scan already identified qualifies,
+    so a project's own ``examples`` folder is still read.
+    """
+    for f in findings:
+        if f.directory in (".", "") or rel == f.directory \
+                or not rel.startswith(f.directory.rstrip("/") + "/"):
+            continue
+        inside = rel[len(f.directory.rstrip("/")) + 1:].split("/")
+        if any(part.lower() in _NON_SHIPPING for part in inside):
+            return True
+    return False
 
 
 def _take_dependencies(finding: Finding, decl: Declaration) -> None:
@@ -463,6 +497,54 @@ def _spdx_or_none(license_text: Optional[str]) -> Optional[str]:
     if not license_text:
         return None
     return _SPDX_ALIASES.get(license_text.strip().lower())
+
+
+def _explains(inner: Finding, outer: Finding) -> bool:
+    """Does the nested claim say everything the enclosing one does?
+
+    Identity must be at least as strong. The version must be the same one (or
+    the enclosing claim has none): which evidence produced it is not a reason to
+    keep the parent, or a probe at 0.85 loses to a function match at 0.88 for
+    the very same release. Where the versions differ, the more confident claim
+    wins, so an exact release at the root is not traded for an inner range.
+    """
+    if inner.identity_confidence < outer.identity_confidence:
+        return False
+    if outer.version is None or inner.version == outer.version:
+        return True
+    return inner.confidence >= outer.confidence
+
+
+def _drop_shadowing_ancestors(candidates: List[Finding]) -> List[Finding]:
+    """Remove a claim made at a parent directory that a child already explains.
+
+    Function containment looks at everything under a directory, so a component
+    that lives in ``os/components/dfs/elmfat`` also fires, as strongly, at ``os``
+    and at every directory between. ``resolve`` keeps one winner per directory,
+    so that second claim used to take ``os`` away from the RT-Thread kernel that
+    owns it, and the later duplicate pass then removed the correct, deeper
+    location. The claim is dropped per candidate, before resolving, and only
+    when the descendant is at least as confident, version included: a weaker
+    nested match (Mbed TLS's ``tf-psa-crypto``) never displaces the real root,
+    and a root that pins an exact release is not traded for an inner range.
+    """
+    by_name: dict = {}
+    for finding in candidates:
+        by_name.setdefault(finding.upstream_name, []).append(finding)
+    shadowed = set()
+    for group in by_name.values():
+        if len(group) < 2:
+            continue
+        for outer in group:
+            prefix = outer.directory.rstrip("/") + "/"
+            for inner in group:
+                if (inner is not outer and inner.directory != outer.directory
+                        and (outer.directory in (".", "")
+                             or inner.directory.startswith(prefix))
+                        and _explains(inner, outer)):
+                    shadowed.add(id(outer))
+                    break
+    return [f for f in candidates if id(f) not in shadowed]
 
 
 def _drop_nested_duplicates(findings: List[Finding]) -> List[Finding]:

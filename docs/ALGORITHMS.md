@@ -93,6 +93,59 @@ Getting that one token wrong made prototypes swallow everything up to the next
 unrelated brace, and it cost two spurious "functions" in lwIP before it was
 caught by a test.
 
+## State of the art, 2025, and where this tool stands
+
+Read in full: VULTURE and "Drop the Golden Apples". Read as abstracts or search
+summaries only (treat the figures as theirs, not verified here): BinCoFer,
+LibAM, BinaryAI, DeRed, Lares.
+
+| work | what it adds | here |
+| --- | --- | --- |
+| **VULTURE** (NDSS 2025) | Two-segment database (component, vulnerability). TLSH fuzzy hashes of functions, so a *modified* function still matches. Disambiguates overlapping candidates with auxiliary evidence: the file path against the library name, then **birth time** (the earliest of a group sharing hashes is the parent). Decides vulnerable / patched by testing the vulnerable and patched function (and "chunks" of it) separately from the version, because developers patch in place without changing the version. | Path and name are a nudge (`resolve`); segmentation drops code shared between rules but has no birth-time tie-break. Version is never the only channel, but patch presence is **not** tested: `gangmu vuln` reasons from version ranges and (with `--source`) reachability. |
+| **BinCoFer** (JSS 2025, binaries) | "Purifies" the feature repository in three stages: remove a library's internal functions, filter trivial functions, down-weight functions cloned across libraries. Reports 89.3% precision / 64.9% recall. | Segmentation (cross-rule) and the 6-token / 24-token floors are the same idea at source level. Not done: weighting by how many *libraries* share a function, rather than all-or-nothing removal. |
+| **LibAM, DeRed** (binaries) | Match *areas* of the call graph, not isolated functions, so optimisation level and architecture matter less; DeRed adds a stage to discount deceptive reuse. | Out of scope: source and build first. A call-graph area would help the binary path. |
+| **Drop the Golden Apples** (FSE 2025) | No database: LLM agents gather textual evidence (README, homepage, licence) and search the live web. Success about 58-59% on its two tasks; the authors say it does not compete with database tools on accuracy. | Not adopted. The rule base is the point, and a scan that must work air-gapped cannot browse. Worth noting: it is a source of *candidate* rules, never of a finding. |
+| **Lares** (2025) | LLM-driven code-slice search for patch presence testing, to cut the false positives patch tests produce on unrelated functions. | See patch presence above. |
+
+What the comparison says is worth doing next, in order of expected effect on
+noise:
+
+1. **Patch presence, not just version.** The one thing every 1-day paper adds
+   that this tool lacks. The ingredients exist (function hashes per release,
+   per-function bitmaps); what is missing is a record of *which function a CVE
+   fixes* and a test that the fixed body is the one present.
+2. **Fuzzy function matching for edited functions.** A one-token vendor edit
+   defeats both the exact and the abstract hash. VULTURE uses TLSH; a
+   deterministic MinHash over token shingles with banding would keep the exact
+   set arithmetic and add one level between "identical" and "gone".
+3. **Weight by sharing, and break ties by age.** Replace "in more than one rule
+   means none" with an inverse-frequency weight, and prefer the earliest-born
+   project among rules that tie.
+
+## Measuring noise
+
+Every change above that reduces noise was found by scanning *pristine*
+upstream releases laid out as an SDK lays them out, and counting what the scan
+says that is not true: a component that is not there, a copy labelled modified
+that is not, a component in the wrong directory, an upstream project reported
+twice. That corpus is cheap to rebuild (`git clone --depth 1 --branch TAG`) and
+catches what a synthetic-mutation benchmark cannot, because the mistakes come
+from real repositories' headers, examples and ports.
+
+Two measured facts shaped the fixes and are worth keeping in mind when
+touching the extractor:
+
+* The shipped signatures *include* function-like `#define` macros (75 to 122
+  recorded hashes in lwIP, libcoap and Mbed TLS). Skipping macros in the
+  extractor looks like the obvious cure for phantom "vendor additions" and is
+  wrong: it silently removes matches from every shipped signature. The phantom
+  functions come from files the signature does not cover, so the fix is in the
+  judgement of "modified", not in the hash.
+* On pristine trees the number of recorded functions of the identified release
+  that are *missing* is 0 in every case measured, while the number of functions
+  the signature never saw ranges from 0 to 1,487. Missing or altered recorded
+  code is the signal that separates an edit from a bigger tree.
+
 ## Citations
 
 * Woo, Park, Choi, Lee, Oh. *CENTRIS: A Precise and Scalable Approach for
@@ -107,3 +160,17 @@ caught by a test.
   [paper](https://ssp.korea.ac.kr/assets/papers/ICSE25.pdf)
 * Schleimer, Wilkerson, Aiken. *Winnowing: Local Algorithms for Document
   Fingerprinting.* SIGMOD 2003. (the fallback path)
+* Xu, Dong, Cai, Li, Shaghaghi, Sun, Ma. *Enhancing Security in Third-Party
+  Library Reuse: Comprehensive Detection of 1-day Vulnerability through Code
+  Patch Analysis* (VULTURE). NDSS 2025.
+  [paper](https://www.ndss-symposium.org/wp-content/uploads/2025-576-paper.pdf)
+* Zhang et al. *Drop the Golden Apples: Identifying Third-Party Reuse by
+  DB-Less Software Composition Analysis.* FSE 2025.
+  [arXiv:2503.22576](https://arxiv.org/pdf/2503.22576)
+* *BinCoFer: Three-Stage Purification for Effective C/C++ Binary Third-Party
+  Library Detection.* JSS 2025.
+  [arXiv:2504.19551](https://arxiv.org/abs/2504.19551)
+* *LibAM: An Area Matching Framework for Detecting Third-Party Libraries in
+  Binaries.* [arXiv:2305.04026](https://arxiv.org/pdf/2305.04026)
+* *Lares: LLM-driven Code Slice Semantic Search for Patch Presence Testing.*
+  [arXiv:2511.01252](https://arxiv.org/pdf/2511.01252)

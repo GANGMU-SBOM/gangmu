@@ -2,6 +2,24 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
+## 未发布
+
+准确率与噪声。用真实上游版本按 SDK 的摆法摆好再扫（lwIP、Mbed TLS、libcoap、littlefs、FreeRTOS-Kernel、nanopb、
+miniz、TinyCrypt、cJSON、wolfSSL、LVGL、RT-Thread，共 12 个真实上游版本，放进两个模拟 SDK）。修复前：第一个 SDK 里
+9 份未改动的上游副本有 7 份被标成 `vendor-modified`；nanopb 被报了三次（其中两个是它自己 `examples/` 里的幻影）；
+第二个 SDK 丢了 RT-Thread 内核，FatFs 也报在错的目录上。
+
+* **`vendor-modified` 现在只表示"已记录的代码缺失或被改动"。** 以前只要出现签名没见过的函数就触发，而在未改动的
+  目录里这指的是签名没覆盖的头文件、移植层和宏（lwIP 2,092 个里有 136 个，FreeRTOS 1,743 个里有 1,487 个），
+  `multi_version` 也会被未改动的 lwIP 触发。`vendor_patched` 会进入漏洞匹配的 `is_fork`，所以每个误标都会把真实
+  通告降成待研判。现在：9 份未改动副本 0 份被标；改动 3 个 lwIP 函数则被标出，证据里带着个数。只"新增"代码的副本不会被标：
+  新增并不改变有漏洞的代码是否还在。
+* **已识别组件内部 example / test 目录里的清单不再当作组件。** 即 nanopb 的 `examples/conan_dependency`（多出一个
+  0.4.6 的 nanopb）和 `examples/platformio`（再多一个没版本的）。项目自己的 `examples/` 目录照常读取，扫描会说明忽略了几条。
+* **组件归到真正存放它的目录。** 函数包含度在每一层祖先目录都会触发，"每目录一个胜者"曾让它把父目录从真正的
+  内核手里抢走（RT-Thread 输给了它自己里面的 FatFs）。现在子目录说了同样的话，就丢掉祖先的那条；更弱的嵌套匹配、
+  或根目录精确版本对内层区间，都不会顶掉根目录。
+
 ## 0.6.1
 
 在干净环境里从 PyPI 验证 0.6.0 时发现并修复的问题。

@@ -313,6 +313,13 @@ class VersionVerdict:
     detail: str = ""
     best_index: int = -1
     foreign: int = 0             # matched functions no recorded version explains
+    # Recorded functions of the identified release that are absent from the tree:
+    # edited (the old body is gone), removed, or never copied. This, not
+    # ``foreign`` or ``multi_version``, says the copy differs from the release.
+    # Both of those are noisy on pristine trees: ``foreign`` counts every
+    # function in files the signature never covered (headers, ports) and
+    # ``multi_version`` fires on a handful of bodies shared between releases.
+    changed: int = 0
 
     @property
     def is_range(self) -> bool:
@@ -373,17 +380,25 @@ def infer_version(signature: FunctionSignature, present: Set[int]) -> VersionVer
                       if not signature.bitmaps[index[h]] & best_bit)
     multi = unexplained > 0
     foreign = len(present) - len(matched)
+    changed = len(signature.version_application_hashes(best_index) - present)
 
     detail = (f"{len(voters)} version-discriminating function(s) matched; "
               f"{overlaps[best_index]} are in {signature.versions[best_index]} "
               f"(agreement {best_score:.2f})")
-    if multi:
+    if multi and changed:
         detail += (f", and {unexplained} belong to other recorded versions -- "
                    f"this tree mixes releases, which is what a vendor fork "
-                   f"looks like")
+                   f"looks like ({changed} recorded function(s) of "
+                   f"{signature.versions[best_index]} are missing or altered)")
+    elif multi:
+        detail += (f", and {unexplained} also belong to other recorded versions "
+                   f"(this tree mixes releases), but every recorded function of "
+                   f"{signature.versions[best_index]} is present, so this is not "
+                   f"by itself evidence of modification")
     if foreign:
         detail += (f"; {foreign} function(s) match no recorded version at all "
-                   f"(vendor additions, or a release not in the signature)")
+                   f"(vendor additions, a release not in the signature, or code "
+                   f"in files the signature does not cover)")
     return VersionVerdict(
         best=signature.versions[best_index],
         low=signature.versions[low_index],
@@ -392,7 +407,8 @@ def infer_version(signature: FunctionSignature, present: Set[int]) -> VersionVer
         multi_version=multi,
         detail=detail,
         best_index=best_index,
-        foreign=foreign)
+        foreign=foreign,
+        changed=changed)
 
 
 def infer_version_subset(signature: FunctionSignature, present: Set[int]) -> VersionVerdict:
@@ -432,4 +448,5 @@ def infer_version_subset(signature: FunctionSignature, present: Set[int]) -> Ver
         support=share,
         multi_version=best_cover < len(matched),
         detail=detail, best_index=best_index,
-        foreign=len(present) - len(matched))
+        foreign=len(present) - len(matched),
+        changed=len(matched) - best_cover)
