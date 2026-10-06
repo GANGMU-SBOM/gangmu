@@ -325,3 +325,70 @@ def test_patch_build_reads_the_fix_from_an_osv_advisory(tmp_path, capsys):
     assert rec.commits == [sha] and [f.function for f in rec.functions] == ["parse_len"]
     assert main(["patch-build", "CVE-9999-1", "--db", str(db), "-o", str(out)]) == 2
     assert "records no fix commit" in capsys.readouterr().err
+
+
+# ----------------------------------------------------- near matching (edited bodies)
+
+LOGGED_FIXED = FIXED.replace("int i;", 'int i; log_debug("parse", n);')
+LOGGED_VULN = VULN.replace("int i;", 'int i; log_debug("parse", n);')
+
+
+def test_a_fixed_body_with_a_vendor_log_line_is_a_likely_fix(tmp_path, fix):
+    v = assess(fix, _tree(tmp_path, "t", LOGGED_FIXED + OTHER), "lwip",
+               near=frozenset({"parse_len"}))
+    assert v.status == "likely_fixed" and v.basis == "near"
+    assert "not byte-identical" in v.detail
+
+
+def test_a_vulnerable_body_with_a_vendor_log_line_is_a_likely_vulnerable(tmp_path, fix):
+    v = assess(fix, _tree(tmp_path, "t", LOGGED_VULN + OTHER), "lwip",
+               near=frozenset({"parse_len"}))
+    assert v.status == "likely_vulnerable"
+
+
+def test_a_rewrite_is_not_placed_on_either_side(tmp_path, fix):
+    rewrite = ("int parse_len(const unsigned char *p, int n)\n"
+               "{ if (!p) { return 0; } return n + p[0] + p[1] + p[2] * 3; }\n")
+    v = assess(fix, _tree(tmp_path, "t", rewrite + OTHER), "lwip",
+               near=frozenset({"parse_len"}))
+    assert v.status == "modified"
+
+
+def test_without_the_names_nothing_is_compared(tmp_path, fix):
+    # Windows are kept only for functions a record names; no names, no claim.
+    v = assess(fix, _tree(tmp_path, "t", LOGGED_FIXED + OTHER), "lwip")
+    assert v.status == "modified"
+
+
+def test_a_record_without_a_near_diff_still_works(tmp_path, fix):
+    import dataclasses
+    bare = dataclasses.replace(
+        fix, functions=[dataclasses.replace(f, near=None) for f in fix.functions])
+    v = assess(bare, _tree(tmp_path, "t", LOGGED_FIXED + OTHER), "lwip",
+               near=frozenset({"parse_len"}))
+    assert v.status == "modified"
+
+
+def test_the_near_diff_survives_the_record_file(tmp_path, fix):
+    path = tmp_path / "p.json"
+    save_patches(path, {fix.advisory: fix})
+    again = load_patches(path)[fix.advisory]
+    assert again.functions[0].near == fix.functions[0].near and again.functions[0].near
+
+
+def test_a_near_match_is_reported_but_leaves_the_state_alone(tmp_path, capsys, patches):
+    _, m = _vuln(tmp_path, capsys, _tree(tmp_path, "t", LOGGED_FIXED + OTHER), patches)
+    assert m["state"] == "in_triage"
+    assert m["patchPresence"]["status"] == "likely_fixed"
+
+
+def test_trusting_near_matches_changes_the_state(tmp_path, capsys, patches):
+    _, m = _vuln(tmp_path, capsys, _tree(tmp_path, "t", LOGGED_FIXED + OTHER),
+                 patches, "--patch-near-vex")
+    assert m["state"] == "resolved"
+
+
+def test_trusting_near_matches_can_confirm_a_vulnerable_variant(tmp_path, capsys, patches):
+    _, m = _vuln(tmp_path, capsys, _tree(tmp_path, "u", LOGGED_VULN + OTHER),
+                 patches, "--patch-near-vex")
+    assert m["state"] == "exploitable"

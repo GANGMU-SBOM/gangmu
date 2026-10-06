@@ -24,6 +24,11 @@ miniz、TinyCrypt、cJSON、wolfSSL、LVGL、RT-Thread，共 12 个真实上游�
   和 `--fix` 指定），`gangmu vuln --source ROOT --patches FILE` 看代码而不是看版本：有修复后的函数体就 `resolved`，
   仍是修复前的函数体就确认为 `exploitable`，被厂商改过的留给人判断。魔改的 fork 只报告它所基于的版本号，
   过去每条之后才修复的公告都会让它永远停在 `in_triage`，现在不会了。见 [ALGORITHMS.md](ALGORITHMS.md#patch-presence)。
+* **补丁存在性的近似匹配。** 厂商改过的函数以前只能报 `modified`，没有下文。现在记录里还保存修复新增和删去的
+  token 窗口，改过的副本可以被报成 `likely_fixed` 或 `likely_vulnerable`，并附上依据的比例。
+  只有加 `--patch-near-vex` 才会改 VEX 状态。在 cJSON 的历史上（112 个安全修复 × 49 个发布版）
+  它在 1,166 条精确结论之外又给出 853 条正确结论，没有一条错误。
+  没有用到识别上：在一个真实 fork 里，98.9% 的函数本来就精确匹配。
 
 ## 0.6.1
 
