@@ -4,6 +4,11 @@
 
 ## 未发布
 
+* **新命令 `gangmu cbom`：固件密码物料清单（CycloneDX 1.6 CBOM）。** 读源码、配置文件、预编译库和固件镜像里的算法名（AES、RSA、ECDSA、ECDH、SM2/3/4、SHA 系列、ML-KEM 等），
+  每个算法写成 `cryptographic-asset` 组件，带文件和行号证据、置信度和量子风险（`gangmu:quantumStatus`）。给了编译数据库或链接 map 时只统计真正编译、链接的源文件
+  （头文件只算声明，未编译的源文件记为 `not-linked`）；没有时每项标 `unverified`，并在输出里说明这是“树里有什么”而不是“固件里有什么”。AES 带密钥长度和模式。
+  `--fail-on quantum-vulnerable|legacy` 可在 CI 里失败。输出用官方 CycloneDX 1.6 schema 在测试里校验（schema 放在 `tests/fixtures/schemas/`）。
+  局限：按名字识别，不识别手写算法，不判断密钥长度和协议；用 Mbed TLS 的 PSA 接口名只识别部分。见 [CBOM 指南](guides/cbom-post-quantum.md)。
 * **表格里的 `vendor-modified` 改为 `vendor-modified (or newer than known releases)`。** 用 ST 官方 STM32CubeF1 实测：子模块锁定的 HAL 提交比 v1.1.10 标签多改了 26 个文件，
   被标 `vendor-modified`；同一个 v1.1.10 标签的纯净副本不会被标。标记本身没错（树与已记录的发布版不一致），但容易被读成“客户改过”，所以说明另一种常见原因：比已记录版本更新的上游提交。仅改终端表格文字，SBOM 与 VEX 输出不变。
 * **有链接 map 时，不属于本次构建的固件镜像不再算“已出货”。** 整库扫描 STM32CubeF1 时，示例工程的 `.bin`、音频文件 `audio.bin` 等 5 个镜像曾以 `required` 进 SBOM，

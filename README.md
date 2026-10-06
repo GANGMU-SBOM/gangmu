@@ -193,6 +193,26 @@ gangmu report CVE-2027-12345 --regime cn-miit --vex vex.json \
 
 多个产品型号、多条时限需要团队协作跟踪时，可以使用[商业版的报送工作台](docs/EDITIONS.md)。
 
+### 密码清单（CBOM）与后量子
+
+```bash
+gangmu cbom . --compile-db build/compile_commands.json --link-map build/fw.map   # 把构建出的 .elf 放进目录，会和镜像交叉核对
+gangmu cbom . --compile-db build/compile_commands.json --format cyclonedx -o cbom.json --fail-on quantum-vulnerable
+```
+
+在 Mbed TLS（本机 gcc 构建 `ssl_client1`）上的一次实际输出，节选（不是准确率，局限见[指南](docs/guides/cbom-post-quantum.md)）：
+
+```
+ALGORITHM           QUANTUM             BUILD       IMAGE  CONF  HITS  FIRST SEEN
+ECDH                quantum-vulnerable  linked      no     0.90  21    library/ssl_tls12_client.c:2403
+ECDSA               quantum-vulnerable  linked      yes    0.90  116   library/ssl_tls.c:8673
+RSA                 quantum-vulnerable  linked      yes    0.90  329   library/ssl_ciphersuites.c:923
+MD5                 legacy/weak         linked      yes    0.90  61    tf-psa-crypto/drivers/builtin/src/md5.c:15
+ML-KEM (Kyber)      post-quantum        not-linked  no     0.20  78    tf-psa-crypto/drivers/pqcp/mldsa-native/dev/aarch64_clean/src/intt.S:4
+```
+
+只给源码树时 42 项，加编译数据库和链接 map 后 39 项；ML-KEM、ML-DSA 在树里但没编译，被标 `not-linked`。`IMAGE = no` 的意思是“值得去看”，不是“固件里没有”。
+
 ## 能识别什么
 
 | 类别 | 例子 | 怎么认 |
@@ -325,6 +345,7 @@ ONEKEY、Finite State、Cybellum、NetRise 面向大型企业做固件二进制�
 | `gangmu rules lint / import [--recursive] / fingerprint / verify / functions` | 规则校验、导入、生成、复现、函数签名。`--rules` 可重复，后面的目录覆盖前面同名的规则；不写则用已安装的规则包 |
 | `gangmu rules cpe-evidence --nvd DIR` | 从本地 NVD 镜像里找出组件登记用的 CPE，并列出引用其上游仓库的 CVE 作为证据 |
 | `gangmu perf [--check BASELINE]` | 性能基线：规则数与耗时、内存，CI 回归检查 |
+| `gangmu cbom ROOT [--compile-db F] [--link-map F]` | 密码物料清单：列出源码、配置、预编译库和固件镜像里的密码算法，输出 CycloneDX 1.6 CBOM（`--format cyclonedx`）；有构建事实时只统计真正编进固件的，没有时每项标 `unverified`；每个算法标量子风险（RSA、ECDSA、ECDH、SM2 等会被破解），`--fail-on quantum-vulnerable` 可在 CI 里卡住。按名字识别，见 [CBOM 指南](docs/guides/cbom-post-quantum.md) |
 | `gangmu sbom-score` / `eval` / `bench` / `diff` | 质量评分、评测基准、性能、召回率对比 |
 
 ## 仓库
