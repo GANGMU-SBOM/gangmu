@@ -63,6 +63,9 @@ def _resolve(raw: str, project_dir: Path, variables: Dict[str, str]) -> Optional
     text = raw.strip().replace("\\", "/")
     if not text:
         return None
+    # $PROJ_DIR$ becomes this path; a relative one would be joined to the
+    # project directory a second time below and every source would go missing.
+    project_dir = Path(project_dir).resolve()
 
     def sub(match: re.Match) -> str:
         name = match.group(1)
@@ -96,7 +99,7 @@ def parse_iar_ewp(path: Path, configuration: Optional[str] = None,
     path = Path(path)
     out = ProjectParse(kind="iar", project=path, configuration=configuration)
     root = ET.parse(path).getroot()
-    project_dir = path.parent
+    project_dir = path.resolve().parent
     variables = dict(variables or {})
 
     configs = [c.findtext("name", "").strip()
@@ -134,7 +137,7 @@ def parse_keil_uvprojx(path: Path, target: Optional[str] = None) -> ProjectParse
     path = Path(path)
     out = ProjectParse(kind="keil", project=path, configuration=target)
     root = ET.parse(path).getroot()
-    project_dir = path.parent
+    project_dir = path.resolve().parent
 
     targets = [t.findtext("TargetName", "").strip() for t in root.iter("Target")]
     if target is None and targets:
@@ -173,7 +176,7 @@ def parse_ccs_project(path: Path, configuration: Optional[str] = None) -> Projec
     directory -- miss those and the SBOM loses the SDK entirely.
     """
     path = Path(path)
-    project_dir = path.parent if path.is_file() else path
+    project_dir = path.resolve().parent if path.is_file() else path.resolve()
     out = ProjectParse(kind="ccs", project=path, configuration=configuration)
 
     roots: List[Path] = [project_dir]
@@ -249,6 +252,27 @@ PARSERS = {
 
 
 def parse_project(path: Path, configuration: Optional[str] = None) -> ProjectParse:
+    parsed = _parse_project(path, configuration)
+    _check_sources_exist(parsed)
+    return parsed
+
+
+def _check_sources_exist(parsed: ProjectParse) -> None:
+    """An IDE project whose listed sources are all missing is a path problem,
+    not an empty build: say so instead of producing an empty SBOM."""
+    missing = [s for s in parsed.sources if not s.is_file()]
+    if parsed.sources and len(missing) == len(parsed.sources):
+        raise ValueError(
+            f"none of the {len(parsed.sources)} source files listed in "
+            f"{parsed.project.name} exist on disk (first: {missing[0]}); "
+            f"check that the project is in the checkout it was written for")
+    if missing:
+        parsed.notes.append(
+            f"{len(missing)} of {len(parsed.sources)} source files listed in "
+            f"{parsed.project.name} do not exist on disk (first: {missing[0]})")
+
+
+def _parse_project(path: Path, configuration: Optional[str] = None) -> ProjectParse:
     path = Path(path)
     if path.is_dir():
         for name in (".cproject", ".project"):
@@ -259,7 +283,9 @@ def parse_project(path: Path, configuration: Optional[str] = None) -> ProjectPar
             if found:
                 return PARSERS[suffix](found[0], configuration)
         raise ValueError(f"no IAR, Keil or CCS project found in {path}")
-    parser = PARSERS.get(path.suffix.lower())
+    # ``.cproject`` and ``.project`` are dot-files, so they have no suffix.
+    key = path.suffix.lower() or path.name.lower()
+    parser = PARSERS.get(key)
     if parser is None:
         raise ValueError(
             f"unsupported project file: {path.name}. Supported: "

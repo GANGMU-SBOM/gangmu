@@ -211,11 +211,34 @@ def _parse_armlink(path: Path) -> LinkMap:
     return out
 
 
+_GNU_MAP_START = re.compile(r"^Linker script and memory map", re.I)
+_GNU_CONTRIB = re.compile(
+    r"^\s+(?:\S+\s+)?0x[0-9a-fA-F]+\s+(?P<size>0x[0-9a-fA-F]+)\s+(?P<file>\S.*?)\s*$")
+# Output sections that carry no code or data of the image.
+_NON_IMAGE_SECTIONS = (".comment", ".ARM.attributes", ".riscv.attributes",
+                       ".debug", ".stab", ".note", ".mdebug", ".pdr")
+
+
 def _parse_gnu(path: Path) -> LinkMap:
+    """GNU ld (and lld, which writes the same ``archive(member)`` form).
+
+    A bare object counts as kept only when it contributes bytes to an image
+    section in ``Linker script and memory map``. Naming it on a ``LOAD`` line or
+    as the referrer in ``Archive member included`` does not: with
+    ``--gc-sections`` an object can be on the command line and still leave
+    nothing behind. If the map cannot show contributions (none found, or LTO,
+    where the objects in the map are temporary ltrans files) every named object
+    is kept, which overstates rather than loses a component.
+    """
     out = LinkMap(path=path)
     kept: Set[str] = set()
     discarded: Set[str] = set()
+    named: Set[str] = set()          # bare objects named anywhere outside the discard list
+    contributing: Set[str] = set()   # bare objects with bytes in the image
+    lto = False
     in_discard = False
+    in_map = False
+    section = ""
 
     with open(path, "r", encoding="utf-8", errors="replace") as fh:
         for line in fh:
@@ -224,6 +247,12 @@ def _parse_gnu(path: Path) -> LinkMap:
                 continue
             if _SECTION_BREAK.match(line):
                 in_discard = False
+                in_map = bool(_GNU_MAP_START.match(line))
+                section = ""
+            if in_map and line[:1] not in (" ", "\t", "\n", "\r"):
+                head = line.split(None, 1)[0] if line.strip() else ""
+                if head.startswith("."):
+                    section = head
 
             sink = discarded if in_discard else kept
             consumed_spans = []
@@ -241,9 +270,22 @@ def _parse_gnu(path: Path) -> LinkMap:
                 if any(s <= m.start() < e for s, e in consumed_spans):
                     continue
                 name = Path(m.group("obj")).name
-                sink.add(name)
-                if not in_discard:
-                    out.objects.add(name)
+                if in_discard:
+                    discarded.add(name)
+                    continue
+                named.add(name)
+                if "ltrans" in name:
+                    lto = True
+            if in_map and not in_discard and section \
+                    and not section.startswith(_NON_IMAGE_SECTIONS):
+                c = _GNU_CONTRIB.match(line)
+                if c and int(c.group("size"), 16) > 0 and "(" not in c.group("file"):
+                    f = Path(c.group("file")).name
+                    if re.search(r"\.ob?j?$", f, re.I):
+                        contributing.add(f)
 
+    objects = named if (lto or not contributing) else contributing
+    out.objects = set(objects)
+    kept |= objects
     out.discarded_only = discarded - kept
     return out
