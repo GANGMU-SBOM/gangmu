@@ -20,6 +20,11 @@ miniz、TinyCrypt、cJSON、wolfSSL、LVGL、RT-Thread，共 12 个真实上游�
   内核手里抢走（RT-Thread 输给了它自己里面的 FatFs）。现在子目录说了同样的话，就丢掉祖先的那条；更弱的嵌套匹配、
   或根目录精确版本对内层区间，都不会顶掉根目录。
 
+* **补丁存在性检测。** `gangmu patch-build CVE` 记录一条公告的修复提交改动了哪些函数（提交号从 OSV 记录读，或用 `--repo`
+  和 `--fix` 指定），`gangmu vuln --source ROOT --patches FILE` 看代码而不是看版本：有修复后的函数体就 `resolved`，
+  仍是修复前的函数体就确认为 `exploitable`，被厂商改过的留给人判断。魔改的 fork 只报告它所基于的版本号，
+  过去每条之后才修复的公告都会让它永远停在 `in_triage`，现在不会了。见 [ALGORITHMS.md](ALGORITHMS.md#patch-presence)。
+
 ## 0.6.1
 
 在干净环境里从 PyPI 验证 0.6.0 时发现并修复的问题。

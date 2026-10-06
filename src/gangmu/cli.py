@@ -784,6 +784,11 @@ def cmd_vuln(args: argparse.Namespace) -> int:
         else:
             threat = None
 
+    if args.patches:
+        rc = _apply_patches(args, matches)
+        if rc:
+            return rc
+
     if args.source:
         rc = _apply_reachability(args, matches)
         if rc:
@@ -871,6 +876,101 @@ def cmd_vuln(args: argparse.Namespace) -> int:
                   file=sys.stderr)
             return 1
     return 0
+
+
+def _apply_patches(args: argparse.Namespace, matches) -> int:
+    """Test the code, not the version, for every advisory that has a patch record."""
+    from .patchtest import PatchError, assess, load_patches, records_for
+    if not args.source:
+        print("error: --patches needs --source: the patch test reads the tree "
+              "that was scanned", file=sys.stderr)
+        return 2
+    root = Path(args.source)
+    if not root.is_dir():
+        print(f"error: --source {root} is not a directory", file=sys.stderr)
+        return 2
+    records: dict = {}
+    for path in args.patches:
+        try:
+            records.update(load_patches(Path(path)))
+        except PatchError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+    cache: dict = {}
+    tally: dict = {}
+    for match in matches:
+        adv = match.advisory
+        record = records_for(adv.id, adv.aliases, records)
+        if record is None:
+            continue
+        match.patch = verdict = assess(record, root, match.directory, cache)
+        tally[verdict.status] = tally.get(verdict.status, 0) + 1
+        if match.state.value not in ("in_triage", "exploitable"):
+            continue
+        if verdict.status == "fixed":
+            match.state = VexState.RESOLVED
+        elif verdict.status in ("vulnerable", "partial"):
+            match.state = VexState.EXPLOITABLE
+        else:
+            # modified / absent: the version said "maybe" and the code does not
+            # settle it either way, so the state is left for a person.
+            match.detail = f"{match.detail} [patch test: {verdict.detail}]".strip()
+            continue
+        match.detail = f"patch test: {verdict.detail}"
+    print(f"patch presence: {len(records)} record(s) loaded; "
+          + (", ".join(f"{k} {v}" for k, v in sorted(tally.items()))
+             if tally else "none applied to a match"), file=sys.stderr)
+    return 0
+
+
+def cmd_patch_build(args: argparse.Namespace) -> int:
+    from .patchtest import PatchError, build_record, load_patches, save_patches
+    repo, commits = args.repo, list(args.fix or [])
+    if not commits or not repo:
+        if not args.db:
+            print("error: give --repo and --fix, or --db to read them from the "
+                  "advisory", file=sys.stderr)
+            return 2
+        try:
+            found_repo, found = _fix_from_advisory(args.cve, Path(args.db))
+        except FileNotFoundError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        if not found:
+            print(f"error: {args.cve} in {args.db} records no fix commit "
+                  f"(an OSV GIT range with a `fixed` event); pass --repo and "
+                  f"--fix", file=sys.stderr)
+            return 2
+        repo, commits = repo or found_repo, commits or found
+        print(f"{args.cve}: fix {', '.join(c[:12] for c in commits)} in {repo}",
+              file=sys.stderr)
+    out = Path(args.output)
+    try:
+        existing = load_patches(out) if out.exists() else {}
+        record = build_record(args.cve, repo, commits, only=args.function)
+    except PatchError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    existing[record.advisory] = record
+    save_patches(out, existing)
+    print(f"{record.advisory}: {len(record.functions)} function(s) recorded in {out}: "
+          + ", ".join(sorted({f.function for f in record.functions})[:8])
+          + (" ..." if len({f.function for f in record.functions}) > 8 else ""),
+          file=sys.stderr)
+    return 0
+
+
+def _fix_from_advisory(cve: str, db: Path):
+    """(repository, fix commits) from an OSV GIT range in a local advisory directory."""
+    from .vuln.sources import load_database
+    wanted_id = cve.upper()
+    for adv in load_database(db):
+        if wanted_id not in [adv.id.upper(), *[a.upper() for a in adv.aliases]]:
+            continue
+        for rng in adv.osv_ranges:
+            if rng.get("type") == "GIT" and rng.get("fixed_commits"):
+                return rng.get("repo") or "", list(rng["fixed_commits"])
+    return "", []
 
 
 def _apply_reachability(args: argparse.Namespace, matches) -> int:
@@ -1690,7 +1790,32 @@ def build_parser() -> argparse.ArgumentParser:
                         "unreferenced not_affected (code_not_present / "
                         "code_not_reachable). Off by default: a source-level "
                         "call graph cannot see binary blobs or assembly")
+    v.add_argument("--patches", action="append", metavar="FILE",
+                   help="patch records (from `gangmu patch-build`); with --source, "
+                        "tests whether each advisory's fix is in the code: the "
+                        "fixed body present resolves the finding, the vulnerable "
+                        "one confirms it, an edited one is left for a person. "
+                        "Repeatable")
     v.set_defaults(func=cmd_vuln)
+
+    pb = sub.add_parser(
+        "patch-build",
+        help="record the functions an advisory's fix changed, for `vuln --patches`")
+    pb.add_argument("cve", help="the advisory id the record is for")
+    pb.add_argument("--repo", help="the upstream repository: a local clone or a URL")
+    pb.add_argument("--fix", action="append", metavar="COMMIT",
+                    help="the commit that fixed it (a single non-merge commit); "
+                         "repeat for a fix made in several. Omit to read it from "
+                         "the advisory in --db")
+    pb.add_argument("--db", help="advisory directory to read the repository and "
+                                 "fix commit from (OSV GIT ranges)")
+    pb.add_argument("--function", action="append", metavar="NAME",
+                    help="record only this function (required when the commit "
+                         "changes more than 40)")
+    pb.add_argument("--output", "-o", default="patches.json",
+                    help="record file; an existing one is added to (default: "
+                         "patches.json)")
+    pb.set_defaults(func=cmd_patch_build)
 
     cc = sub.add_parser(
         "cn-db-check",

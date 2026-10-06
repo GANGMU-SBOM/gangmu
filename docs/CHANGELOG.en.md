@@ -32,6 +32,14 @@ wrong directory.
   weaker nested match, or an inner range against an exact root release, never
   displaces the root.
 
+* **Patch presence testing.** `gangmu patch-build CVE` records the functions an
+  advisory's fix changed (fix commit read from the OSV record, or `--repo` and
+  `--fix`), and `gangmu vuln --source ROOT --patches FILE` tests the code instead
+  of the version: the fixed body present resolves the finding, the vulnerable
+  body confirms it, an edited one is left for a person. A vendor fork that
+  reports the release it started from no longer sits in `in_triage` for every
+  advisory fixed since. See [ALGORITHMS.md](ALGORITHMS.md#patch-presence).
+
 ## 0.6.1
 
 Bug fixes found while verifying the 0.6.0 release from PyPI in a clean environment.

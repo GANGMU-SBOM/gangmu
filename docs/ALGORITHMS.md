@@ -110,10 +110,7 @@ LibAM, BinaryAI, DeRed, Lares.
 What the comparison says is worth doing next, in order of expected effect on
 noise:
 
-1. **Patch presence, not just version.** The one thing every 1-day paper adds
-   that this tool lacks. The ingredients exist (function hashes per release,
-   per-function bitmaps); what is missing is a record of *which function a CVE
-   fixes* and a test that the fixed body is the one present.
+1. ~~**Patch presence, not just version.**~~ Done; see the next section.
 2. **Fuzzy function matching for edited functions.** A one-token vendor edit
    defeats both the exact and the abstract hash. VULTURE uses TLSH; a
    deterministic MinHash over token shingles with banding would keep the exact
@@ -121,6 +118,53 @@ noise:
 3. **Weight by sharing, and break ties by age.** Replace "in more than one rule
    means none" with an inverse-frequency weight, and prefer the earliest-born
    project among rules that tie.
+
+## Patch presence
+
+A version range says which releases are affected. A vendor fork reports the
+release it started from, so an advisory fixed in a later release matches it
+whether or not the vendor already took the fix, and nothing in the version can
+say. Before this, every such finding sat in `in_triage` for ever.
+
+`gangmu patch-build` records, for one advisory, the functions its fix commit
+touched: the hash of each body before the fix and after it (the same token-stream
+hashes identification uses, so formatting and comments never matter), and the
+identifier-abstracted hashes for renamed copies. `gangmu vuln --source ROOT
+--patches FILE` then classifies each recorded function in the matched component's
+directory:
+
+| per function | meaning |
+| --- | --- |
+| `fixed` | the fixed body is present |
+| `vulnerable` | the vulnerable body is present |
+| `modified` | the function is defined, with neither body: the vendor edited it |
+| `absent` | not defined anywhere in the directory |
+
+and gives one verdict: `fixed` (a fixed body, no vulnerable one), `vulnerable`,
+`partial` (both: an incomplete fix), `modified` or `absent`. `fixed` resolves the
+finding, `vulnerable` and `partial` confirm it, and `modified` and `absent` leave
+it in triage with the reason attached, because the code does not settle it.
+
+Decisions that are easy to get wrong:
+
+* **Exact before abstract, and abstract only where it can tell the two apart.**
+  If a one-identifier fix leaves the abstract body unchanged, abstraction cannot
+  separate vulnerable from fixed, so those hashes are not recorded.
+* **A refactor is not a fix.** A commit that changes more than 40 functions is
+  refused unless the functions are named: its hashes would call any tree that
+  merely differs from it modified.
+* **A merge commit is not a fix.** It has two parents, so "before" is undefined.
+* **Only shipped code is read.** Tests, examples and docs of the component are
+  excluded, as in identification; a fixed copy in `test/` does not resolve
+  anything.
+* **A verdict of `fixed` is "the fixed code is here".** It does not see a fix
+  that lives in a macro, a struct or a build flag, a renamed function (which
+  looks `absent`), or a fix split over commits that were not all recorded.
+
+Checked on real code: CVE-2025-1866 (libwebsockets) was built from the OSV record
+alone (repository and fix commit read from the advisory, fetched from GitHub),
+giving one function, `lws_mux_mark_immortal`. The tree at the fix's parent and at
+v4.3.3 tests `vulnerable`; the fix commit and v4.3.5 test `fixed`.
 
 ## Measuring noise
 
