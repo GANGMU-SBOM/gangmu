@@ -15,6 +15,7 @@ import yaml
 
 from . import __version__
 from .build.facts import collect_build_facts
+from .cbom import cbom_table, failing, scan_cbom, to_cbom
 from .build.kconfig import find_kconfig, read_kconfig
 from .config import CONFIG_NAMES, Config, load_config, write_template
 from .cra import REPORT_STAGES, build_evidence_bundle, check_cra, draft_report
@@ -1304,6 +1305,36 @@ def cmd_sign_verify(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_cbom(args: argparse.Namespace) -> int:
+    """Inventory the cryptographic algorithms in a source tree or firmware as a CBOM."""
+    root = Path(args.root)
+    if not root.is_dir():
+        print(f"error: {args.root} is not a directory", file=sys.stderr)
+        return 2
+    facts = None
+    if args.compile_db or args.link_map:
+        facts = collect_build_facts(root,
+                                    Path(args.compile_db) if args.compile_db else None,
+                                    Path(args.link_map) if args.link_map else None)
+        print(f"build facts: {facts.summary()}", file=sys.stderr)
+    result = scan_cbom(root, facts, include_tests=args.include_tests,
+                       binaries=not args.no_binaries)
+    if args.format == "table":
+        _write(cbom_table(result), args.output)
+    else:
+        for note in result.notes:
+            print(f"note: {note}", file=sys.stderr)
+        _write(json.dumps(to_cbom(result, args.app_name, args.app_version),
+                          indent=2, ensure_ascii=False), args.output)
+    if args.fail_on:
+        bad = failing(result, args.fail_on)
+        if bad:
+            print("error: " + ", ".join(sorted(a.name for a in bad))
+                  + f" ({len(bad)} asset(s)) match --fail-on", file=sys.stderr)
+            return 1
+    return 0
+
+
 def cmd_sbom_score(args: argparse.Namespace) -> int:
     """Score an SBOM against the published minimum-element standards."""
     bom = _load_json(args.sbom, "SBOM")
@@ -2017,6 +2048,24 @@ def build_parser() -> argparse.ArgumentParser:
     sv.add_argument("--pubkey", help="PEM public key you trust; without it the "
                                       "result is only 'matches the embedded key'")
     sv.set_defaults(func=cmd_sign_verify)
+
+    cb = sub.add_parser(
+        "cbom",
+        help="list the cryptographic algorithms in a tree or firmware (CycloneDX 1.6 CBOM)")
+    cb.add_argument("root", nargs="?", default=".")
+    cb.add_argument("--compile-db", help="count only source files this build compiled")
+    cb.add_argument("--link-map", help="count only what the link map kept")
+    cb.add_argument("--format", choices=["table", "cyclonedx"], default="table")
+    cb.add_argument("--output", "-o")
+    cb.add_argument("--app-name", default="firmware")
+    cb.add_argument("--app-version", default="")
+    cb.add_argument("--include-tests", action="store_true",
+                    help="also read test and fixture directories")
+    cb.add_argument("--no-binaries", action="store_true",
+                    help="do not read prebuilt libraries and firmware images")
+    cb.add_argument("--fail-on", action="append", choices=["quantum-vulnerable", "legacy"],
+                    help="exit 1 when a counted algorithm is in this class (repeatable)")
+    cb.set_defaults(func=cmd_cbom)
 
     sc = sub.add_parser(
         "sbom-score",
