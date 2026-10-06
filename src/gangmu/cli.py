@@ -102,7 +102,8 @@ def _table(result: ScanResult) -> str:
     for f in result.findings:
         notes = []
         if f.vendor_patched:
-            notes.append("vendor-modified")
+            # Not a known release: a vendor fork, or simply a commit newer than the recorded versions.
+            notes.append("vendor-modified (or newer than known releases)")
         if f.linked is False:
             notes.append("not linked")
         if f.alternatives:

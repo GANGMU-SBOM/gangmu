@@ -249,3 +249,13 @@ def test_with_a_link_map_images_that_are_not_the_build_product_are_not_linked(tm
 def test_without_a_link_map_images_stay_unknown(tmp_path):
     from gangmu.binaries import collect_binaries
     assert all(b.linked is None for b in collect_binaries(_blob_tree(tmp_path)))
+
+
+def test_the_table_does_not_call_a_non_release_tree_only_vendor_modified(project_dir, rules_dir):
+    from gangmu.cli import _table
+    from gangmu.rules import load_rules
+    from gangmu.scan import ScanOptions, scan
+    result = scan(project_dir, load_rules(rules_dir, strict=True), None, ScanOptions())
+    assert result.findings
+    result.findings[0].vendor_patched = True
+    assert "newer than known releases" in _table(result)
