@@ -1,0 +1,56 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "demo-firmware-sbom",
+  "documentNamespace": "https://gangmu.dev/spdx/a0d8c226-1150-4506-8b36-3eed1938fd54",
+  "creationInfo": {
+    "created": "2026-10-06T06:29:46Z",
+    "creators": [
+      "Tool: gangmu-sbom-0.6.1"
+    ]
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-demo-firmware",
+      "name": "demo-firmware",
+      "versionInfo": "1.0.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-GmSSL-components-crypto-sm",
+      "name": "GmSSL",
+      "versionInfo": "3.0.0",
+      "downloadLocation": "https://github.com/guanzhi/GmSSL",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "comment": "identified by gangmu rule generic/gmssl from rule pack community 2026.10.6\ndirectory: components/crypto_sm\nidentity confidence: 0.950\nversion confidence: 0.880 (source: functions)\nVENDOR-MODIFIED copy of upstream GmSSL\nlicences seen in the files: Apache-2.0\nevidence[ast-fingerprint]: 1280 of 1508 functions of GmSSL 3.0.0 are present (0.849 containment, strong); 1426 functions in this directory\nevidence[source-code-analysis]: 758 version-discriminating function(s) matched; 758 are in 3.0.0 (agreement 0.85); 51 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)",
+      "supplier": "Organization: GmSSL Project (Peking University, Zhi Guan)",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:github/guanzhi/gmssl@3.0.0"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-demo-firmware"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-demo-firmware",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-GmSSL-components-crypto-sm"
+    }
+  ]
+}

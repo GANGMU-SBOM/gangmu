@@ -14,7 +14,7 @@
 [![CycloneDX 1.6](https://img.shields.io/badge/CycloneDX-1.6-green.svg)](https://cyclonedx.org/)
 [![SPDX 2.3](https://img.shields.io/badge/SPDX-2.3-green.svg)](https://spdx.dev/)
 
-[English](README.en.md) · [规则库 gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules) · [评测 gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench) · [常见问题](docs/FAQ.md) · [术语表](docs/GLOSSARY.md) · [规则格式](docs/RULE-FORMAT.md) · [评测基准](docs/BENCHMARK.md) · [CRA 对标](docs/CRA.md) · [国内合规](docs/CHINA.md)
+[English](README.en.md) · [规则库 gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules) · [评测 gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench) · [常见问题](docs/FAQ.md) · [术语表](docs/GLOSSARY.md) · [规则格式](docs/RULE-FORMAT.md) · [评测基准](docs/BENCHMARK.md) · [CRA 对标](docs/CRA.md) · [国内合规](docs/CHINA.md) · [示例产物](examples/output/) · [与同类工具对比](docs/COMPARE.md)
 
 > **名称由来**：「纲目」取自李时珍《本草纲目》。那部书把近两千种药物按「纲」分部、按「目」列种，
 > 每一味都写明出处、形态与性味，后世才能辨认、比对、追溯。
@@ -144,6 +144,27 @@ CONF  COMPONENT  VERSION  SRC     DIRECTORY                NOTES
 规则没有许可证的组件，用目录里自己声明的。LICENSE 文本只认 Apache-2.0、MIT、BSD、ISC、Zlib、MPL-2.0、BSL-1.0 这几种措辞明确的，
 GPL 类只信 SPDX 文件头。`--no-licenses` 关闭。
 
+### 在 CI 里用
+
+```yaml
+# GitHub Actions
+- uses: GANGMU-SBOM/gangmu@v0
+  with:
+    compile-db: build/compile_commands.json
+    link-map: build/my-project.map
+    app-name: my-firmware
+    app-version: ${{ github.ref_name }}
+    output: sbom.cdx.json
+```
+
+```yaml
+# .pre-commit-config.yaml
+- repo: https://github.com/GANGMU-SBOM/gangmu
+  rev: v0.6.1
+  hooks:
+    - id: gangmu-scan
+```
+
 ### 漏洞比对与合规
 
 ```bash
@@ -271,6 +292,8 @@ ok   generic/gmssl
 每一条的细节、原因和绕过办法见 [docs/LIMITS.md](docs/LIMITS.md)。
 
 ## 同类工具
+
+详细对照表见 [docs/COMPARE.md](docs/COMPARE.md)。
 
 [Interlynk lynkctl](https://www.interlynk.io/solutions/embedded-cpp) 是面向嵌入式 C/C++ 的闭源商业产品，
 支持 STM32、Infineon、NXP 等。
