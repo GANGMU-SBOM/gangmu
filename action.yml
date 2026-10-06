@@ -1,0 +1,70 @@
+name: gangmu SBOM
+description: >
+  Generate a CycloneDX or SPDX SBOM for embedded C/C++ firmware with gangmu,
+  using the build's compile database and linker map when given.
+branding:
+  icon: package
+  color: blue
+inputs:
+  path:
+    description: source tree to scan
+    default: "."
+  format:
+    description: cyclonedx, spdx, json or table
+    default: cyclonedx
+  output:
+    description: file to write the SBOM to
+    default: sbom.cdx.json
+  compile-db:
+    description: path to compile_commands.json from the real build (optional)
+    default: ""
+  link-map:
+    description: path to the GNU ld map file from the real build (optional)
+    default: ""
+  app-name:
+    description: product name written to the SBOM (optional)
+    default: ""
+  app-version:
+    description: product version written to the SBOM (optional)
+    default: ""
+  fail-under:
+    description: fail if any component's confidence is below this (optional, e.g. 0.6)
+    default: ""
+  version:
+    description: gangmu-sbom version to install, e.g. 0.6.1 (default latest)
+    default: ""
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Install gangmu
+      shell: bash
+      env:
+        GANGMU_VERSION: ${{ inputs.version }}
+      run: |
+        if [ -n "$GANGMU_VERSION" ]; then
+          python -m pip install "gangmu-sbom==$GANGMU_VERSION"
+        else
+          python -m pip install gangmu-sbom
+        fi
+    - name: Scan
+      shell: bash
+      env:
+        IN_PATH: ${{ inputs.path }}
+        IN_FORMAT: ${{ inputs.format }}
+        IN_OUTPUT: ${{ inputs.output }}
+        IN_COMPILE_DB: ${{ inputs.compile-db }}
+        IN_LINK_MAP: ${{ inputs.link-map }}
+        IN_APP_NAME: ${{ inputs.app-name }}
+        IN_APP_VERSION: ${{ inputs.app-version }}
+        IN_FAIL_UNDER: ${{ inputs.fail-under }}
+      run: |
+        args=(scan "$IN_PATH" --format "$IN_FORMAT" -o "$IN_OUTPUT")
+        [ -n "$IN_COMPILE_DB" ] && args+=(--compile-db "$IN_COMPILE_DB")
+        [ -n "$IN_LINK_MAP" ] && args+=(--link-map "$IN_LINK_MAP")
+        [ -n "$IN_APP_NAME" ] && args+=(--app-name "$IN_APP_NAME")
+        [ -n "$IN_APP_VERSION" ] && args+=(--app-version "$IN_APP_VERSION")
+        [ -n "$IN_FAIL_UNDER" ] && args+=(--fail-under "$IN_FAIL_UNDER")
+        gangmu "${args[@]}"

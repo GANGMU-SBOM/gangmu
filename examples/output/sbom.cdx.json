@@ -1,0 +1,168 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:39184b25-2997-450d-ba41-61166164fbfe",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-06T06:29:45Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "gangmu-sbom",
+          "version": "0.6.1"
+        }
+      ]
+    },
+    "component": {
+      "bom-ref": "root-application",
+      "type": "application",
+      "name": "demo-firmware",
+      "version": "1.0.0"
+    },
+    "properties": [
+      {
+        "name": "gangmu:generationContext",
+        "value": "source"
+      },
+      {
+        "name": "gangmu:generationContextNote",
+        "value": "Derived from the source tree only; may over-report code that is never compiled or never linked"
+      },
+      {
+        "name": "gangmu:rulesLoaded",
+        "value": "60"
+      },
+      {
+        "name": "gangmu:buildFactsUsed",
+        "value": "false"
+      },
+      {
+        "name": "gangmu:unidentifiedDirectories",
+        "value": "0"
+      }
+    ]
+  },
+  "components": [
+    {
+      "bom-ref": "components/crypto_sm#generic/gmssl",
+      "type": "library",
+      "name": "GmSSL",
+      "scope": "required",
+      "version": "3.0.0",
+      "purl": "pkg:github/guanzhi/gmssl@3.0.0",
+      "supplier": {
+        "name": "GmSSL Project (Peking University, Zhi Guan)"
+      },
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4b02af4ccc84aad02d2b43bc9308bff17c0a242e98c5b9d96944b4ebfc199aac"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/guanzhi/GmSSL"
+        }
+      ],
+      "pedigree": {
+        "ancestors": [
+          {
+            "type": "library",
+            "name": "GmSSL",
+            "bom-ref": "upstream/GmSSL",
+            "version": "3.0.0",
+            "purl": "pkg:github/guanzhi/gmssl@3.0.0",
+            "externalReferences": [
+              {
+                "type": "website",
+                "url": "https://github.com/guanzhi/GmSSL"
+              }
+            ]
+          }
+        ],
+        "patches": [
+          {
+            "type": "unofficial"
+          }
+        ],
+        "notes": "This copy is not byte-identical to pristine GmSSL. A CVE lookup on the ancestor's CPE is therefore approximate: the vendor's changes are not reflected in NVD."
+      },
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 0.88,
+            "concludedValue": "pkg:github/guanzhi/gmssl@3.0.0",
+            "methods": [
+              {
+                "technique": "ast-fingerprint",
+                "confidence": 0.95,
+                "value": "1280 of 1508 functions of GmSSL 3.0.0 are present (0.849 containment, strong); 1426 functions in this directory"
+              },
+              {
+                "technique": "source-code-analysis",
+                "confidence": 0.88,
+                "value": "758 version-discriminating function(s) matched; 758 are in 3.0.0 (agreement 0.85); 51 function(s) match no recorded version at all (vendor additions, a release not in the signature, or code in files the signature does not cover)"
+              }
+            ]
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "gangmu:rule",
+          "value": "generic/gmssl"
+        },
+        {
+          "name": "gangmu:directory",
+          "value": "components/crypto_sm"
+        },
+        {
+          "name": "gangmu:identityConfidence",
+          "value": "0.950"
+        },
+        {
+          "name": "gangmu:versionConfidence",
+          "value": "0.880"
+        },
+        {
+          "name": "gangmu:rulePack",
+          "value": "community"
+        },
+        {
+          "name": "gangmu:rulePackVersion",
+          "value": "2026.10.6"
+        },
+        {
+          "name": "gangmu:versionSource",
+          "value": "functions"
+        },
+        {
+          "name": "gangmu:observedLicenses",
+          "value": "Apache-2.0"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-application",
+      "dependsOn": [
+        "components/crypto_sm#generic/gmssl"
+      ]
+    },
+    {
+      "ref": "components/crypto_sm#generic/gmssl",
+      "dependsOn": []
+    }
+  ]
+}

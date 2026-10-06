@@ -17,7 +17,7 @@ drafts CRA Article 14 and China MIIT vulnerability reports.
 [![CycloneDX 1.6](https://img.shields.io/badge/CycloneDX-1.6-green.svg)](https://cyclonedx.org/)
 [![SPDX 2.3](https://img.shields.io/badge/SPDX-2.3-green.svg)](https://spdx.dev/)
 
-[中文](README.md) · [Rules: gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules) · [Benchmark: gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench) · [FAQ](docs/FAQ.en.md) · [Glossary](docs/GLOSSARY.md) · [Rule format](docs/RULE-FORMAT.md) · [Benchmark](docs/BENCHMARK.md) · [CRA](docs/CRA.md) · [China](docs/CHINA.md)
+[中文](README.md) · [Rules: gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules) · [Benchmark: gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench) · [FAQ](docs/FAQ.en.md) · [Glossary](docs/GLOSSARY.md) · [Rule format](docs/RULE-FORMAT.md) · [Benchmark](docs/BENCHMARK.md) · [CRA](docs/CRA.md) · [China](docs/CHINA.md) · [Example output](examples/output/) · [Comparison](docs/COMPARE.md)
 
 The Chinese README is the primary document; this is a shorter English version.
 
@@ -117,6 +117,26 @@ gangmu report CVE-2027-12345 --regime cn-miit --vex vex.json        # China MIIT
 Output is CycloneDX 1.6 with `pedigree` for vendor forks and
 `evidence.identity` carrying every technique and its confidence (SPDX 2.3 is
 also available). No finding claims certainty: confidence is capped at 0.95.
+
+### In CI
+
+```yaml
+# GitHub Actions
+- uses: GANGMU-SBOM/gangmu@v0
+  with:
+    compile-db: build/compile_commands.json
+    link-map: build/my-project.map
+    app-name: my-firmware
+    output: sbom.cdx.json
+```
+
+```yaml
+# .pre-commit-config.yaml
+- repo: https://github.com/GANGMU-SBOM/gangmu
+  rev: v0.6.1
+  hooks:
+    - id: gangmu-scan
+```
 
 ## What it recognises
 

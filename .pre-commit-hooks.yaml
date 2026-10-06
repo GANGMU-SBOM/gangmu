@@ -1,0 +1,9 @@
+- id: gangmu-scan
+  name: gangmu component scan
+  description: >
+    Identify third-party components in the source tree and fail if any is
+    identified below the confidence threshold.
+  entry: gangmu scan . --format table --fail-under 0.6
+  language: python
+  pass_filenames: false
+  always_run: true

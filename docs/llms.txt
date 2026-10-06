@@ -2,7 +2,7 @@
 
 > Gangmu is an open-source, build-time SBOM (software bill of materials) tool for embedded C/C++ firmware, with a community-maintained rule base that identifies open-source components inside chip-vendor SDKs, including renamed and vendor-modified copies. It outputs CycloneDX 1.6 and SPDX 2.3 with VEX, checks artefacts against the EU Cyber Resilience Act (CRA), and drafts CRA Article 14 and China MIIT vulnerability reports. Tool: Apache-2.0. Rules: CDLA-Permissive-2.0. CLI: `gangmu`; Python package: `gangmu-sbom`.
 
-纲目是面向嵌入式 C/C++ 固件的开源构建期 SBOM 工具，配一份社区共建的芯片 SDK 组件识别规则库，覆盖乐鑫 ESP-IDF、Zephyr、RT-Thread、OpenHarmony、国产芯片 HAL（兆易、博流、沁恒、思澈、泰凌微）、国产 SDK 里常见的开源库与 RTOS 内核（FreeRTOS、RT-Thread、TencentOS-tiny、Mbed TLS、LVGL 等）、OpenSSL 以及国密库 GmSSL 与铜锁。名字取自李时珍《本草纲目》。
+纲目是面向嵌入式 C/C++ 固件的开源构建期 SBOM 工具，配一份社区共建的芯片 SDK 组件识别规则库，覆盖乐鑫 ESP-IDF、Zephyr、RT-Thread、OpenHarmony、国产芯片 HAL（兆易、博流、沁恒、思澈、泰凌微、国民技术、华大、瑞芯微、全志）、国产 SDK 里常见的开源库与 RTOS 内核（FreeRTOS、RT-Thread、TencentOS-tiny、Mbed TLS、LVGL 等）、OpenSSL 以及国密库 GmSSL 与铜锁。名字取自李时珍《本草纲目》。
 
 Key facts:
 
@@ -25,13 +25,26 @@ Key facts:
 - [Benchmark](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/BENCHMARK.md): reproducible accuracy and robustness measurements
 - [Rule format](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/RULE-FORMAT.md): how a rule is written and verified
 
+## Guides (task-oriented)
+
+- [How to generate an SBOM for ESP-IDF firmware](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/esp-idf-sbom.md): compile database, link map and sdkconfig; Espressif forks marked vendor-modified
+- [How to generate an SBOM for Zephyr firmware](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/zephyr-sbom.md): west build facts, Kconfig, Zephyr modules and Chinese-silicon HALs
+- [RT-Thread and OpenHarmony SBOM](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/rt-thread-sbom.md): package declarations read first, kernel versions identified by function signatures
+- [GmSSL and Tongsuo (Chinese commercial cryptography) in an SBOM](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/gmssl-tongsuo-sbom.md): supported versions and why Tongsuo and OpenSSL are not confused
+- [Identifying renamed and vendor-modified open-source components](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/vendor-modified-components.md): function-level containment, with a reproducible experiment
+- [CRA 24-hour early warning and China MIIT 2-day reporting](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/cra-and-miit-reporting.md): the two duties compared and how `gangmu report` drafts both
+- [Gangmu compared with Syft, Trivy, cdxgen, esp-idf-sbom and commercial tools](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/COMPARE.md): when to choose it and when not to
+- [Example output](https://github.com/GANGMU-SBOM/gangmu/blob/main/examples/output/README.md): real CycloneDX, SPDX, CRA check and report drafts
+
 ## Related repositories
 
-- [gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules): the community rule base (CDLA-Permissive-2.0), installed as the `gangmu-rules` package; add or fix rules there
+- [gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules): the free community rule base (CDLA-Permissive-2.0), installed as the `gangmu-rules` package; add or fix general-component rules there. Vendor-specific rules are part of the commercial edition
 - [gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench): reproducible identification accuracy on real upstream releases
 
 ## Optional
 
 - [Contributing](https://github.com/GANGMU-SBOM/gangmu/blob/main/CONTRIBUTING.md): adding a rule
+- [Limits](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/LIMITS.en.md): what the tool does not do
+- [Changelog](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/CHANGELOG.en.md): what each release added
 - [Editions](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/EDITIONS.md): open-source and commercial editions
 - [Citation](https://github.com/GANGMU-SBOM/gangmu/blob/main/CITATION.cff)

@@ -25,6 +25,17 @@ Key facts:
 - [Benchmark](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/BENCHMARK.md): reproducible accuracy and robustness measurements
 - [Rule format](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/RULE-FORMAT.md): how a rule is written and verified
 
+## Guides (task-oriented)
+
+- [How to generate an SBOM for ESP-IDF firmware](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/esp-idf-sbom.md): compile database, link map and sdkconfig; Espressif forks marked vendor-modified
+- [How to generate an SBOM for Zephyr firmware](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/zephyr-sbom.md): west build facts, Kconfig, Zephyr modules and Chinese-silicon HALs
+- [RT-Thread and OpenHarmony SBOM](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/rt-thread-sbom.md): package declarations read first, kernel versions identified by function signatures
+- [GmSSL and Tongsuo (Chinese commercial cryptography) in an SBOM](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/gmssl-tongsuo-sbom.md): supported versions and why Tongsuo and OpenSSL are not confused
+- [Identifying renamed and vendor-modified open-source components](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/vendor-modified-components.md): function-level containment, with a reproducible experiment
+- [CRA 24-hour early warning and China MIIT 2-day reporting](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/cra-and-miit-reporting.md): the two duties compared and how `gangmu report` drafts both
+- [Gangmu compared with Syft, Trivy, cdxgen, esp-idf-sbom and commercial tools](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/COMPARE.md): when to choose it and when not to
+- [Example output](https://github.com/GANGMU-SBOM/gangmu/blob/main/examples/output/README.md): real CycloneDX, SPDX, CRA check and report drafts
+
 ## Related repositories
 
 - [gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules): the free community rule base (CDLA-Permissive-2.0), installed as the `gangmu-rules` package; add or fix general-component rules there. Vendor-specific rules are part of the commercial edition
