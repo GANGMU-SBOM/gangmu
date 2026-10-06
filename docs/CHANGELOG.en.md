@@ -39,6 +39,14 @@ wrong directory.
   body confirms it, an edited one is left for a person. A vendor fork that
   reports the release it started from no longer sits in `in_triage` for every
   advisory fixed since. See [ALGORITHMS.md](ALGORITHMS.md#patch-presence).
+* **Near matching for patch presence.** A function the vendor edited used to be
+  a dead end (`modified`). Records now also keep the token windows the fix added
+  and removed, so an edited copy can be reported `likely_fixed` or
+  `likely_vulnerable`, with the shares it rests on. It changes the VEX state only
+  with `--patch-near-vex`. On cJSON's history (112 security fixes against 49
+  releases) it makes 853 correct claims beyond the 1,166 exact ones, none wrong.
+  Not applied to identification: on a real fork 98.9% of functions already match
+  exactly.
 * **The SBOM records which rule pack identified each component.** CycloneDX components gain the properties
   `gangmu:rulePack` and `gangmu:rulePackVersion` (the pack manifest's `name` and `version`; without a manifest the
   entry-point name or directory name, and no version). SPDX package comments say "from rule pack ...", and

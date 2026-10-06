@@ -26,6 +26,9 @@ and then states one verdict for the advisory:
 ``vulnerable``  a vulnerable body, and no fixed one
 ``partial``     both: the fix was taken for some functions and not for others
 ``modified``    neither body anywhere, but the function exists in an edited form
+``likely_fixed`` / ``likely_vulnerable``
+                an edited form that carries the fix's added code and none of what
+                it removed (or the reverse); never identical, never final
 ``absent``      none of the functions is here (a pruned copy, or a rename)
 
 What this cannot see, and says so rather than guessing: a function the vendor
@@ -46,7 +49,9 @@ from pathlib import Path
 from typing import Dict, FrozenSet, Iterable, List, Optional, Sequence, Set, Tuple
 
 from .dirprint import DEFAULT_EXCLUDE, DEFAULT_INCLUDE, iter_source_files
+from . import fuzzy
 from .functions import extract_functions
+from .normalize import tokenize
 
 FORMAT = 1
 SOURCE_SUFFIXES = (".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".inc")
@@ -71,9 +76,14 @@ class FunctionPatch:
     fixed: FrozenSet[int] = frozenset()           # body hashes after the fix
     vulnerable_abstract: FrozenSet[int] = frozenset()
     fixed_abstract: FrozenSet[int] = frozenset()
+    # What the fix changed, as token windows: lets an edited copy be placed on
+    # the vulnerable or the fixed side. Absent for records without it.
+    near: Optional[fuzzy.NearDiff] = None
 
     def to_dict(self) -> dict:
         out: dict = {"function": self.function, "file": self.file}
+        if self.near:
+            out["near"] = self.near.to_dict()
         for key, values in (("vulnerable", self.vulnerable), ("fixed", self.fixed),
                             ("vulnerableAbstract", self.vulnerable_abstract),
                             ("fixedAbstract", self.fixed_abstract)):
@@ -91,7 +101,9 @@ class FunctionPatch:
         return cls(function=name, file=str(raw.get("file", "")),
                    vulnerable=hashes("vulnerable"), fixed=hashes("fixed"),
                    vulnerable_abstract=hashes("vulnerableAbstract"),
-                   fixed_abstract=hashes("fixedAbstract"))
+                   fixed_abstract=hashes("fixedAbstract"),
+                   near=(fuzzy.NearDiff.from_dict(raw["near"])
+                         if isinstance(raw.get("near"), dict) else None))
 
 
 @dataclass
@@ -166,15 +178,26 @@ def _show(repo: Path, rev: str, path: str) -> Optional[bytes]:
         return None                       # the file did not exist at that revision
 
 
-def _by_name(data: Optional[bytes]) -> Dict[str, Tuple[Set[int], Set[int]]]:
-    out: Dict[str, Tuple[Set[int], Set[int]]] = {}
+class _Bodies:
+    """The bodies of one function name in one file revision."""
+
+    def __init__(self) -> None:
+        self.exact: Set[int] = set()
+        self.abstract: Set[int] = set()
+        self.windows: Dict[int, Set[int]] = {}      # body hash -> token windows
+
+
+def _by_name(data: Optional[bytes]) -> Dict[str, _Bodies]:
+    out: Dict[str, _Bodies] = {}
     if not data:
         return out
-    for fn in extract_functions(data):
-        exact, abstract = out.setdefault(fn.name, (set(), set()))
-        exact.add(fn.hash)
+    tokens = tokenize(data)
+    for fn in extract_functions(data, tokens):
+        bodies = out.setdefault(fn.name, _Bodies())
+        bodies.exact.add(fn.hash)
         if fn.abstract_hash is not None:
-            abstract.add(fn.abstract_hash)
+            bodies.abstract.add(fn.abstract_hash)
+        bodies.windows[fn.hash] = fuzzy.shingles(tokens[fn.span[0]:fn.span[1]])
     return out
 
 
@@ -204,9 +227,8 @@ def functions_changed_by(repo: Path, commit: str,
         for name in sorted(set(before) | set(after)):
             if wanted and name not in wanted:
                 continue
-            b_exact, b_abs = before.get(name, (set(), set()))
-            a_exact, a_abs = after.get(name, (set(), set()))
-            vulnerable, fixed = b_exact - a_exact, a_exact - b_exact
+            b, a = before.get(name, _Bodies()), after.get(name, _Bodies())
+            vulnerable, fixed = b.exact - a.exact, a.exact - b.exact
             if not vulnerable and not fixed:
                 continue
             out.append(FunctionPatch(
@@ -214,8 +236,10 @@ def functions_changed_by(repo: Path, commit: str,
                 vulnerable=frozenset(vulnerable), fixed=frozenset(fixed),
                 # Where a one-identifier fix leaves the abstract body unchanged,
                 # abstraction cannot tell the two apart, so it is not recorded.
-                vulnerable_abstract=frozenset(b_abs - a_abs),
-                fixed_abstract=frozenset(a_abs - b_abs)))
+                vulnerable_abstract=frozenset(b.abstract - a.abstract),
+                fixed_abstract=frozenset(a.abstract - b.abstract),
+                near=fuzzy.diff([b.windows[h] for h in vulnerable],
+                                [a.windows[h] for h in fixed])))
     return out
 
 
@@ -278,10 +302,13 @@ class Present:
     abstract: Set[int] = field(default_factory=set)
     names: Set[str] = field(default_factory=set)
     files: int = 0
+    # Token windows of every body of the functions a record names (and only
+    # those: windows for a whole tree would be most of its size again).
+    windows: Dict[str, List[Set[int]]] = field(default_factory=dict)
 
 
-def scan_directory(root: Path, directory: str,
-                   cache: Optional[dict] = None) -> Present:
+def scan_directory(root: Path, directory: str, cache: Optional[dict] = None,
+                   near_names: FrozenSet[str] = frozenset()) -> Present:
     """Every function defined under ``root/directory``, hashed as the engine does.
 
     Tests, examples and documentation are not shipped, so they are not read
@@ -299,11 +326,15 @@ def scan_directory(root: Path, directory: str,
         except OSError:
             continue
         present.files += 1
-        for fn in extract_functions(data):
+        tokens = tokenize(data)
+        for fn in extract_functions(data, tokens):
             present.exact.add(fn.hash)
             present.names.add(fn.name)
             if fn.abstract_hash is not None:
                 present.abstract.add(fn.abstract_hash)
+            if fn.name in near_names:
+                present.windows.setdefault(fn.name, []).append(
+                    fuzzy.shingles(tokens[fn.span[0]:fn.span[1]]))
     if cache is not None:
         cache[key] = present
     return present
@@ -322,28 +353,43 @@ class PatchVerdict:
                 "functions": dict(self.per_function)}
 
 
-def _classify(patch: FunctionPatch, present: Present) -> Tuple[str, str]:
-    """(state, basis) for one function; basis is "exact" or "abstract"."""
+def _classify(patch: FunctionPatch, present: Present) -> Tuple[str, str, Optional[fuzzy.Near]]:
+    """(state, basis, near) for one function.
+
+    ``near`` is set only for a ``modified`` function, when the record carries a
+    diff to compare it with; the state itself stays ``modified``.
+    """
     if patch.fixed & present.exact:
-        return "fixed", "exact"
+        return "fixed", "exact", None
     if patch.vulnerable & present.exact:
-        return "vulnerable", "exact"
+        return "vulnerable", "exact", None
     if patch.fixed_abstract & present.abstract:
-        return "fixed", "abstract"
+        return "fixed", "abstract", None
     if patch.vulnerable_abstract & present.abstract:
-        return "vulnerable", "abstract"
+        return "vulnerable", "abstract", None
     if patch.function in present.names:
-        return "modified", "exact"
-    return "absent", "exact"
+        near = None
+        if patch.near:
+            # Several definitions of one name (conditional builds): the one
+            # closest to either body is the one the build most likely uses.
+            candidates = [fuzzy.classify(w, patch.near)
+                          for w in present.windows.get(patch.function, [])]
+            if candidates:
+                near = max(candidates, key=lambda n: n.related)
+        return "modified", "exact", near
+    return "absent", "exact", None
 
 
 def assess_patch(record: PatchRecord, present: Present) -> PatchVerdict:
     states: Dict[str, str] = {}
+    nears: Dict[str, fuzzy.Near] = {}
     basis = "exact"
     for patch in record.functions:
-        state, how = _classify(patch, present)
+        state, how, near = _classify(patch, present)
         label = f"{patch.function} ({patch.file})" if patch.file else patch.function
         states[label] = state
+        if near is not None:
+            nears[label] = near
         if how == "abstract" and state in ("fixed", "vulnerable"):
             basis = "identifier-abstracted"
     fixed = [k for k, v in states.items() if v == "fixed"]
@@ -371,12 +417,7 @@ def assess_patch(record: PatchRecord, present: Present) -> PatchVerdict:
             f"the fixed body of {', '.join(fixed[:3])} is present, identical to "
             f"the code after the fix{how}{extra}", record.advisory, states, basis)
     if modified:
-        return PatchVerdict(
-            "modified",
-            f"{', '.join(modified[:3])} is defined here but matches neither the "
-            f"vulnerable nor the fixed body: the vendor changed it, and whether "
-            f"that closes the hole needs a person to read it",
-            record.advisory, states, "exact")
+        return _modified(record, states, nears, modified)
     return PatchVerdict(
         "absent",
         f"none of the {len(record.functions)} function(s) the fix touches is "
@@ -384,9 +425,53 @@ def assess_patch(record: PatchRecord, present: Present) -> PatchVerdict:
         record.advisory, states, "exact")
 
 
+def _modified(record: PatchRecord, states: Dict[str, str],
+              nears: Dict[str, "fuzzy.Near"], modified: List[str]) -> PatchVerdict:
+    """Edited functions and nothing exact: say which side of the fix they are on.
+
+    Near matching never makes an edited function ``fixed`` or ``vulnerable``;
+    those words are kept for an identical body. It reports ``likely_fixed`` or
+    ``likely_vulnerable`` when every edited function the record can compare
+    agrees, and leaves the rest as ``modified`` with the numbers.
+    """
+    for label, near in nears.items():
+        states[label] = {"fixed": "likely_fixed",
+                         "vulnerable": "likely_vulnerable"}.get(near.label, "modified")
+    lean_fixed = [k for k, n in nears.items() if n.label == "fixed"]
+    lean_vuln = [k for k, n in nears.items() if n.label == "vulnerable"]
+    other = [k for k in modified if k not in lean_fixed and k not in lean_vuln]
+    facts = "; ".join(f"{k}: {n.summary()}" for k, n in nears.items()
+                      if n.label in ("fixed", "vulnerable", "unclear"))
+    if lean_fixed and not lean_vuln and not other:
+        return PatchVerdict(
+            "likely_fixed",
+            f"{', '.join(lean_fixed[:3])} is edited but is a variant of the fixed "
+            f"code ({facts}); not byte-identical, so a person should confirm",
+            record.advisory, states, "near")
+    if lean_vuln and not lean_fixed and not other:
+        return PatchVerdict(
+            "likely_vulnerable",
+            f"{', '.join(lean_vuln[:3])} is edited but is a variant of the "
+            f"vulnerable code ({facts}); not byte-identical, so a person should "
+            f"confirm", record.advisory, states, "near")
+    return PatchVerdict(
+        "modified",
+        f"{', '.join(modified[:3])} is defined here but matches neither the "
+        f"vulnerable nor the fixed body: the vendor changed it, and whether "
+        f"that closes the hole needs a person to read it"
+        + (f" ({facts})" if facts else ""),
+        record.advisory, states, "exact")
+
+
+def near_names(records: Iterable[PatchRecord]) -> FrozenSet[str]:
+    """The functions whose edited copies are worth keeping token windows for."""
+    return frozenset(f.function for r in records for f in r.functions if f.near)
+
+
 def assess(record: PatchRecord, root: Path, directory: str,
-           cache: Optional[dict] = None) -> PatchVerdict:
-    return assess_patch(record, scan_directory(root, directory, cache))
+           cache: Optional[dict] = None,
+           near: FrozenSet[str] = frozenset()) -> PatchVerdict:
+    return assess_patch(record, scan_directory(root, directory, cache, near))
 
 
 def records_for(advisory_id: str, aliases: Iterable[str],

@@ -111,10 +111,8 @@ What the comparison says is worth doing next, in order of expected effect on
 noise:
 
 1. ~~**Patch presence, not just version.**~~ Done; see the next section.
-2. **Fuzzy function matching for edited functions.** A one-token vendor edit
-   defeats both the exact and the abstract hash. VULTURE uses TLSH; a
-   deterministic MinHash over token shingles with banding would keep the exact
-   set arithmetic and add one level between "identical" and "gone".
+2. ~~**Fuzzy function matching for edited functions.**~~ Done for patch presence
+   (see Patch presence); measured and not worth it for identification.
 3. **Weight by sharing, and break ties by age.** Replace "in more than one rule
    means none" with an inverse-frequency weight, and prefer the earliest-born
    project among rules that tie.
@@ -165,6 +163,49 @@ Checked on real code: CVE-2025-1866 (libwebsockets) was built from the OSV recor
 alone (repository and fix commit read from the advisory, fetched from GitHub),
 giving one function, `lws_mux_mark_immortal`. The tree at the fix's parent and at
 v4.3.3 tests `vulnerable`; the fix commit and v4.3.5 test `fixed`.
+
+### Edited copies: near matching
+
+A vendor who changes one line of a function defeats the exact hash, and the
+function lands in `modified`. Comparing the whole body does not help: a copy with
+a vendor log line is as close to the fixed body as to the vulnerable one. What
+separates them is the fix itself. A record also stores, per function, the token
+windows (4 consecutive tokens) the fix **added** and the ones it **removed**, plus
+small bottom-k sketches of both bodies. An edited copy is then asked how much of
+each it carries: the added code and none of the removed code is a variant of the
+fix; the removed code and none of the added is a vulnerable variant; anything
+between is left alone. Unrelated edits touch neither set, so they do not move the
+answer. This is VULTURE's chunk comparison on token windows.
+
+The verdicts are `likely_fixed` and `likely_vulnerable`. They are reported, with
+the shares they rest on, but change the VEX state only under
+`--patch-near-vex`: only a byte-identical body is allowed to do that by default.
+Three details came from measuring rather than from design:
+
+* **Seam windows are not evidence.** A fix that only inserts code "removes" the
+  windows straddling the insertion point, and any vendor edit beside it destroys
+  them, so a plainly vulnerable copy read as unclear. A removed set smaller than
+  two window-widths is ignored.
+* **The threshold sits away from a cliff.** On cJSON's history, claims are all
+  right at 70% of the added windows and start to be wrong at 65%; the default is
+  80%.
+* **A rewrite is not an edit.** Below 50% similarity to the nearer body the
+  function is reported as modified and nothing more.
+
+Measured on cJSON: every commit that looks like a security fix (112 of them,
+cosmetic ones excluded) against every release tag (49), with the truth taken from
+git ancestry. Exact hashes make 1,166 claims, none wrong. Near matching adds 853
+more, none wrong. With cosmetic commits (warning fixes, pragmas) included, exact
+makes 9 wrong claims in 1,422 and near 16 in 1,026 (98.4%): a commit that
+reorders or restores code older releases already had makes the "added" windows
+present before the fix, and no threshold removes that. One repository, so the
+thresholds may not transfer; the lwIP run was not completed.
+
+**Measured and not built: near matching for identification.** On a real vendor
+fork (RT-Thread's lwIP 2.1.2 against upstream 2.1.2) 98.9% of functions already
+match exactly, and near matching would raise that to 99.5%. That does not pay for
+a new signature format and a rebuild of every pack, so identification stays
+exact-then-abstract.
 
 ## Measuring noise
 

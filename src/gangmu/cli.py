@@ -880,7 +880,8 @@ def cmd_vuln(args: argparse.Namespace) -> int:
 
 def _apply_patches(args: argparse.Namespace, matches) -> int:
     """Test the code, not the version, for every advisory that has a patch record."""
-    from .patchtest import PatchError, assess, load_patches, records_for
+    from .patchtest import (PatchError, assess, load_patches, near_names,
+                            records_for)
     if not args.source:
         print("error: --patches needs --source: the patch test reads the tree "
               "that was scanned", file=sys.stderr)
@@ -898,18 +899,21 @@ def _apply_patches(args: argparse.Namespace, matches) -> int:
             return 2
     cache: dict = {}
     tally: dict = {}
+    near = near_names(records.values())
     for match in matches:
         adv = match.advisory
         record = records_for(adv.id, adv.aliases, records)
         if record is None:
             continue
-        match.patch = verdict = assess(record, root, match.directory, cache)
+        match.patch = verdict = assess(record, root, match.directory, cache, near)
         tally[verdict.status] = tally.get(verdict.status, 0) + 1
         if match.state.value not in ("in_triage", "exploitable"):
             continue
-        if verdict.status == "fixed":
+        near_ok = args.patch_near_vex
+        if verdict.status == "fixed" or (near_ok and verdict.status == "likely_fixed"):
             match.state = VexState.RESOLVED
-        elif verdict.status in ("vulnerable", "partial"):
+        elif verdict.status in ("vulnerable", "partial") or (
+                near_ok and verdict.status == "likely_vulnerable"):
             match.state = VexState.EXPLOITABLE
         else:
             # modified / absent: the version said "maybe" and the code does not
@@ -1796,6 +1800,12 @@ def build_parser() -> argparse.ArgumentParser:
                         "fixed body present resolves the finding, the vulnerable "
                         "one confirms it, an edited one is left for a person. "
                         "Repeatable")
+    v.add_argument("--patch-near-vex", action="store_true",
+                   help="with --patches: let an edited function that is a close "
+                        "variant of the fixed (or the vulnerable) code change "
+                        "the state too. Off by default: only a byte-identical "
+                        "body does, a near match is reported for a person to "
+                        "confirm")
     v.set_defaults(func=cmd_vuln)
 
     pb = sub.add_parser(
