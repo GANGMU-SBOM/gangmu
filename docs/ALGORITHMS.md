@@ -164,6 +164,42 @@ alone (repository and fix commit read from the advisory, fetched from GitHub),
 giving one function, `lws_mux_mark_immortal`. The tree at the fix's parent and at
 v4.3.3 tests `vulnerable`; the fix commit and v4.3.5 test `fixed`.
 
+### Records that ship with rule packs
+
+`gangmu vuln --source ROOT` also reads `patches/*.json` from the installed rule
+packs, so the community pack's records apply without being named
+(`--no-pack-patches` turns it off, `--rules DIR` points at another pack, and a
+`--patches` file overrides a pack's record for the same advisory). A record is
+only worth shipping if anyone can reproduce it, so `gangmu patch-verify FILE...`
+rebuilds every record from the upstream commits it names and fails on any
+difference, which is what the rule pack's CI runs.
+
+Three details from building the first nine records (nanopb, nimble, wolfSSL,
+libjpeg-turbo) from 52 CVEs the rules already cite:
+
+* **Most advisories cannot be turned into a record automatically.** Of 52, 22
+  have no fix commit in OSV, 9 have no OSV record, and several were fixed
+  without changing a C function body (FreeRTOS, tf-psa-crypto, RT-Thread): there
+  is nothing a function-level test can record. 12 built, 9 were kept. A fix
+  commit is never guessed.
+* **A record is checked against something other than itself.** Each was tested
+  on real upstream trees at release tags around the advisory's fix version (older
+  releases must not test fixed, newer ones must not test vulnerable), and against
+  the pack's own per-release signature where the bodies appear in it. 0 of 8
+  testable records contradicted the advisory. The three that had no usable fix
+  version to test against were left out.
+* **A fix merged as a pull request is a merge commit.** `--first-parent` takes its
+  net change against the first parent, and the record remembers it (`firstParent`)
+  so it can be re-derived. The first verification run also found two real faults
+  in the tooling: fix commits on several release branches touch the same function
+  in the same file, and one fix commit that is the parent of another is left on a
+  shallow boundary by the second fetch.
+
+End to end, on real nanopb releases: the signature cannot tell 0.3.9.6 from
+0.3.9.7 and reports `0.3.9.6~0.3.9.7`, so by version both are `in_triage` for
+CVE-2020-26243. With the pack's record, 0.3.9.6 is `exploitable` and 0.3.9.7 is
+`resolved`.
+
 ### Edited copies: near matching
 
 A vendor who changes one line of a function defeats the exact hash, and the

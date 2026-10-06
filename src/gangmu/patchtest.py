@@ -113,9 +113,12 @@ class PatchRecord:
     repo: str = ""
     commits: List[str] = field(default_factory=list)
     note: str = ""
+    first_parent: bool = False        # a merge's net change against its first parent
 
     def to_dict(self) -> dict:
         out: dict = {"functions": [f.to_dict() for f in self.functions]}
+        if self.first_parent:
+            out["firstParent"] = True
         if self.repo:
             out["repo"] = self.repo
         if self.commits:
@@ -145,7 +148,8 @@ def load_patches(path: Path) -> Dict[str, PatchRecord]:
         out[str(key).upper()] = PatchRecord(
             advisory=str(key).upper(), functions=functions,
             repo=str(value.get("repo", "")), commits=list(value.get("commits", [])),
-            note=str(value.get("note", "")))
+            note=str(value.get("note", "")),
+            first_parent=bool(value.get("firstParent", False)))
     return out
 
 
@@ -202,22 +206,33 @@ def _by_name(data: Optional[bytes]) -> Dict[str, _Bodies]:
 
 
 def functions_changed_by(repo: Path, commit: str,
-                         only: Optional[Sequence[str]] = None) -> List[FunctionPatch]:
+                         only: Optional[Sequence[str]] = None,
+                         first_parent: bool = False) -> List[FunctionPatch]:
     """Every function whose body differs between *commit*'s parent and *commit*.
 
     Functions are paired by name within a file: a name that exists on both sides
     with different bodies is an edit; a name only before is removed by the fix
     (vulnerable body only); a name only after is new (a fixed body only, which is
     evidence of the fix when present and says nothing when absent).
+
+    A merge commit is refused unless *first_parent* is set: a fix merged as a pull
+    request is then the net change the merge made to its first parent, which is
+    well defined but also carries whatever else the pull request held, so it is
+    asked for explicitly.
     """
     parents = _git(["rev-list", "--parents", "-n", "1", commit], repo).split()
-    if len(parents) != 2:
+    if len(parents) < 2:
+        raise PatchError(
+            f"{commit} has no parent in this clone (a root commit, or a shallow "
+            f"boundary: fetch with --depth 2)")
+    if len(parents) > 2 and not first_parent:
         raise PatchError(
             f"{commit} has {len(parents) - 1} parents; a fix must be a single "
-            f"non-merge commit (give the commit that made the change)")
+            f"non-merge commit (give the commit that made the change, or ask for "
+            f"the merge's net change against its first parent with --first-parent)")
     parent = parents[1]
-    names = _git(["diff-tree", "--no-commit-id", "--name-only", "-r", "-z",
-                  "--no-renames", commit], repo).split("\0")
+    names = _git(["diff", "--name-only", "-z", "--no-renames", parent, commit],
+                 repo).split("\0")
     wanted = set(only or ())
     out: List[FunctionPatch] = []
     for path in filter(None, names):
@@ -243,9 +258,25 @@ def functions_changed_by(repo: Path, commit: str,
     return out
 
 
+def _ensure_parent(checkout: Path, commit: str, attempts: int = 4) -> None:
+    """Make sure *commit*'s parent is in a shallow clone.
+
+    When one fix commit is the parent of another, fetching the second leaves the
+    first as a shallow boundary, and a later fetch of it is a no-op: it has no
+    parent here. Deepen until it does, or give up for a true root commit.
+    """
+    for _ in range(attempts):
+        if len(_git(["rev-list", "--parents", "-n", "1", commit], checkout).split()) > 1:
+            return
+        if not (checkout / ".git" / "shallow").is_file():
+            return                                  # a full clone: a real root commit
+        _git(["fetch", "--quiet", "--deepen", "1", "origin"], checkout)
+
+
 def build_record(advisory: str, repo: str, commits: Sequence[str],
                  only: Optional[Sequence[str]] = None,
-                 workdir: Optional[Path] = None) -> PatchRecord:
+                 workdir: Optional[Path] = None,
+                 first_parent: bool = False) -> PatchRecord:
     """A patch record from the commit(s) that fixed *advisory* in *repo*.
 
     *repo* is a local clone or a URL; a URL is fetched shallowly at each commit
@@ -271,9 +302,11 @@ def build_record(advisory: str, repo: str, commits: Sequence[str],
             _git(["remote", "add", "origin", repo], checkout)
             for c in commits:
                 _git(["fetch", "--quiet", "--depth", "2", "origin", c], checkout)
+            for c in commits:
+                _ensure_parent(checkout, c)
         functions: List[FunctionPatch] = []
         for c in commits:
-            functions.extend(functions_changed_by(checkout, c, only))
+            functions.extend(functions_changed_by(checkout, c, only, first_parent))
     finally:
         if tmp is not None:
             tmp.cleanup()
@@ -289,7 +322,61 @@ def build_record(advisory: str, repo: str, commits: Sequence[str],
             f"--function (more than {MAX_FUNCTIONS} would make any tree that "
             f"merely differs look modified)")
     return PatchRecord(advisory=advisory.upper(), functions=functions,
-                       repo=repo, commits=list(commits))
+                       repo=repo, commits=list(commits), first_parent=first_parent)
+
+
+# ----------------------------------------------------------- rule-pack records
+
+PACK_DIR = "patches"
+
+
+def pack_patch_files(roots: Iterable[Path]) -> List[Path]:
+    """``<root>/patches/*.json`` of every rule root, in root order."""
+    out: List[Path] = []
+    for root in roots:
+        directory = Path(root) / PACK_DIR
+        if directory.is_dir():
+            out.extend(sorted(p for p in directory.glob("*.json") if p.is_file()))
+    return out
+
+
+def load_pack_patches(roots: Iterable[Path]) -> Dict[str, PatchRecord]:
+    """Records shipped with rule packs; a later root's record replaces an earlier one's."""
+    records: Dict[str, PatchRecord] = {}
+    for path in pack_patch_files(roots):
+        records.update(load_patches(path))
+    return records
+
+
+def verify_record(record: PatchRecord, workdir: Optional[Path] = None) -> List[str]:
+    """Rebuild *record* from its upstream commits; the differences, or ``[]``.
+
+    A record is only worth trusting if anyone can reproduce it: the commits are
+    named, so the hashes are re-derived from them and compared. Every function
+    stored must come back identical; the rebuild is limited to the stored
+    functions, because a record may deliberately name only part of a large commit.
+    """
+    if not record.repo or not record.commits:
+        return ["the record names no repository and commit, so it cannot be re-derived"]
+    names = sorted({f.function for f in record.functions})
+    try:
+        again = build_record(record.advisory, record.repo, record.commits, only=names,
+                             workdir=workdir, first_parent=record.first_parent)
+    except PatchError as exc:
+        return [f"cannot rebuild: {exc}"]
+    fresh = list(again.functions)
+    problems: List[str] = []
+    for f in record.functions:
+        # Several fix commits (one per release branch) can touch the same
+        # function in the same file, so a stored entry only has to be one of the
+        # entries the commits give, not the only one.
+        if f in fresh:
+            continue
+        same = [g for g in fresh if (g.function, g.file) == (f.function, f.file)]
+        problems.append(f"{f.function} ({f.file}) differs from what the commit gives"
+                        if same else
+                        f"{f.function} ({f.file}) is no longer changed by the commit")
+    return problems
 
 
 # ----------------------------------------------------------------- testing

@@ -29,6 +29,10 @@ miniz、TinyCrypt、cJSON、wolfSSL、LVGL、RT-Thread，共 12 个真实上游�
   只有加 `--patch-near-vex` 才会改 VEX 状态。在 cJSON 的历史上（112 个安全修复 × 49 个发布版）
   它在 1,166 条精确结论之外又给出 853 条正确结论，没有一条错误。
   没有用到识别上：在一个真实 fork 里，98.9% 的函数本来就精确匹配。
+* **补丁记录随规则包一起发布。** `gangmu vuln --source ROOT` 会读取已安装规则包里的 `patches/*.json`，社区包的记录
+  不用手动指定就生效（`--no-pack-patches` 关闭，`--rules DIR` 指向别的规则目录）。`gangmu patch-verify` 按记录里写明的
+  上游提交重新生成并比对；`patch-build --first-parent` 用来记录以 pull request 合入的修复。
+  同时修了验证真实记录时发现的两个问题：同一函数有多个修复提交，以及相邻提交的拉取把修复提交留在浅克隆边界上。
 * **SBOM 记录每个组件是由哪个规则包识别的。** CycloneDX 组件新增属性 `gangmu:rulePack` 与 `gangmu:rulePackVersion`
   （规则包 `rulebase.json` 里的 `name` 与 `version`；没有清单时用入口点名或目录名，且不带版本），SPDX 的组件备注里写
   “from rule pack …”，`gangmu scan --format json` 的每个发现多出 `rule_pack`、`rule_pack_version`。同一条规则被后加载的包

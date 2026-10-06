@@ -103,6 +103,8 @@ gangmu vuln-fetch --db advisories/ --threat                  # also CISA KEV + E
 gangmu vuln sbom.json --db advisories/ --source ROOT [--symbols syms.json] [--reachability-vex]   # per finding: is the vulnerable function absent, unreferenced, or reachable from your code? Over-approximate source call graph (names, macros, tables); VEX is only changed with --reachability-vex
 gangmu patch-build CVE-2025-1866 --db advisories/ -o patches.json   # record the functions the fix changed (fix commit read from the OSV record; or --repo URL --fix SHA)
 gangmu vuln sbom.json --db advisories/ --source ROOT --patches patches.json   # test the code, not the version: fixed body present -> resolved, vulnerable body present -> exploitable, edited -> left for a person (a near-identical variant is reported as likely_fixed / likely_vulnerable; --patch-near-vex lets it change the state)
+gangmu patch-verify rules/patches/*.json   # rebuild every patch record from the upstream commits it names; fails on any difference
+# Records in an installed rule pack's patches/ directory are used by `vuln --source` on their own (--no-pack-patches to skip).
 gangmu rules index rules/                                   # precompile a rule directory (125 rules: 0.67 s -> 0.02 s to load); each entry is checked by file hash, so a stale index only costs speed
 gangmu keygen && gangmu sign sbom.json --key gangmu-signing.key   # detached Ed25519 signature (pip install gangmu-sbom[sign])
 gangmu sign-verify sbom.json --pubkey gangmu-signing.pub   # PEM keys, OpenSSL verifies them too; no timestamp: use cosign for that

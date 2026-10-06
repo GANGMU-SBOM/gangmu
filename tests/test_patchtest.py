@@ -108,6 +108,39 @@ def test_a_merge_commit_is_not_a_fix(tmp_path):
         functions_changed_by(repo, "HEAD")
 
 
+def test_a_pull_request_merge_is_taken_against_its_first_parent_when_asked(tmp_path):
+    repo = tmp_path / "upstream"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    (repo / "lib.c").write_text(VULN + OTHER)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "base")
+    _git(repo, "checkout", "-q", "-b", "pr")
+    (repo / "lib.c").write_text(FIXED + OTHER)
+    _git(repo, "commit", "-qam", "the fix, on a branch")
+    _git(repo, "checkout", "-q", "-")
+    (repo / "unrelated.c").write_text(SECOND_VULN)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "mainline moves on")
+    _git(repo, "merge", "-q", "--no-ff", "-m", "merge the PR", "pr")
+    merge = _git(repo, "rev-parse", "HEAD")
+    with pytest.raises(PatchError, match="--first-parent"):
+        build_record("CVE-X", str(repo), [merge])
+    rec = build_record("CVE-X", str(repo), [merge], first_parent=True)
+    assert [f.function for f in rec.functions] == ["parse_len"]     # not the mainline's own change
+
+
+def test_a_root_commit_has_no_parent_to_compare_with(tmp_path):
+    repo = tmp_path / "r"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    (repo / "a.c").write_text(VULN)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "root")
+    with pytest.raises(PatchError, match="no parent"):
+        functions_changed_by(repo, "HEAD")
+
+
 def test_a_branch_name_is_not_a_commit_id(tmp_path):
     repo, _ = _history(tmp_path, VULN, FIXED)
     with pytest.raises(PatchError, match="not a commit id"):
@@ -392,3 +425,152 @@ def test_trusting_near_matches_can_confirm_a_vulnerable_variant(tmp_path, capsys
     _, m = _vuln(tmp_path, capsys, _tree(tmp_path, "u", LOGGED_VULN + OTHER),
                  patches, "--patch-near-vex")
     assert m["state"] == "exploitable"
+
+
+# ------------------------------------------------- records shipped with rule packs
+
+def _pack(tmp_path, fix):
+    root = tmp_path / "pack"
+    (root / "patches").mkdir(parents=True)
+    save_patches(root / "patches" / "lwip.json", {fix.advisory: fix})
+    return root
+
+
+def test_records_in_a_rule_pack_are_used_without_being_named(tmp_path, capsys, fix):
+    pack = _pack(tmp_path, fix)
+    _, m = _vuln(tmp_path, capsys, _tree(tmp_path, "t", FIXED + OTHER), None,
+                 "--rules", str(pack))
+    assert m["state"] == "resolved" and m["patchPresence"]["status"] == "fixed"
+
+
+def test_pack_records_can_be_switched_off(tmp_path, capsys, fix):
+    pack = _pack(tmp_path, fix)
+    _, m = _vuln(tmp_path, capsys, _tree(tmp_path, "t", FIXED + OTHER), None,
+                 "--rules", str(pack), "--no-pack-patches")
+    assert m["state"] == "in_triage" and "patchPresence" not in m
+
+
+def test_a_patches_file_overrides_the_pack(tmp_path, capsys, fix):
+    import dataclasses
+    pack = _pack(tmp_path, fix)
+    # The override names no functions, so nothing in it can match: absent.
+    empty = tmp_path / "mine.json"
+    from gangmu.patchtest import FunctionPatch
+    save_patches(empty, {fix.advisory: dataclasses.replace(fix, functions=[
+        FunctionPatch(function="nothing_like_it", file="x.c",
+                      vulnerable=frozenset({1}), fixed=frozenset({2}))])})
+    _, m = _vuln(tmp_path, capsys, _tree(tmp_path, "t", FIXED + OTHER), empty,
+                 "--rules", str(pack))
+    assert m["patchPresence"]["status"] == "absent"
+
+
+def test_a_pack_without_records_changes_nothing(tmp_path, capsys):
+    empty_pack = tmp_path / "pack"
+    empty_pack.mkdir()
+    _, m = _vuln(tmp_path, capsys, _tree(tmp_path, "t", FIXED + OTHER), None,
+                 "--rules", str(empty_pack))
+    assert m["state"] == "in_triage" and "patchPresence" not in m
+
+
+def test_the_first_parent_flag_survives_the_record_file(tmp_path, fix):
+    import dataclasses
+    path = tmp_path / "p.json"
+    save_patches(path, {fix.advisory: dataclasses.replace(fix, first_parent=True)})
+    assert load_patches(path)[fix.advisory].first_parent is True
+
+
+# ------------------------------------------------------------- patch-verify
+
+def _record_file(tmp_path):
+    repo, sha = _history(tmp_path, VULN + OTHER, FIXED + OTHER)
+    out = tmp_path / "r.json"
+    assert main(["patch-build", "CVE-2021-0001", "--repo", str(repo), "--fix", sha,
+                 "-o", str(out)]) == 0
+    return out
+
+
+def test_a_record_re_derives_from_its_commit(tmp_path, capsys):
+    out = _record_file(tmp_path)
+    assert main(["patch-verify", str(out)]) == 0
+    assert "1 of 1 record(s) reproduce" in capsys.readouterr().err
+
+
+def test_a_record_whose_hashes_were_changed_fails_verification(tmp_path, capsys):
+    out = _record_file(tmp_path)
+    raw = json.loads(out.read_text())
+    fn = raw["patches"]["CVE-2021-0001"]["functions"][0]
+    fn["fixed"] = ["0000000000000001"]
+    out.write_text(json.dumps(raw))
+    assert main(["patch-verify", str(out)]) == 1
+    err = capsys.readouterr().err
+    assert "FAIL CVE-2021-0001" in err and "differs from what the commit gives" in err
+
+
+def test_a_record_that_names_no_commit_cannot_be_verified(tmp_path, capsys):
+    out = _record_file(tmp_path)
+    raw = json.loads(out.read_text())
+    raw["patches"]["CVE-2021-0001"].pop("commits")
+    out.write_text(json.dumps(raw))
+    assert main(["patch-verify", str(out)]) == 1
+    assert "cannot be re-derived" in capsys.readouterr().err
+
+
+def test_a_merge_based_record_verifies_with_its_flag(tmp_path, capsys):
+    repo = tmp_path / "upstream"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    (repo / "lib.c").write_text(VULN + OTHER)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "base")
+    _git(repo, "checkout", "-q", "-b", "pr")
+    (repo / "lib.c").write_text(FIXED + OTHER)
+    _git(repo, "commit", "-qam", "fix")
+    _git(repo, "checkout", "-q", "-")
+    (repo / "x.c").write_text(SECOND_VULN)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "mainline")
+    _git(repo, "merge", "-q", "--no-ff", "-m", "merge", "pr")
+    merge = _git(repo, "rev-parse", "HEAD")
+    out = tmp_path / "r.json"
+    assert main(["patch-build", "CVE-2021-0001", "--repo", str(repo), "--fix", merge,
+                 "--first-parent", "-o", str(out)]) == 0
+    assert load_patches(out)["CVE-2021-0001"].first_parent is True
+    assert main(["patch-verify", str(out)]) == 0
+
+
+def test_several_fix_commits_on_the_same_function_all_verify(tmp_path, capsys):
+    # One fix per release branch is routine: each touches the same function in
+    # the same file, so a stored entry must only be one of those the commits give.
+    repo, first = _history(tmp_path, VULN + OTHER, FIXED + OTHER)
+    (repo / "lib.c").write_text(FIXED.replace("-1", "-2") + OTHER)
+    _git(repo, "commit", "-qam", "adjust the fix")
+    second = _git(repo, "rev-parse", "HEAD")
+    out = tmp_path / "r.json"
+    assert main(["patch-build", "CVE-2021-0001", "--repo", str(repo), "--fix", first,
+                 "--fix", second, "-o", str(out)]) == 0
+    assert len(load_patches(out)["CVE-2021-0001"].functions) == 2
+    assert main(["patch-verify", str(out)]) == 0
+
+
+def test_a_commit_on_a_shallow_boundary_gets_its_parent(tmp_path):
+    # Fetching one fix commit can leave another as a shallow boundary with no
+    # parent, and fetching it again is a no-op; the parent must be asked for.
+    from gangmu.patchtest import _ensure_parent
+    repo, _ = _history(tmp_path, VULN + OTHER, FIXED + OTHER)
+    tip = _git(repo, "rev-parse", "HEAD")
+    shallow = tmp_path / "shallow"
+    _git(tmp_path, "clone", "-q", "--depth", "1", repo.as_uri(), str(shallow))
+    assert len(_git(shallow, "rev-list", "--parents", "-n", "1", tip).split()) == 1
+    _ensure_parent(shallow, tip)
+    assert len(_git(shallow, "rev-list", "--parents", "-n", "1", tip).split()) == 2
+
+
+def test_a_full_clone_root_commit_is_left_alone(tmp_path):
+    from gangmu.patchtest import _ensure_parent
+    repo = tmp_path / "r"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    (repo / "a.c").write_text(VULN)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "root")
+    _ensure_parent(repo, _git(repo, "rev-parse", "HEAD"))          # no error, no loop
