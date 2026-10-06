@@ -69,6 +69,38 @@ def product_index(bom: Optional[dict]) -> Dict[str, Dict[str, str]]:
     return out
 
 
+def evidence_text(match: Match) -> str:
+    """The reachability and patch-presence verdicts behind a finding, as plain text.
+
+    Neither OpenVEX nor CSAF has a field for structured evidence, and a private
+    property would be dropped by every consumer, so the verdicts go into the free-text
+    field both formats already carry. The wording is stable ("gangmu evidence:") so a
+    reader or a script can find it; the CycloneDX output keeps the same facts as
+    ``gangmu:*`` properties.
+    """
+    parts: List[str] = []
+    if match.reach is not None:
+        reach = match.reach
+        text = f"reachability={reach.status} (basis: {reach.basis or 'none'})"
+        if reach.symbols:
+            text += f"; functions: {', '.join(reach.symbols[:5])}"
+        if reach.detail:
+            text += f"; {reach.detail}"
+        parts.append(text)
+    if match.patch is not None:
+        patch = match.patch
+        text = f"patch presence={patch.status} (basis: {patch.basis})"
+        if patch.per_function:
+            text += "; " + ", ".join(f"{name}: {state}" for name, state
+                                     in sorted(patch.per_function.items())[:8])
+        if patch.detail:
+            text += f"; {patch.detail}"
+        parts.append(text)
+    if not parts:
+        return ""
+    return "gangmu evidence: " + " | ".join(parts)
+
+
 def _product(match: Match, index: Dict[str, Dict[str, str]]) -> Dict[str, Any]:
     info = index.get(match.directory, {})
     purl = info.get("purl")
@@ -99,6 +131,7 @@ def _statement(match: Match, index: Dict[str, Dict[str, str]], now: str) -> Dict
         "timestamp": now,
     }
     detail = match.detail or ""
+    evidence = evidence_text(match)
     if match.state is VexState.EXPLOITABLE:
         statement["status"] = "affected"
         refs = "; ".join(advisory.references[:3])
@@ -119,8 +152,10 @@ def _statement(match: Match, index: Dict[str, Dict[str, str]], now: str) -> Dict
         prefix = "false positive: " if match.state is VexState.FALSE_POSITIVE else ""
         statement["impact_statement"] = (prefix + detail) or (
             "ruled out by gangmu's version comparison")
-    if detail and statement["status"] != "not_affected":
-        statement["status_notes"] = detail
+        if evidence:
+            statement["impact_statement"] += " " + evidence
+    if statement["status"] != "not_affected" and (detail or evidence):
+        statement["status_notes"] = " ".join(t for t in (detail, evidence) if t)
     return statement
 
 

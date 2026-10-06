@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from .. import __version__
 from .model import Match, VexState
-from .openvex import JUSTIFICATION, RANK as _RANK, product_index
+from .openvex import JUSTIFICATION, RANK as _RANK, evidence_text, product_index
 
 _CVE = re.compile(r"^CVE-[0-9]{4}-[0-9]{4,}$")
 _CPE23 = re.compile(r"^cpe:2\.3:[aho\*\-](:(((\?*|\*?)([a-zA-Z0-9\-\._]|(\\[\\\*\?!\"#$$%&'\(\)\+,/:;<=>@\[\]\^`\{\|\}~]))+(\?*|\*?))|[\*\-])){5}(:(([a-zA-Z]{2,3}(-([a-zA-Z]{2}|[0-9]{3}))?)|[\*\-]))(:(((\?*|\*?)([a-zA-Z0-9\-\._]|(\\[\\\*\?!\"#$$%&'\(\)\+,/:;<=>@\[\]\^`\{\|\}~]))+(\?*|\*?))|[\*\-])){4}$")
@@ -106,6 +106,13 @@ def to_csaf(matches: Sequence[Match], bom: Optional[dict] = None,
                           "title": "CVSS vector" if vector else "Severity",
                           "text": f"{sample.severity}"
                                   + (f" (CVSS {sample.cvss})" if sample.cvss is not None else "")})
+        for key, match in per.items():
+            text = evidence_text(match)
+            if text:
+                label = next((p["name"] for p in products
+                              if p["product_id"] == product_ids[key]), key)
+                notes.append({"category": "details", "title": "gangmu evidence",
+                              "text": f"{label}: {text}"})
         if notes:
             vuln["notes"] = notes
         if sample.references:
