@@ -6,6 +6,8 @@
 生成 CycloneDX / SPDX 软件物料清单和 VEX，对照欧盟《网络弹性法案》（CRA）自查，
 并起草 CRA 与工信部的漏洞报送材料。
 
+[![ci](https://github.com/GANGMU-SBOM/gangmu/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/GANGMU-SBOM/gangmu/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/gangmu-sbom.svg)](https://pypi.org/project/gangmu-sbom/)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Rules: CDLA-Permissive-2.0](https://img.shields.io/badge/rules-CDLA--Permissive--2.0-blue.svg)](https://github.com/GANGMU-SBOM/gangmu-rules/blob/main/rules/LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](pyproject.toml)
