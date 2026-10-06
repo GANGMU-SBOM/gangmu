@@ -2,7 +2,7 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
-## 未发布
+## 0.7.0
 
 * **新命令 `gangmu cbom`：固件密码物料清单（CycloneDX 1.6 CBOM）。** 读源码、配置文件、预编译库和固件镜像里的算法名（AES、RSA、ECDSA、ECDH、SM2/3/4、SHA 系列、ML-KEM 等），
   每个算法写成 `cryptographic-asset` 组件，带文件和行号证据、置信度和量子风险（`gangmu:quantumStatus`）。给了编译数据库或链接 map 时只统计真正编译、链接的源文件
