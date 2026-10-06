@@ -120,6 +120,8 @@ also available). No finding claims certainty: confidence is capped at 0.95.
 
 ### In CI
 
+The GitHub Action is listed on the [GitHub Marketplace](https://github.com/marketplace/actions/gangmu-sbom).
+
 ```yaml
 # GitHub Actions
 - uses: GANGMU-SBOM/gangmu@v0

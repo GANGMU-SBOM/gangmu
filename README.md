@@ -146,6 +146,8 @@ GPL 类只信 SPDX 文件头。`--no-licenses` 关闭。
 
 ### 在 CI 里用
 
+GitHub Action 已上架 [GitHub Marketplace](https://github.com/marketplace/actions/gangmu-sbom)。
+
 ```yaml
 # GitHub Actions
 - uses: GANGMU-SBOM/gangmu@v0
