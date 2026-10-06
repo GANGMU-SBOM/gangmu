@@ -4,6 +4,8 @@
 
 ## 未发布
 
+* **表格里的 `vendor-modified` 改为 `vendor-modified (or newer than known releases)`。** 用 ST 官方 STM32CubeF1 实测：子模块锁定的 HAL 提交比 v1.1.10 标签多改了 26 个文件，
+  被标 `vendor-modified`；同一个 v1.1.10 标签的纯净副本不会被标。标记本身没错（树与已记录的发布版不一致），但容易被读成“客户改过”，所以说明另一种常见原因：比已记录版本更新的上游提交。仅改终端表格文字，SBOM 与 VEX 输出不变。
 * **有链接 map 时，不属于本次构建的固件镜像不再算“已出货”。** 整库扫描 STM32CubeF1 时，示例工程的 `.bin`、音频文件 `audio.bin` 等 5 个镜像曾以 `required` 进 SBOM，
   而链接 map 只列链接输入，从不列镜像，所以此前没法判断。现在给了链接 map 时，只有与 map 同名的镜像（`fw.map` 对 `fw.elf`、`fw.bin`，即这次构建自己的产物）
   算已链接，其余记为未链接，CycloneDX 里 `scope` 为 `excluded`（和未链接的预编译库一致）。没有链接 map 时行为不变（未知）。

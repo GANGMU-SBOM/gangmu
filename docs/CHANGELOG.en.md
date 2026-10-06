@@ -4,6 +4,7 @@ What each release added and what was measured at the time, newest first. For the
 
 ## Unreleased
 
+* **The table's `vendor-modified` note now reads `vendor-modified (or newer than known releases)`.** Measured on ST's STM32CubeF1: the HAL commit its submodule pins differs from the v1.1.10 tag in 26 files and was flagged `vendor-modified`, while a clean copy of the v1.1.10 tag is not. The flag is right (the tree matches no recorded release) but reads as "a customer changed it", so the note names the other common cause: an upstream commit newer than the recorded versions. Terminal table text only; SBOM and VEX output are unchanged.
 * **With a link map, firmware images that are not this build's product no longer count as shipped.** Scanning the whole of
   STM32CubeF1, the examples' `.bin` files and `audio.bin` (5 images) went into the SBOM as `required`, because a link map names link
   inputs and never images, so there was nothing to judge them by. Now, when a link map is given, only an image that shares the map's
