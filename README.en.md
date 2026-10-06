@@ -133,7 +133,7 @@ also available). No finding claims certainty: confidence is capped at 0.95.
 ```yaml
 # .pre-commit-config.yaml
 - repo: https://github.com/GANGMU-SBOM/gangmu
-  rev: v0.6.1
+  rev: v0.6.2
   hooks:
     - id: gangmu-scan
 ```

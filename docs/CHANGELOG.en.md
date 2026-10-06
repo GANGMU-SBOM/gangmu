@@ -2,7 +2,18 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
-## Unreleased
+## 0.6.2
+
+* **GitHub Action and pre-commit hook.** A root `action.yml`
+  (`uses: GANGMU-SBOM/gangmu@v0`) generates an SBOM in CI; `.pre-commit-hooks.yaml`
+  provides a `gangmu-scan` hook.
+* **Documentation.** Task-oriented guides (ESP-IDF, Zephyr, RT-Thread / OpenHarmony,
+  Chinese commercial cryptography, vendor-modified component identification, CRA and MIIT
+  reporting), a comparison with similar tools, example output in `examples/output/`, and
+  FAQPage structured data.
+* The release workflow now runs only for `vX.Y.Z` tags; the moving `v0` tag no longer
+  triggers a PyPI publish.
+
 
 Accuracy and noise, found by scanning pristine upstream releases laid out the way
 an SDK lays them out (lwIP, Mbed TLS, libcoap, littlefs, FreeRTOS-Kernel, nanopb,

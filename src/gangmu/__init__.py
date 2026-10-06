@@ -10,4 +10,4 @@ its own:
 * :mod:`gangmu.sbom`    -- serialisation to CycloneDX 1.6 / SPDX 2.3.
 """
 
-__version__ = "0.6.1"
+__version__ = "0.6.2"
