@@ -1568,7 +1568,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--config", help=f"project configuration "
                                     f"(default: nearest {CONFIG_NAMES[0]})")
     s.add_argument("--compile-db", help="compile_commands.json from the real build")
-    s.add_argument("--link-map", help="GNU ld .map file from the real build")
+    s.add_argument("--link-map", help="linker .map file from the real build (GNU ld, lld, IAR ilink or Arm armlink)")
     s.add_argument("--kconfig",
                    help="sdkconfig or Zephyr .config of the real build; components whose "
                         "options it turns off are left out (default: sdkconfig, "

@@ -48,9 +48,14 @@ class ProjectParse:
     def to_compile_db(self) -> CompileDB:
         db = CompileDB(path=self.project)
         root = self.project.parent
+        suffix = ".obj" if self.kind == "ccs" else ".o"
         for source in self.sources:
+            # No project format records object paths, but IAR, Keil and CCS name
+            # an object after its source, which is what a link map lists. The
+            # name is what lets --link-map apply to an IDE project.
+            output = Path(source.stem + suffix)
             db.entries.append(CompileEntry(source=source, directory=root,
-                                           output=None, arguments=[]))
+                                           output=output, arguments=[]))
         return db
 
 

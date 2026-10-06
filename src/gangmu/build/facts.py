@@ -9,6 +9,7 @@ honest output.
 
 from __future__ import annotations
 
+import re
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -16,6 +17,21 @@ from typing import Dict, List, Optional, Set
 
 from .compile_db import CompileDB, load_compile_db
 from .linkmap import LinkMap, parse_link_map
+
+
+_OBJECT_SUFFIX = re.compile(r"\.(?:o|obj)$", re.I)
+_SOURCE_IN_OBJECT = re.compile(r"\.(?:c|cc|cpp|cxx|s|asm)$", re.I)
+
+
+def _object_stem(name: str) -> str:
+    """``init.c.obj`` / ``init.o`` / ``INIT.OBJ`` -> ``init``.
+
+    GNU/CMake names objects ``init.c.obj``; IAR, Keil and CCS name them
+    ``init.o`` or ``init.obj``. IDE projects record no object path, so the join
+    falls back to this stem when the exact name is not in the link map.
+    """
+    stem = _OBJECT_SUFFIX.sub("", name)
+    return _SOURCE_IN_OBJECT.sub("", stem).lower()
 
 
 @dataclass
@@ -88,6 +104,7 @@ def collect_build_facts(root: Path, compile_db: Optional[Path] = None,
         obj_paths[entry.source] = entry.output
 
     linked_names = lmap.linked_object_names
+    linked_stems = {_object_stem(n) for n in linked_names}
     kept_keys = lmap.qualified_keys()
     dropped_keys = lmap.discarded_keys()
     unresolved: List[str] = []
@@ -107,6 +124,8 @@ def collect_build_facts(root: Path, compile_db: Optional[Path] = None,
                 facts.linked.add(source)
                 unresolved.append(name)
             elif name in linked_names:
+                facts.linked.add(source)
+            elif _object_stem(name) in linked_stems:
                 facts.linked.add(source)
             else:
                 facts.dropped.add(source)
