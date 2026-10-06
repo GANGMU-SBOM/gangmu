@@ -2,7 +2,14 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
-## 未发布
+## 0.6.2
+
+* **GitHub Action 与 pre-commit 钩子。** 根目录 `action.yml`（`uses: GANGMU-SBOM/gangmu@v0`）在 CI 里生成 SBOM；
+  `.pre-commit-hooks.yaml` 提供 `gangmu-scan` 钩子。
+* **文档。** 按任务组织的指南（ESP-IDF、Zephyr、RT-Thread / OpenHarmony、国密库、魔改组件识别、CRA 与工信部报送）、
+  与同类工具的对比页、`examples/output/` 示例产物、FAQ 的 FAQPage 结构化数据。
+* 发布工作流只在 `vX.Y.Z` 形式的 tag 上触发，滚动 tag `v0` 不再触发 PyPI 发布。
+
 
 准确率与噪声。用真实上游版本按 SDK 的摆法摆好再扫（lwIP、Mbed TLS、libcoap、littlefs、FreeRTOS-Kernel、nanopb、
 miniz、TinyCrypt、cJSON、wolfSSL、LVGL、RT-Thread，共 12 个真实上游版本，放进两个模拟 SDK）。修复前：第一个 SDK 里

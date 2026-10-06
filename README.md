@@ -160,7 +160,7 @@ GPL 类只信 SPDX 文件头。`--no-licenses` 关闭。
 ```yaml
 # .pre-commit-config.yaml
 - repo: https://github.com/GANGMU-SBOM/gangmu
-  rev: v0.6.1
+  rev: v0.6.2
   hooks:
     - id: gangmu-scan
 ```

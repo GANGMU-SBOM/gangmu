@@ -5,7 +5,7 @@ name: release
 # add this repository + workflow + the `pypi` environment as a trusted publisher.
 on:
   push:
-    tags: ["v*"]
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
 
 jobs:
   build:
