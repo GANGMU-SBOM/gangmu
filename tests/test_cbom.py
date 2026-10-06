@@ -149,3 +149,11 @@ def test_table_summary_counts_only_what_the_build_kept(tmp_path):
     root = _tree(tmp_path, with_db=True)
     table = cbom_table(scan_cbom(root, collect_build_facts(root, root / "compile_commands.json")))
     assert "not-linked" in table and "1 quantum-vulnerable" in table
+
+
+def test_the_best_evidence_is_kept_not_the_first(tmp_path):
+    from gangmu.build.facts import collect_build_facts
+    root = _tree(tmp_path, with_db=True)
+    (root / "src" / "a_first.c").write_text("int x = mbedtls_ecdsa_sign(0);\n")   # not compiled
+    asset = _names(scan_cbom(root, collect_build_facts(root, root / "compile_commands.json")))["ECDSA"]
+    assert asset.occurrences[0].path == "src/main.c" and asset.occurrences[0].state == "linked"

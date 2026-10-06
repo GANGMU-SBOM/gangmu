@@ -191,6 +191,14 @@ class Occurrence:
     state: str                # linked | not-linked | unknown
 
 
+_STATE_RANK = {"linked": 0, "unknown": 1, "not-linked": 2}
+_KIND_RANK = {"code": 0, "binary": 1, "config": 2, "header": 3}
+
+
+def _rank(occ: "Occurrence") -> Tuple[int, int]:
+    return (_STATE_RANK[occ.state], _KIND_RANK[occ.kind])
+
+
 @dataclass
 class Asset:
     algo: Algo
@@ -209,9 +217,14 @@ class Asset:
         return "crypto/" + (self.variant or self.algo.key).lower().replace(" ", "-")
 
     def add(self, occ: Occurrence) -> None:
+        """Count the hit; keep the best-evidenced ones (linked code first), not the first ones."""
         self.count += 1
         if len(self.occurrences) < MAX_OCCURRENCES:
             self.occurrences.append(occ)
+            self.occurrences.sort(key=_rank)
+        elif _rank(occ) < _rank(self.occurrences[-1]):
+            self.occurrences[-1] = occ
+            self.occurrences.sort(key=_rank)
 
     def verdict(self) -> str:
         """linked, not-linked or unverified: the build facts' reading of this asset."""

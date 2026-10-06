@@ -41,6 +41,21 @@ gangmu cbom . --compile-db build/compile_commands.json \
 - 有编译数据库时，头文件只算声明，不计入（密码库的头文件会列出它提供的所有算法）；
 - 默认跳过 `test`、`fixtures`、`doc` 一类目录，`--include-tests` 可打开测试目录。
 
+## 一次实测：Mbed TLS（本机 gcc 构建，不是嵌入式目标）
+
+对象：Mbed TLS 提交 `6bdf4e1`（含 tf-psa-crypto 子模块），本机 gcc 构建 `ssl_client1`，用它的 `compile_commands.json` 和链接 map。数字是这一次运行的结果，不是准确率。
+
+| 输入 | 统计到的算法数 | 说明 |
+| --- | --- | --- |
+| 只给源码树 | 42 | 全部标 `unverified`，含 ML-KEM、ML-DSA（后量子驱动在树里，但没编译） |
+| + 编译数据库 | 40 | ML-KEM、ML-DSA 变成 `not-linked`，不再计入 |
+| + 链接 map | 39 | 再去掉 1 项 |
+| 只读构建出的 ELF（符号名与字符串） | 34 | 没有 ECDH、Ed25519、LMS/XMSS、ML-KEM/ML-DSA |
+
+怎么读：构建事实确实把“树里有但没进产品”的后量子驱动排除了。但**两种读法都不是真值**：源码读法会把进了编译的文件里的配置宏和常量也算进去（Mbed TLS 的 PSA 接口用 `PSA_ALG_ECDH` 这类宏，编译后不留符号，所以 ELF 读法漏掉 ECDH，而源码读法可能多报）。
+另外 `compile_commands.json` 列出整个构建的所有目标，不只是这个可执行文件；链接 map 只对应一个目标，同名目标文件（本次有 29 个）按保守处理为已链接。
+所以结果适合当“待核对清单”，不能直接当最终结论。
+
 ## 它不做什么
 
 - **按名字识别，不按行为识别。** 自己手写、没用常见名字的算法看不到；
