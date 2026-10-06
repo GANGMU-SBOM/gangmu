@@ -1,7 +1,7 @@
 name: gangmu SBOM
 description: >
   Generate a CycloneDX or SPDX SBOM for embedded C/C++ firmware with gangmu,
-  using the build's compile database and linker map when given.
+  using the build's compile database and linker map.
 branding:
   icon: package
   color: blue
