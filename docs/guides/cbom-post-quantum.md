@@ -51,6 +51,10 @@ gangmu cbom . --compile-db build/compile_commands.json \
 | + 编译数据库 | 40 | ML-KEM、ML-DSA 变成 `not-linked`，不再计入 |
 | + 链接 map | 39 | 再去掉 1 项 |
 | 只读构建出的 ELF（符号名与字符串） | 34 | 没有 ECDH、Ed25519、LMS/XMSS、ML-KEM/ML-DSA |
+| 源码 + 构建事实 + ELF 交叉核对 | 39（其中 5 项镜像里没有） | 见下 |
+
+把构建出的 ELF 放进扫描目录后，每个算法多一列 `IMAGE`：源码里有、镜像符号里也有写 `yes`，源码里有、镜像里没有写 `no`（输出里是 `gangmu:imageCheck`：`present` / `absent` / `not-checked`）。
+同一次运行里，39 项里有 5 项是 `no`：AES-128-XTS、AES-256-XTS、ECDH、Ed25519、LMS/XMSS。`no` 的意思是“值得去看”：可能被编译配置关掉，也可能是宏名（如 `PSA_ALG_ECDH`）不留符号，**不是**“固件里没有”。没有读到镜像时不输出这一列的判断。
 
 怎么读：构建事实确实把“树里有但没进产品”的后量子驱动排除了。但**两种读法都不是真值**：源码读法会把进了编译的文件里的配置宏和常量也算进去（Mbed TLS 的 PSA 接口用 `PSA_ALG_ECDH` 这类宏，编译后不留符号，所以 ELF 读法漏掉 ECDH，而源码读法可能多报）。
 另外 `compile_commands.json` 列出整个构建的所有目标，不只是这个可执行文件；链接 map 只对应一个目标，同名目标文件（本次有 29 个）按保守处理为已链接。

@@ -193,6 +193,26 @@ gangmu report CVE-2027-12345 --regime cn-miit --vex vex.json \
 
 多个产品型号、多条时限需要团队协作跟踪时，可以使用[商业版的报送工作台](docs/EDITIONS.md)。
 
+### 密码清单（CBOM）与后量子
+
+```bash
+gangmu cbom . --compile-db build/compile_commands.json --link-map build/fw.map   # 把构建出的 .elf 放进目录，会和镜像交叉核对
+gangmu cbom . --compile-db build/compile_commands.json --format cyclonedx -o cbom.json --fail-on quantum-vulnerable
+```
+
+在 Mbed TLS（本机 gcc 构建 `ssl_client1`）上的一次实际输出，节选（不是准确率，局限见[指南](docs/guides/cbom-post-quantum.md)）：
+
+```
+ALGORITHM           QUANTUM             BUILD       IMAGE  CONF  HITS  FIRST SEEN
+ECDH                quantum-vulnerable  linked      no     0.90  21    library/ssl_tls12_client.c:2403
+ECDSA               quantum-vulnerable  linked      yes    0.90  116   library/ssl_tls.c:8673
+RSA                 quantum-vulnerable  linked      yes    0.90  329   library/ssl_ciphersuites.c:923
+MD5                 legacy/weak         linked      yes    0.90  61    tf-psa-crypto/drivers/builtin/src/md5.c:15
+ML-KEM (Kyber)      post-quantum        not-linked  no     0.20  78    tf-psa-crypto/drivers/pqcp/mldsa-native/dev/aarch64_clean/src/intt.S:4
+```
+
+只给源码树时 42 项，加编译数据库和链接 map 后 39 项；ML-KEM、ML-DSA 在树里但没编译，被标 `not-linked`。`IMAGE = no` 的意思是“值得去看”，不是“固件里没有”。
+
 ## 能识别什么
 
 | 类别 | 例子 | 怎么认 |

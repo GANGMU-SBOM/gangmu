@@ -189,6 +189,7 @@ class Occurrence:
     symbol: str
     kind: str                 # code | config | header | binary
     state: str                # linked | not-linked | unknown
+    image: bool = False       # a binary hit inside a firmware image, not a library
 
 
 _STATE_RANK = {"linked": 0, "unknown": 1, "not-linked": 2}
@@ -207,6 +208,7 @@ class Asset:
     mode: str = ""
     occurrences: List[Occurrence] = field(default_factory=list)
     count: int = 0
+    in_image: bool = False    # kept apart from the capped occurrence list, which may drop it
 
     @property
     def name(self) -> str:
@@ -219,6 +221,7 @@ class Asset:
     def add(self, occ: Occurrence) -> None:
         """Count the hit; keep the best-evidenced ones (linked code first), not the first ones."""
         self.count += 1
+        self.in_image = self.in_image or occ.image
         if len(self.occurrences) < MAX_OCCURRENCES:
             self.occurrences.append(occ)
             self.occurrences.sort(key=_rank)
@@ -234,6 +237,20 @@ class Asset:
         if states == {"not-linked"}:
             return "not-linked"
         return "unverified"
+
+    def image_check(self, images: int) -> str:
+        """Does a firmware image back up what the sources say?
+
+        ``present``: the algorithm's names are in a built image. ``absent``: an image was
+        read and has none of them, though the sources do -- either the algorithm is compiled
+        out or it is named by a macro, which leaves no symbol, so this is a reason to look,
+        not proof. ``not-checked``: no image was read."""
+        if not images:
+            return "not-checked"
+        if self.in_image:
+            return "present"
+        return "absent" if any(o.kind in ("code", "config") for o in self.occurrences) \
+            else "not-checked"
 
     def confidence(self) -> float:
         best = 0.0
@@ -259,6 +276,7 @@ class CbomResult:
     build_facts_used: bool
     files_scanned: int = 0
     notes: List[str] = field(default_factory=list)
+    images: int = 0           # firmware images read that the build facts do not rule out
 
     def counted(self) -> List[Asset]:
         """Assets that the build facts do not rule out."""
@@ -275,7 +293,8 @@ def _line_of(offsets: Sequence[int], pos: int) -> int:
 
 
 def _scan_bytes(data: bytes, path: str, kind: str, state: str,
-                assets: Dict[Tuple[str, str], Asset], with_lines: bool) -> None:
+                assets: Dict[Tuple[str, str], Asset], with_lines: bool,
+                image: bool = False) -> None:
     offsets: List[int] = []
     if with_lines:
         offsets = [m.start() for m in re.finditer(b"\n", data)]
@@ -283,7 +302,7 @@ def _scan_bytes(data: bytes, path: str, kind: str, state: str,
         for m in regex.finditer(data):
             asset = assets.setdefault((algo.key, ""), Asset(algo))
             asset.add(Occurrence(path, _line_of(offsets, m.start()) if with_lines else None,
-                                 m.group(0).decode("ascii", "replace")[:80], kind, state))
+                                 m.group(0).decode("ascii", "replace")[:80], kind, state, image))
     if b"AES" not in data and b"aes" not in data:
         return
     for m in _AES_VARIANT.finditer(data):
@@ -292,7 +311,7 @@ def _scan_bytes(data: bytes, path: str, kind: str, state: str,
         label = f"AES-{bits}-{mode}"
         asset = assets.setdefault(("aes", label), Asset(_BY_KEY["aes"], label, bits, mode))
         asset.add(Occurrence(path, _line_of(offsets, m.start()) if with_lines else None,
-                             m.group(0).decode("ascii", "replace")[:80], kind, state))
+                             m.group(0).decode("ascii", "replace")[:80], kind, state, image))
 
 
 def _source_state(path: Path, kind: str, facts: Optional[BuildFacts]) -> Optional[str]:
@@ -329,6 +348,7 @@ def scan_cbom(root: Path, facts: Optional[BuildFacts] = None,
     root = Path(root).resolve()
     assets: Dict[Tuple[str, str], Asset] = {}
     scanned = 0
+    images = 0
     notes: List[str] = []
     for here, dirs, files in os.walk(root):
         dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and d.lower() not in DOC_DIRS)
@@ -363,9 +383,12 @@ def scan_cbom(root: Path, facts: Optional[BuildFacts] = None,
                     data = path.read_bytes()
                     layers = (expand(data, suffix) if suffix in IMAGE_SUFFIXES
                               else None)
+                    is_image = suffix in IMAGE_SUFFIXES
                     for blob in ([l.data for l in layers] if layers else [data]):
-                        _scan_bytes(blob, rel, "binary", state, assets, False)
+                        _scan_bytes(blob, rel, "binary", state, assets, False, is_image)
                     scanned += 1
+                    if is_image and state != "not-linked":
+                        images += 1
             except OSError:
                 continue
     if facts is None:
@@ -373,7 +396,7 @@ def scan_cbom(root: Path, facts: Optional[BuildFacts] = None,
                      "contains, not what ships: every algorithm in a crypto library's source "
                      "appears. Pass --compile-db / --link-map to count only what was built.")
     ordered = sorted(assets.values(), key=lambda a: (a.algo.key, a.variant))
-    return CbomResult(str(root), ordered, facts is not None, scanned, notes)
+    return CbomResult(str(root), ordered, facts is not None, scanned, notes, images)
 
 
 # ------------------------------------------------------------------ output
@@ -382,7 +405,7 @@ def _now() -> str:
     return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _component(asset: Asset) -> Dict[str, Any]:
+def _component(asset: Asset, images: int = 0) -> Dict[str, Any]:
     algo = asset.algo
     props: Dict[str, Any] = {"primitive": algo.primitive,
                              "executionEnvironment": "unknown",
@@ -405,6 +428,7 @@ def _component(asset: Asset) -> Dict[str, Any]:
         {"name": "gangmu:quantumStatus", "value": algo.quantum},
         {"name": "gangmu:linkage", "value": asset.verdict()},
         {"name": "gangmu:hits", "value": str(asset.count)},
+        {"name": "gangmu:imageCheck", "value": asset.image_check(images)},
     ]
     if algo.note:
         properties.append({"name": "gangmu:note", "value": algo.note})
@@ -449,7 +473,7 @@ def to_cbom(result: CbomResult, app_name: str = "firmware",
                 *({"name": "gangmu:cbom:note", "value": n} for n in result.notes),
             ],
         },
-        "components": [_component(a) for a in result.assets],
+        "components": [_component(a, result.images) for a in result.assets],
         "dependencies": [{"ref": "firmware", "dependsOn": [a.ref for a in result.counted()]}],
     }
 
@@ -459,11 +483,13 @@ QUANTUM_LABEL = {VULNERABLE: "quantum-vulnerable", SYMMETRIC: "symmetric", PQC: 
 
 
 def cbom_table(result: CbomResult) -> str:
-    rows = [("ALGORITHM", "QUANTUM", "BUILD", "CONF", "HITS", "FIRST SEEN")]
+    rows = [("ALGORITHM", "QUANTUM", "BUILD", "IMAGE", "CONF", "HITS", "FIRST SEEN")]
     for a in result.assets:
         first = a.occurrences[0]
         where = first.path + (f":{first.line}" if first.line else "")
+        check = a.image_check(result.images)
         rows.append((a.name, QUANTUM_LABEL[a.algo.quantum], a.verdict(),
+                     {"present": "yes", "absent": "no"}.get(check, "-"),
                      f"{a.confidence():.2f}", str(a.count), where))
     widths = [max(len(r[i]) for r in rows) for i in range(len(rows[0]))]
     lines = ["  ".join(c.ljust(w) for c, w in zip(r, widths)).rstrip() for r in rows]
@@ -473,6 +499,11 @@ def cbom_table(result: CbomResult) -> str:
     lines.append("")
     lines.append(f"{len(counted)} algorithm(s) counted over {result.files_scanned} file(s); "
                  f"{len(vulnerable)} quantum-vulnerable, {len(legacy)} legacy/weak.")
+    absent = [a for a in counted if a.image_check(result.images) == "absent"]
+    if absent:
+        lines.append(f"{len(absent)} algorithm(s) are named in the sources but not in the firmware "
+                     "image (IMAGE = no): compiled out, or named by a macro that leaves no symbol. "
+                     "Look at them before dropping them.")
     lines.extend(f"note: {n}" for n in result.notes)
     return "\n".join(lines)
 

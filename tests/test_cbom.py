@@ -157,3 +157,31 @@ def test_the_best_evidence_is_kept_not_the_first(tmp_path):
     (root / "src" / "a_first.c").write_text("int x = mbedtls_ecdsa_sign(0);\n")   # not compiled
     asset = _names(scan_cbom(root, collect_build_facts(root, root / "compile_commands.json")))["ECDSA"]
     assert asset.occurrences[0].path == "src/main.c" and asset.occurrences[0].state == "linked"
+
+
+def test_image_check_compares_sources_with_the_built_image(tmp_path):
+    root = _tree(tmp_path)
+    # the image carries AES and MD5 symbols, but not the ECDSA call the sources make
+    (root / "fw.elf").write_bytes(b"\x00mbedtls_aes_crypt_ecb\x00mbedtls_md5_finish\x00")
+    result = scan_cbom(root)
+    assert result.images == 1
+    assets = _names(result)
+    assert assets["MD5"].image_check(result.images) == "present"
+    assert assets["ECDSA"].image_check(result.images) == "absent"
+    assert "IMAGE" in cbom_table(result) and "not in the firmware" in cbom_table(result)
+    comp = next(c for c in to_cbom(result)["components"] if c["name"] == "ECDSA")
+    assert {p["name"]: p["value"] for p in comp["properties"]}["gangmu:imageCheck"] == "absent"
+
+
+def test_without_an_image_nothing_is_claimed_about_it(tmp_path):
+    result = scan_cbom(_tree(tmp_path))
+    assert result.images == 0
+    assert _names(result)["RSA"].image_check(result.images) == "not-checked"
+
+
+def test_image_presence_survives_many_source_hits(tmp_path):
+    root = _tree(tmp_path)
+    (root / "many.c").write_text("mbedtls_aes_crypt_ecb();\n" * 50)
+    (root / "fw.elf").write_bytes(b"\x00mbedtls_aes_crypt_ecb\x00")
+    result = scan_cbom(root)
+    assert _names(result)["AES"].image_check(result.images) == "present"
