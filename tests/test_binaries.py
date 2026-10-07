@@ -82,6 +82,19 @@ def test_the_sbom_lists_all_binaries_as_files(tmp_path, rules_dir):
     assert sum(1 for p in spdx["packages"] if p.get("checksums")) == 4
 
 
+def test_an_archive_the_link_map_does_not_name_is_not_a_component(tmp_path, rules_dir):
+    from gangmu.build.facts import BuildFacts
+    _tree(tmp_path)
+    facts = BuildFacts(root=tmp_path, have_link_map=True,
+                       linked_archives={"/build/sdk/components/opus/libopus.a"})
+    result = scan(tmp_path, load_rules(rules_dir, strict=True), facts, ScanOptions())
+    names = {f.upstream_name for f in result.findings}
+    assert "Opus" in names and "libvorbis" not in names
+    assert len(result.binaries) == 4          # still inventoried, with linked=false
+    assert next(b for b in result.binaries if b.path.endswith("libvorbis.a")).linked is False
+    assert any("libvorbis.a" in n and "not reported as components" in n for n in result.notes)
+
+
 def test_binaries_can_be_switched_off(tmp_path, rules_dir):
     result = _scan(_tree(tmp_path), rules_dir, binaries=False)
     assert result.binaries == [] and not result.findings

@@ -142,6 +142,15 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
             root, build_facts.linked_archives if facts_map else None,
             _string_signatures(rulebase), _function_prints(rulebase))
         findings.extend(_binary_findings(binaries, rulebase))
+        unlinked = [b for b in binaries if b.linked is False and b.embedded
+                    and any(not e.vendor_component for e in b.embedded)]
+        if unlinked:
+            notes.append(
+                f"{len(unlinked)} prebuilt archive(s) carry a library banner but the link "
+                f"map does not name them, so they are listed as files (linked=false) and "
+                f"not reported as components: "
+                + ", ".join(b.path for b in unlinked[:6])
+                + (f" and {len(unlinked) - 6} more" if len(unlinked) > 6 else "") + ".")
         findings.sort(key=lambda f: (-f.confidence, f.directory))
     not_built: List[Finding] = []
     if options.kconfig is not None and len(options.kconfig):
@@ -227,10 +236,16 @@ def _binary_summary(emb, version: Optional[str]) -> str:
 
 
 def _binary_findings(binaries, rulebase: RuleBase) -> List[Finding]:
-    """One finding per (library, version) banner found inside a prebuilt binary."""
+    """One finding per (library, version) banner found inside a prebuilt binary.
+
+    An archive the link map does not name never reached the image, so it stays in the
+    file inventory (``linked=false``) but yields no component: a component would be
+    matched against advisories for code that does not ship."""
     from .declared_linux import KNOWN
     out: List[Finding] = []
     for blob in binaries:
+        if blob.linked is False:
+            continue
         for emb in blob.embedded:
             if emb.vendor_component:
                 continue                      # a vendor's own component: no upstream to name
