@@ -73,6 +73,8 @@ section   page    origin      length       input sections
                   00000328    000000a4     rtsv7M4_T_le_v4SPD16_eabi.lib : memcpy_t2.asm.obj (.text)
                   000003cc    0000009c                                   : copy_decompress_lzss.c.obj (.text:decompress:lzss)
                   00000468    00000088     main.obj (.text)
+                  000004a0    00000034     drivers_cc26x2.aem4f : PINCC26XX.oem4f (.bss:pinSwi)
+                  000004d4    00000020                          : PINCC26XX_aux.oem4f (.bss:pinHwi)
                   000004f0    00000000     unused.obj (.text)
 
 GLOBAL SYMBOLS: SORTED ALPHABETICALLY BY Name
@@ -88,3 +90,5 @@ def test_ti_map_keeps_placed_objects_and_library_members(tmp_path):
     assert ("rtsv7M4_T_le_v4SPD16_eabi.lib", "copy_decompress_lzss.c.obj") in lm.members
     assert "unused.obj" not in lm.linked_object_names
     assert lm.archives == {"driverlib.lib", "rtsv7M4_T_le_v4SPD16_eabi.lib"}
+    assert ("drivers_cc26x2.aem4f", "PINCC26XX.oem4f") in lm.members
+    assert ("drivers_cc26x2.aem4f", "PINCC26XX_aux.oem4f") in lm.members

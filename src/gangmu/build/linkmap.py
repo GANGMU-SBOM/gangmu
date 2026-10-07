@@ -102,7 +102,7 @@ _TI_NEXT = re.compile(r"^(GLOBAL SYMBOLS|LINKER GENERATED COPY TABLES|"
 # column is blank on the continuation lines that follow (``  ...  : memcpy.obj (.text)``)
 _TI_ENTRY = re.compile(
     r"^\s+[0-9a-fA-F]{4,}\s+(?P<size>[0-9a-fA-F]+)\s+"
-    r"(?:(?P<lib>[^\s:()]+)\s+)?(?::\s+)?(?P<obj>[^\s:()]+\.(?:obj|o))\s+\(")
+    r"(?:(?P<lib>[^\s:()]+)\s+)?(?::\s+)?(?P<obj>[^\s:()]+\.(?:obj|o\w*))\s+\(")
 
 
 def detect_format(path: Path) -> str:
