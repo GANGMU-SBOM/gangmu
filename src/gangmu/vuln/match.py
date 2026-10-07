@@ -22,6 +22,7 @@ findings no more certain than that, and the number travels with them.
 from __future__ import annotations
 
 import re
+from urllib.parse import unquote
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Sequence
 
@@ -39,9 +40,26 @@ def cpe_product_key(cpe: str) -> Optional[str]:
 
 
 def purl_key(purl: str) -> Optional[str]:
+    """``pkg:type/namespace/name``, lower-cased, without version, qualifiers or subpath.
+
+    The version follows the *last* ``@`` of the last path segment: an npm scope
+    (``pkg:npm/@babel/core@7.0.0``) has an ``@`` of its own, and splitting at the
+    first one cut every scoped package down to ``pkg:npm/``. Percent-encoding is
+    undone (``%40babel`` is ``@babel``), and PyPI names are normalised the way PEP 503
+    does, so ``Foo_Bar.baz`` and ``foo-bar-baz`` are one package.
+    """
     if not purl or not purl.startswith("pkg:"):
         return None
-    return purl.split("@", 1)[0].split("?", 1)[0].lower()
+    body = purl[4:].split("#", 1)[0].split("?", 1)[0]
+    at = body.find("@", body.rfind("/") + 1)
+    if at != -1:
+        body = body[:at]
+    body = unquote(body).strip("/")
+    kind, _, rest = body.partition("/")
+    kind = kind.lower()
+    if kind == "pypi":
+        rest = re.sub(r"[-_.]+", "-", rest)
+    return f"pkg:{kind}/{rest}".lower() if rest else f"pkg:{kind}"
 
 
 _REPO_HOSTS = {"github.com": "github", "gitlab.com": "gitlab",
@@ -79,8 +97,6 @@ def purl_from_repo(url: Optional[str]) -> Optional[str]:
 
 # OSV ecosystem -> purl type. A record that gives no purl names its package by
 # ecosystem and name; an ecosystem not listed here is skipped rather than guessed.
-# Not handled: npm scopes and PyPI name normalisation, which :func:`purl_key`
-# does not do yet, so a purl built for them would not match.
 _ECOSYSTEM_PURL = {"pypi": "pypi", "npm": "npm", "maven": "maven", "go": "golang",
                    "crates.io": "cargo", "nuget": "nuget", "rubygems": "gem",
                    "packagist": "composer", "hex": "hex", "pub": "pub",
