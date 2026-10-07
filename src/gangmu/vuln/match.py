@@ -77,6 +77,32 @@ def purl_from_repo(url: Optional[str]) -> Optional[str]:
     return f"pkg:{kind}/{owner}/{repo}".lower() if kind else None
 
 
+# OSV ecosystem -> purl type. A record that gives no purl names its package by
+# ecosystem and name; an ecosystem not listed here is skipped rather than guessed.
+# Not handled: npm scopes and PyPI name normalisation, which :func:`purl_key`
+# does not do yet, so a purl built for them would not match.
+_ECOSYSTEM_PURL = {"pypi": "pypi", "npm": "npm", "maven": "maven", "go": "golang",
+                   "crates.io": "cargo", "nuget": "nuget", "rubygems": "gem",
+                   "packagist": "composer", "hex": "hex", "pub": "pub",
+                   "conancenter": "conan", "debian": "deb", "alpine": "apk"}
+_DISTRO_NAMESPACE = {"debian": "debian", "alpine": "alpine"}
+
+
+def purl_from_package(package: Optional[dict]) -> Optional[str]:
+    """``{"ecosystem": "Maven", "name": "org.x:lib"}`` -> ``pkg:maven/org.x/lib``."""
+    package = package or {}
+    ecosystem = str(package.get("ecosystem") or "").split(":", 1)[0].strip().lower()
+    name = str(package.get("name") or "").strip()
+    kind = _ECOSYSTEM_PURL.get(ecosystem)
+    if not kind or not name:
+        return None
+    if kind == "maven":
+        name = name.replace(":", "/", 1)
+    elif ecosystem in _DISTRO_NAMESPACE:
+        name = f"{_DISTRO_NAMESPACE[ecosystem]}/{name}"
+    return f"pkg:{kind}/{name}".lower()
+
+
 @dataclass
 class Candidate:
     """What the matcher needs to know about one SBOM component."""
@@ -196,8 +222,16 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
           include_not_affected: bool = False) -> List[Match]:
     by_cpe = _index_by_cpe(advisories)
     by_purl = _index_by_purl(advisories)
-    out: List[Match] = []
-    seen = set()
+    # One match per (advisory, component, channel). An advisory can reach a component
+    # through several ranges or listed versions; the one that says "affected" must win
+    # over an earlier one that says "not affected" or "cannot tell", not be hidden by it.
+    found: Dict[tuple, Match] = {}
+    severity = {VexState.EXPLOITABLE: 0, VexState.IN_TRIAGE: 1, VexState.NOT_AFFECTED: 2}
+
+    def keep(token: tuple, new: Match) -> None:
+        old = found.get(token)
+        if old is None or severity.get(new.state, 3) < severity.get(old.state, 3):
+            found[token] = new
 
     for candidate in candidates:
         for cpe in candidate.cpes:
@@ -220,15 +254,12 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                 state, detail = _state_for(candidate, verdict)
                 if state is VexState.NOT_AFFECTED and not include_not_affected:
                     continue
-                token = (advisory.id, candidate.directory, "cpe")
-                if token in seen:
-                    continue
-                seen.add(token)
-                out.append(Match(advisory=advisory, component=candidate.name,
-                                 directory=candidate.directory,
-                                 version=candidate.version, channel="cpe",
-                                 matched_on=rng["cpe"], state=state, detail=detail,
-                                 component_confidence=candidate.confidence))
+                keep((advisory.id, candidate.directory, "cpe"),
+                     Match(advisory=advisory, component=candidate.name,
+                           directory=candidate.directory,
+                           version=candidate.version, channel="cpe",
+                           matched_on=rng["cpe"], state=state, detail=detail,
+                           component_confidence=candidate.confidence))
 
         for purl in candidate.purls:
             key = purl_key(purl)
@@ -250,15 +281,14 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                                  and not rng.get("extracted")))
                 if state is VexState.NOT_AFFECTED and not include_not_affected:
                     continue
-                token = (advisory.id, candidate.directory, "purl")
-                if token in seen:
-                    continue
-                seen.add(token)
-                out.append(Match(advisory=advisory, component=candidate.name,
-                                 directory=candidate.directory,
-                                 version=candidate.version, channel="purl",
-                                 matched_on=rng["purl"], state=state, detail=detail,
-                                 component_confidence=candidate.confidence))
+                keep((advisory.id, candidate.directory, "purl"),
+                     Match(advisory=advisory, component=candidate.name,
+                           directory=candidate.directory,
+                           version=candidate.version, channel="purl",
+                           matched_on=rng["purl"], state=state, detail=detail,
+                           component_confidence=candidate.confidence))
+
+    out: List[Match] = list(found.values())
 
     order = {VexState.EXPLOITABLE: 0, VexState.IN_TRIAGE: 1,
              VexState.NOT_AFFECTED: 2}
