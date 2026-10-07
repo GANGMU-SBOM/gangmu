@@ -89,6 +89,7 @@ def test_ti_map_keeps_placed_objects_and_library_members(tmp_path):
     assert ("driverlib.lib", "sysctl.obj") in lm.members
     assert ("rtsv7M4_T_le_v4SPD16_eabi.lib", "copy_decompress_lzss.c.obj") in lm.members
     assert "unused.obj" not in lm.linked_object_names
-    assert lm.archives == {"driverlib.lib", "rtsv7M4_T_le_v4SPD16_eabi.lib"}
+    assert lm.archives == {"driverlib.lib", "rtsv7M4_T_le_v4SPD16_eabi.lib",
+                          "drivers_cc26x2.aem4f"}
     assert ("drivers_cc26x2.aem4f", "PINCC26XX.oem4f") in lm.members
     assert ("drivers_cc26x2.aem4f", "PINCC26XX_aux.oem4f") in lm.members
