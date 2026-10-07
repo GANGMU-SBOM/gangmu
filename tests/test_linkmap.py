@@ -52,3 +52,39 @@ def test_a_colliding_basename_is_both_kept_and_discarded(tmp_path):
     lm = parse_link_map(write(tmp_path))
     assert "cJSON.c.obj" in lm.linked_object_names
     assert "old.c.obj" in lm.discarded_only
+
+
+TI_MAP = """\
+******************************************************************************
+                  TI ARM Linker PC v20.2.5
+******************************************************************************
+OUTPUT FILE NAME:   <app.out>
+
+SECTION ALLOCATION MAP
+
+ output                                  attributes/
+section   page    origin      length       input sections
+--------  ----  ----------  ----------   ----------------
+.intvecs   0    00000000    000000d8
+                  00000000    000000d8     startup_ccs.obj (.intvecs:retain)
+
+.text      0    000000d8    000008e8
+                  000000d8    00000250     driverlib.lib : sysctl.obj (.text:SysCtlClockGet)
+                  00000328    000000a4     rtsv7M4_T_le_v4SPD16_eabi.lib : memcpy_t2.asm.obj (.text)
+                  000003cc    0000009c                                   : copy_decompress_lzss.c.obj (.text:decompress:lzss)
+                  00000468    00000088     main.obj (.text)
+                  000004f0    00000000     unused.obj (.text)
+
+GLOBAL SYMBOLS: SORTED ALPHABETICALLY BY Name
+"""
+
+
+def test_ti_map_keeps_placed_objects_and_library_members(tmp_path):
+    p = tmp_path / "app.map"
+    p.write_text(TI_MAP)
+    lm = parse_link_map(p)
+    assert lm.objects == {"startup_ccs.obj", "main.obj"}
+    assert ("driverlib.lib", "sysctl.obj") in lm.members
+    assert ("rtsv7M4_T_le_v4SPD16_eabi.lib", "copy_decompress_lzss.c.obj") in lm.members
+    assert "unused.obj" not in lm.linked_object_names
+    assert lm.archives == {"driverlib.lib", "rtsv7M4_T_le_v4SPD16_eabi.lib"}
