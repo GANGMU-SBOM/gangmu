@@ -253,3 +253,46 @@ def test_a_rule_can_carry_a_support_block_and_a_bad_one_is_rejected(tmp_path):
                          encoding="utf-8")
     base = load_rules(tmp_path / "r")
     assert base.errors and "support status" in base.errors[0]
+
+
+# ------------------------------------------- reachability / patch evidence in VEX
+
+def _with_evidence(found, state=VexState.IN_TRIAGE, justification=""):
+    from gangmu.patchtest import PatchVerdict
+    from gangmu.reach import Reach
+    found[0].state, found[0].justification = state, justification
+    found[0].reach = Reach("unreachable", "no path in the source", ["lwip_foo"], [], "curated")
+    found[0].patch = PatchVerdict("fixed", "fixed body present", "CVE-X",
+                                  {"lwip_foo": "fixed"}, "exact")
+    return found
+
+
+def test_openvex_carries_reach_and_patch_evidence_in_text():
+    for state, justification, field in (
+            (VexState.IN_TRIAGE, "", "status_notes"),
+            (VexState.NOT_AFFECTED, "code_not_reachable", "impact_statement")):
+        found = _with_evidence(_matches(), state, justification)
+        doc = to_openvex(found, BOM, author="x")
+        assert not list(_validator("openvex-0.2.0.schema.json").iter_errors(doc))
+        text = doc["statements"][0][field]
+        assert "gangmu evidence:" in text
+        assert "reachability=unreachable (basis: curated)" in text
+        assert "patch presence=fixed (basis: exact)" in text and "lwip_foo: fixed" in text
+
+
+def test_csaf_carries_reach_and_patch_evidence_as_a_note():
+    found = _with_evidence(_matches())
+    doc = to_csaf(found, BOM, publisher="Example Co", publisher_url="https://example.invalid")
+    assert not list(_validator("csaf-2.0.schema.json").iter_errors(doc))
+    notes = [n for n in doc["vulnerabilities"][0]["notes"] if n.get("title") == "gangmu evidence"]
+    assert len(notes) == 1 and notes[0]["category"] == "details"
+    assert notes[0]["text"].startswith("lwIP 2.2.0: gangmu evidence:")
+
+
+def test_no_evidence_means_no_evidence_text():
+    found = _matches()
+    doc = to_csaf(found, BOM, publisher="Example Co", publisher_url="https://example.invalid")
+    assert all(n.get("title") != "gangmu evidence"
+               for n in doc["vulnerabilities"][0].get("notes", []))
+    s = to_openvex(found, BOM, author="x")["statements"][0]
+    assert "gangmu evidence" not in s.get("status_notes", "")

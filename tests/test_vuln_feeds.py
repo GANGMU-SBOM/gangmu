@@ -91,3 +91,16 @@ def test_an_unreadable_feed_is_reported_not_silently_clean(tmp_path):
     (tmp_path / "CVE-2024.json.xz").write_bytes(b"not xz at all")
     with pytest.warns(UserWarning, match="CVE-2024.json.xz"):
         assert load_database(tmp_path) == []
+
+
+def test_nvd_vuln_status_is_kept():
+    from gangmu.vuln.sources import advisory_from_nvd
+    item = {"cve": {"id": "CVE-2026-0001", "vulnStatus": "Awaiting Analysis",
+                    "descriptions": [{"lang": "en", "value": "x"}],
+                    "configurations": [{"nodes": [{"cpeMatch": [{
+                        "vulnerable": True,
+                        "criteria": "cpe:2.3:a:v:p:*:*:*:*:*:*:*:*"}]}]}]}}
+    adv = advisory_from_nvd(item)
+    assert adv is not None and adv.vuln_status == "Awaiting Analysis"
+    del item["cve"]["vulnStatus"]
+    assert advisory_from_nvd(item).vuln_status is None

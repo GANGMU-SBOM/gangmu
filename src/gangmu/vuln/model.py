@@ -28,6 +28,7 @@ class Advisory:
     cpe_ranges: List[Dict[str, Any]] = field(default_factory=list)
     osv_ranges: List[Dict[str, Any]] = field(default_factory=list)
     aliases: List[str] = field(default_factory=list)
+    vuln_status: Optional[str] = None  # NVD ``vulnStatus``, e.g. "Analyzed"; None for other sources
 
 
 @dataclass
@@ -61,6 +62,8 @@ class Match:
             "summary": self.advisory.summary,
             "componentConfidence": round(self.component_confidence, 3),
         }
+        if self.advisory.vuln_status:
+            out["nvdStatus"] = self.advisory.vuln_status
         if self.kev is not None:
             out["knownExploited"] = {"dateAdded": self.kev.get("added", ""),
                                      "dueDate": self.kev.get("due", ""),

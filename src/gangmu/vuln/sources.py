@@ -172,7 +172,7 @@ def advisory_from_nvd(item: dict, wanted: Optional[Wanted] = None) -> Optional[A
         severity=_severity_from_nvd(metrics), cvss=_cvss_from_nvd(metrics),
         references=[r.get("url") for r in cve.get("references", []) or []
                     if r.get("url")],
-        cpe_ranges=ranges)
+        cpe_ranges=ranges, vuln_status=cve.get("vulnStatus"))
 
 
 def load_nvd(path: Path, wanted: Optional[Wanted] = None) -> List[Advisory]:
