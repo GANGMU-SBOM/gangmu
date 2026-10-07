@@ -70,32 +70,37 @@ def product_index(bom: Optional[dict]) -> Dict[str, Dict[str, str]]:
 
 
 def evidence_text(match: Match) -> str:
-    """The reachability and patch-presence verdicts behind a finding, as plain text.
+    """The facts behind a finding's state (``Match.evidence()``) as plain text.
 
     Neither OpenVEX nor CSAF has a field for structured evidence, and a private
-    property would be dropped by every consumer, so the verdicts go into the free-text
+    property would be dropped by every consumer, so the facts go into the free-text
     field both formats already carry. The wording is stable ("gangmu evidence:") so a
     reader or a script can find it; the CycloneDX output keeps the same facts as
     ``gangmu:*`` properties.
     """
     parts: List[str] = []
-    if match.reach is not None:
-        reach = match.reach
-        text = f"reachability={reach.status} (basis: {reach.basis or 'none'})"
-        if reach.symbols:
-            text += f"; functions: {', '.join(reach.symbols[:5])}"
-        if reach.detail:
-            text += f"; {reach.detail}"
-        parts.append(text)
-    if match.patch is not None:
-        patch = match.patch
-        text = f"patch presence={patch.status} (basis: {patch.basis})"
-        if patch.per_function:
-            text += "; " + ", ".join(f"{name}: {state}" for name, state
-                                     in sorted(patch.per_function.items())[:8])
-        if patch.detail:
-            text += f"; {patch.detail}"
-        parts.append(text)
+    for item in match.evidence():
+        kind = item["kind"]
+        if kind == "linkage":
+            parts.append("link map: not linked into the image")
+        elif kind == "subsystem_scope":
+            parts.append("subsystem-scoped advisory: the version alone cannot say "
+                         "whether the firmware builds the affected subsystem")
+        elif kind == "reachability":
+            text = f"reachability={item['status']} (basis: {item['basis']})"
+            if item.get("functions"):
+                text += f"; functions: {', '.join(item['functions'][:5])}"
+            if item.get("detail"):
+                text += f"; {item['detail']}"
+            parts.append(text)
+        elif kind == "patch_presence":
+            text = f"patch presence={item['status']} (basis: {item['basis']})"
+            if item.get("functions"):
+                text += "; " + ", ".join(f"{name}: {state}" for name, state
+                                         in sorted(item["functions"].items())[:8])
+            if item.get("detail"):
+                text += f"; {item['detail']}"
+            parts.append(text)
     if not parts:
         return ""
     return "gangmu evidence: " + " | ".join(parts)
