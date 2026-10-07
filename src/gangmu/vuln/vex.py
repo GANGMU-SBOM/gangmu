@@ -83,6 +83,10 @@ def _vulnerability(match: Match, bom: Optional[dict]) -> Dict[str, Any]:
                            "value": f"{match.epss[0]:.5f}"})
         properties.append({"name": "gangmu:epssPercentile",
                            "value": f"{match.epss[1]:.5f}"})
+    if match.linkage:
+        properties.append({"name": "gangmu:linkage", "value": match.linkage})
+    if match.subsystem_scope:
+        properties.append({"name": "gangmu:subsystemScope", "value": "true"})
     if match.reach is not None:
         properties.append({"name": "gangmu:reachability", "value": match.reach.status})
         properties.append({"name": "gangmu:reachabilityDetail",

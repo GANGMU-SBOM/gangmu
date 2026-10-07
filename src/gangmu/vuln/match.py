@@ -292,6 +292,10 @@ def apply_linkage(matches: Sequence[Match], candidates: Sequence[Candidate],
     umbrella = {c.directory for c in candidates if c.subsystem_advisories}
     changed = 0
     for m in matches:
+        if m.directory in unlinked:
+            m.linkage = "not_linked"
+        if m.directory in umbrella:
+            m.subsystem_scope = True
         if (m.directory in umbrella and m.directory not in unlinked
                 and m.state is VexState.EXPLOITABLE):
             m.state = VexState.IN_TRIAGE

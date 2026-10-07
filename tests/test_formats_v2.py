@@ -296,3 +296,34 @@ def test_no_evidence_means_no_evidence_text():
                for n in doc["vulnerabilities"][0].get("notes", []))
     s = to_openvex(found, BOM, author="x")["statements"][0]
     assert "gangmu evidence" not in s.get("status_notes", "")
+
+
+def test_every_evidence_kind_reaches_all_three_formats():
+    from gangmu.vuln import apply_linkage, to_vex
+    from gangmu.vuln.model import Match
+    cand = _lwip()
+    cand.linked, cand.subsystem_advisories = False, True
+    found = _with_evidence(match([cand], load_database(DB)))
+    apply_linkage(found, [cand])
+    kinds = [e["kind"] for e in found[0].evidence()]
+    assert kinds == ["linkage", "subsystem_scope", "reachability", "patch_presence"]
+    assert [e["kind"] for e in found[0].to_dict()["evidence"]] == kinds
+
+    ox = to_openvex(found, BOM, author="x")["statements"][0]
+    notes = [n["text"] for n in to_csaf(found, BOM, publisher="P",
+             publisher_url="https://example.invalid")["vulnerabilities"][0]["notes"]
+             if n.get("title") == "gangmu evidence"][0]
+    for text in (ox["status_notes"], notes):
+        assert "link map: not linked" in text and "subsystem-scoped" in text
+        assert "reachability=unreachable" in text and "patch presence=fixed" in text
+    props = {p["name"]: p["value"] for p in
+             to_vex(found, BOM)["vulnerabilities"][0]["properties"]}
+    assert props["gangmu:linkage"] == "not_linked"
+    assert props["gangmu:subsystemScope"] == "true"
+    assert props["gangmu:reachability"] == "unreachable"
+    assert props["gangmu:patchPresence"] == "fixed"
+
+
+def test_a_finding_with_no_evidence_has_an_empty_list():
+    found = _matches()
+    assert found[0].evidence() == [] and "evidence" not in found[0].to_dict()
