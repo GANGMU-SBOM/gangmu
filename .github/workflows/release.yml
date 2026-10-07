@@ -15,6 +15,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: the tag matches the version
+        run: |
+          v=$(python -c "import re;print(re.search(r'^version = \"(.+)\"', open('pyproject.toml').read(), re.M).group(1))")
+          test "v$v" = "${GITHUB_REF_NAME}"
       - run: pip install build twine
       - run: python -m build
       - run: twine check dist/*
