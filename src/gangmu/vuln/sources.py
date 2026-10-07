@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, FrozenSet, Iterable, Iterator, List, Optional
 
-from .match import cpe_product_key, purl_key, purl_from_repo
+from .match import cpe_product_key, purl_key, purl_from_package, purl_from_repo
 from .model import Advisory
 
 
@@ -185,6 +185,26 @@ def load_nvd(path: Path, wanted: Optional[Wanted] = None) -> List[Advisory]:
     return out
 
 
+def _event_intervals(events: List[dict]) -> List[tuple]:
+    """``(introduced, fixed, last_affected)`` for each interval of an OSV event list."""
+    out: List[tuple] = []
+    start: Optional[str] = None
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        if "introduced" in event:
+            if start is not None:               # the previous interval never closed
+                out.append((start, None, None))
+            start = event["introduced"]
+        elif "fixed" in event or "last_affected" in event:
+            out.append(("0" if start is None else start,
+                        event.get("fixed"), event.get("last_affected")))
+            start = None
+    if start is not None:
+        out.append((start, None, None))
+    return out
+
+
 def load_osv(path: Path, wanted: Optional[Wanted] = None) -> List[Advisory]:
     """Read an OSV record, or a file holding a list of them."""
     with _open_text(Path(path)) as fh:
@@ -224,20 +244,26 @@ def load_osv(path: Path, wanted: Optional[Wanted] = None) -> List[Advisory]:
                 if not purl:
                     continue
             if not purl:
+                # Most OSV records outside GitHub name a package by ecosystem and
+                # name only; the purl is optional in the schema.
+                purl = purl_from_package(package)
+            if not purl:
                 continue
             for rng in affected.get("ranges", []) or []:
                 if rng.get("type") == "GIT":
                     continue
-                events = {}
-                for event in rng.get("events", []) or []:
-                    events.update(event)
-                ranges.append({
-                    "purl": purl,
-                    "type": rng.get("type", "ECOSYSTEM"),
-                    "introduced": events.get("introduced"),
-                    "fixed": events.get("fixed"),
-                    "last_affected": events.get("last_affected"),
-                })
+                # An event list can hold several intervals (introduced, fixed,
+                # introduced, fixed, ...). Each one is its own range: folding the
+                # list into one dict kept only the last.
+                for introduced, fixed, last_affected in _event_intervals(
+                        rng.get("events", []) or []):
+                    ranges.append({
+                        "purl": purl,
+                        "type": rng.get("type", "ECOSYSTEM"),
+                        "introduced": introduced,
+                        "fixed": fixed,
+                        "last_affected": last_affected,
+                    })
             for version in affected.get("versions", []) or []:
                 if git_ranges:
                     break

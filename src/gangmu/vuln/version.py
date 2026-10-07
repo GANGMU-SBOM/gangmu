@@ -18,11 +18,40 @@ from typing import List, Optional, Tuple
 
 INTERVAL_SEP = "~"
 _NUMERIC = re.compile(r"\d+")
-_PRERELEASE = re.compile(r"(?:-|\.)(rc|alpha|beta|pre|pr|a|b)\.?(\d*)$", re.I)
+# `-rc1`, `.beta`, PEP 440 `1.0a1` / `1.0.dev1`, Maven `-SNAPSHOT`, Debian `~rc1`.
+# A bare `a` or `b` is a pre-release only behind a separator or in front of a number;
+# on its own after a digit it is a later release (FatFs R0.14b).
+_PRERELEASE = re.compile(
+    r"(?:[-.~_](dev|snapshot|rc|alpha|beta|pre|pr|a|b)|(?<=\d)(dev|rc|alpha|beta|a|b)(?=\d))"
+    r"\.?(\d*)$|~([a-z]+)(\d*)$", re.I)
 # A single letter straight after the last digit is a *later* release, not an
 # earlier one: OpenSSL 1.1.1w follows 1.1.1, FatFs R0.14b follows R0.14a.
 _LETTER_RELEASE = re.compile(r"(?<=\d)([a-z])$", re.I)
-_RANK = {"alpha": 0, "a": 0, "beta": 1, "b": 1, "pre": 2, "rc": 3}
+# A final release is 4. Maven puts SNAPSHOT between rc and the release; PEP 440 puts
+# dev below everything.
+_RANK = {"dev": -1, "alpha": 0, "a": 0, "beta": 1, "b": 1, "pre": 2, "pr": 2,
+         "rc": 3, "snapshot": 3.5}
+
+
+_INTERVAL_END = re.compile(r"[vV]?\d")
+
+
+def _interval_ends(version: Optional[str]) -> Optional[Tuple[str, str]]:
+    """The two ends of a ``low~high`` function-signature interval, else ``None``.
+
+    ``~`` is also Debian's pre-release marker (``1.0~rc1`` sorts before ``1.0``).
+    An interval has a *version* on both sides, so the part after the ``~`` must start
+    with a digit; ``rc1`` does not. ``1.0~2`` stays ambiguous and is read as an
+    interval only when the low end is not dotted (``2~3``) or the high end is too.
+    """
+    if not version or INTERVAL_SEP not in version:
+        return None
+    low, high = (part.strip() for part in version.split(INTERVAL_SEP, 1))
+    if not (_INTERVAL_END.match(low) and _INTERVAL_END.match(high)):
+        return None
+    if "." in low and "." not in high:
+        return None
+    return low, high
 
 
 def is_orderable(version: Optional[str]) -> bool:
@@ -32,8 +61,9 @@ def is_orderable(version: Optional[str]) -> bool:
     text = version.strip()
     if text.lower().startswith(("git-", "sha-", "commit-")):
         return False
-    if INTERVAL_SEP in text:
-        return all(is_orderable(end) for end in text.split(INTERVAL_SEP, 1))
+    ends = _interval_ends(text)
+    if ends:
+        return all(is_orderable(end) for end in ends)
     # A bare hash has at least one hex letter; eight digits is a date tag
     # (OpenThread's 20250612), which orders perfectly well.
     if re.fullmatch(r"[0-9a-f]{7,40}", text.lower()) and re.search(r"[a-f]", text.lower()):
@@ -47,11 +77,7 @@ def split_interval(version: Optional[str]) -> Optional[Tuple[str, str]]:
     A function signature that cannot tell neighbouring releases apart reports
     the whole span it cannot split, written ``low~high``.
     """
-    if version and INTERVAL_SEP in version:
-        low, high = (part.strip() for part in version.split(INTERVAL_SEP, 1))
-        if low and high:
-            return low, high
-    return None
+    return _interval_ends(version)
 
 
 def _parts(version: str) -> Tuple[List[int], int, int]:
@@ -59,8 +85,13 @@ def _parts(version: str) -> Tuple[List[int], int, int]:
     pre = _PRERELEASE.search(text)
     rank, pre_num = 4, 0          # 4 = a final release, higher than any pre-release
     if pre:
-        rank = _RANK.get(pre.group(1).lower(), 2)
-        pre_num = int(pre.group(2)) if pre.group(2) else 0
+        word = pre.group(1) or pre.group(2)
+        if word:
+            rank = _RANK.get(word.lower(), 2)
+            pre_num = int(pre.group(3)) if pre.group(3) else 0
+        else:                      # Debian `~word`: before the release, whatever the word
+            rank = _RANK.get(pre.group(4).lower(), 2)
+            pre_num = int(pre.group(5)) if pre.group(5) else 0
         text = text[:pre.start()]
     # 0.2-265-gad902ca -> [0, 2, 265]; the trailing git hash carries no order
     numbers = [int(n) for n in _NUMERIC.findall(text)]
@@ -72,7 +103,7 @@ def _parts(version: str) -> Tuple[List[int], int, int]:
 
 def compare(left: str, right: str) -> Optional[int]:
     """-1, 0, 1, or None when the two cannot be meaningfully ordered."""
-    if INTERVAL_SEP in left or INTERVAL_SEP in right:
+    if _interval_ends(left) or _interval_ends(right):
         return None
     if not is_orderable(left) or not is_orderable(right):
         return None
