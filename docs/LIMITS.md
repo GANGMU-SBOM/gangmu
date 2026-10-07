@@ -6,7 +6,7 @@
   `.elf`、`.axf`、`.bin` 只做清单（路径、SHA-256、大小）、解开 HEX、S-record、UF2 和 gzip/xz/bzip2/zlib/zip 封装、读版本横幅和导出符号（ELF 会解析符号表并标注是否已剥离），作为较低置信度的补充证据。
   装了可选依赖 Capstone（`pip install 'gangmu-sbom[disasm]'`）后，还能从 ELF 和带 Cortex-M 向量表的 `.bin` 里恢复函数边界（`gangmu binary-functions`，支持 Thumb、ARM、AArch64、RISC-V、x86；**不支持 Xtensa**，即 ESP32 经典款和 ESP8266，因为 Capstone 没有 Xtensa 解码器）。在此之上还有逐函数指纹（`gangmu rules binary-prints`，规则里的 `identity.binary_functions`；生成命令会先用作者提供的、同一版本的多个构建互相验证，没通过就不写文件，规则里必须带验证结果）：每个函数引用的字符串和用到的显著常量，从机器码里还原。真实固件上的验证（Cortex-M3、rv32imac 和 AArch64 三种架构，各 7 个库、20 个版本、4 个优化级别，`gangmu binary-eval` 可复现）见 [docs/BINARY-VALIDATION.md](BINARY-VALIDATION.md)：参考库必须用**和固件同一种架构**编译，且只含库自己的代码；负对照 1920 对 0 次误报；给出答案的里约 2.6% 是错的，多数答案是 `低~高` 区间；有指纹的函数太少的小库（inih、heatshrink、cJSON）认不出来。
   这是有意的取舍：对剥离过符号的 MCU 镜像，这种办法能恢复名字、偶尔恢复版本，却填不满 CRA 要求的字段。
-- **链接 map 只验证过手写样例。** `--link-map` 支持 GNU ld、lld、IAR ilink（`MODULE SUMMARY`）和 Arm armlink（`Image component sizes`、`Removing Unused input sections`）。IAR 与 armlink 的解析按厂商文档的版式编写，测试用的是手写样例，还没有拿真实工程的 map 跑过；TI CCS 自带链接器的 map 没有专门解析。IAR 不打印被丢弃的模块，所以工程里编译了、map 里没出现的源文件会被判为未链接。
+- **链接 map 只验证过手写样例。** `--link-map` 支持 GNU ld、lld、IAR ilink（`MODULE SUMMARY`）、Arm armlink（`Image component sizes`、`Removing Unused input sections`）和 TI armlnk/lnk2000（`SECTION ALLOCATION MAP`）。IAR 和 armlink 的解析按厂商文档的版式编写，测试用的是手写样例，还没有拿真实工程的 map 跑过；TI 的解析对照过一份公开的真实 CC26x2 工程 map（`TI ARM Linker v20.2.3`，38 个目标文件与库成员全部对上），但该文件许可证禁止再分发，所以测试里用的仍是手写样例。IAR 与 TI 都不打印被丢弃的模块，所以工程里编译了、map 里没出现的源文件会被判为未链接。
 - **评测规模有限。** 实测覆盖 lwIP、FreeRTOS、RT-Thread、国密与 OpenSSL 系列、Mbed TLS、FatFs、
   littlefs、LVGL、libcoap、TinyCrypt、TencentOS-tiny、nghttp2 等十几个组件族，共约一百多棵真实上游树
   和国产 SDK 里的几十份副本（见 [docs/BENCHMARK.md](BENCHMARK.md)）；

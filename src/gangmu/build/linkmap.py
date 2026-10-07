@@ -1,4 +1,4 @@
-"""Parsing linker map files: GNU ld / lld, IAR ilink and Arm armlink.
+"""Parsing linker map files: GNU ld / lld, IAR ilink, Arm armlink and TI armlnk/lnk2000.
 
 Compilation is not inclusion.  An embedded build compiles far more than it
 ships: ``--gc-sections`` and plain archive semantics drop whole objects at link
@@ -95,12 +95,24 @@ _ARM_MEMORY_OBJECT = re.compile(
     r"(?P<name>[^\s()]+)(?:\((?P<member>[^()\s]+)\))?\s*$")
 
 
+_TI_ALLOCATION = re.compile(r"^SECTION ALLOCATION MAP\b")
+_TI_NEXT = re.compile(r"^(GLOBAL SYMBOLS|LINKER GENERATED COPY TABLES|"
+                      r"SEGMENT ALLOCATION MAP|MODULE SUMMARY|GLOBAL SYMBOLS:)", re.I)
+# ``  000000d8  00000250  driverlib.lib : sysctl.obj (.text:SysCtlClockGet)``; the library
+# column is blank on the continuation lines that follow (``  ...  : memcpy.obj (.text)``)
+_TI_ENTRY = re.compile(
+    r"^\s+[0-9a-fA-F]{4,}\s+(?P<size>[0-9a-fA-F]+)\s+"
+    r"(?:(?P<lib>[^\s:()]+)\s+)?(?::\s+)?(?P<obj>[^\s:()]+\.(?:obj|o\w*))\s+\(")
+
+
 def detect_format(path: Path) -> str:
-    """``iar``, ``armlink`` or ``gnu`` from the first part of the file."""
+    """``iar``, ``armlink``, ``ti`` or ``gnu`` from the first part of the file."""
     with open(path, "r", encoding="utf-8", errors="replace") as fh:
         head = fh.read(256 * 1024)
     if re.search(r"^\*{3}\s+MODULE SUMMARY\b", head, re.M):
         return "iar"
+    if re.search(r"^SECTION ALLOCATION MAP\b", head, re.M):
+        return "ti"
     if (re.search(r"^Image component sizes\b", head, re.M)
             or re.search(r"^Removing Unused input sections from the image", head, re.M)
             or re.search(r"^Memory Map of the image\b", head, re.M)):
@@ -115,6 +127,8 @@ def parse_link_map(path: Path) -> LinkMap:
         return _parse_iar(path)
     if kind == "armlink":
         return _parse_armlink(path)
+    if kind == "ti":
+        return _parse_ti(path)
     return _parse_gnu(path)
 
 
@@ -152,6 +166,47 @@ def _parse_iar(path: Path) -> LinkMap:
             if group and group.lower().endswith((".a", ".lib")):
                 out.archives.add(group)
                 out.members.add((group, name))
+            else:
+                out.objects.add(name)
+    return out
+
+
+def _parse_ti(path: Path) -> LinkMap:
+    """TI ``armlnk`` / ``lnk2000`` (Code Composer Studio) ``-m`` map.
+
+    ``SECTION ALLOCATION MAP`` lists every input section that was placed, as
+    ``lib.lib : member.obj (.text)`` or ``main.obj (.text)``. Sections removed by
+    ``--unused_section_elimination`` are not placed, so an object appears only if it
+    kept at least one byte. The linker prints no discard list, like ilink, so
+    ``discarded_*`` stays empty and a compiled object missing here counts as dropped.
+    """
+    out = LinkMap(path=path)
+    in_alloc = False
+    lib: Optional[str] = None
+    with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            if _TI_ALLOCATION.match(line):
+                in_alloc = True
+                continue
+            if in_alloc and _TI_NEXT.match(line):
+                break
+            if not in_alloc:
+                continue
+            m = _TI_ENTRY.match(line)
+            if m is None:
+                if line[:1] not in (" ", "\t"):
+                    lib = None                         # a new output section
+                continue
+            if m.group("lib"):
+                lib = m.group("lib")
+            elif ":" not in line.split("(")[0]:
+                lib = None                             # a plain object, not a continuation
+            if int(m.group("size"), 16) == 0:
+                continue
+            name = Path(m.group("obj")).name
+            if lib:
+                out.archives.add(lib)
+                out.members.add((lib, name))
             else:
                 out.objects.add(name)
     return out
