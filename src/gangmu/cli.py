@@ -1160,6 +1160,30 @@ def cmd_cn_db_check(args: argparse.Namespace) -> int:
     return 0 if report.parsed and not report.problems else 1
 
 
+def cmd_vuln_coverage(args: argparse.Namespace) -> int:
+    """What a CPE-only scanner would have missed on this SBOM, from local data."""
+    from .vuln.coverage import coverage
+    try:
+        bom = json.loads(Path(args.sbom).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"error: cannot read SBOM {args.sbom}: {exc}", file=sys.stderr)
+        return 2
+    if bom.get("bomFormat") != "CycloneDX":
+        print("error: the SBOM must be a CycloneDX document", file=sys.stderr)
+        return 2
+    try:
+        report = coverage(candidates_from_cyclonedx(bom), Path(args.db), args.cutoff)
+    except FileNotFoundError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    text = json.dumps(report, indent=2, ensure_ascii=False)
+    if args.output:
+        Path(args.output).write_text(text + "\n", encoding="utf-8")
+    else:
+        print(text)
+    return 0
+
+
 def cmd_vuln_fetch(args: argparse.Namespace) -> int:
     """Fill (or refresh) a local advisory directory; the one online step."""
     from datetime import datetime, timezone
@@ -2015,6 +2039,18 @@ def build_parser() -> argparse.ArgumentParser:
     vf.add_argument("--no-osv", action="store_true")
     vf.add_argument("--verbose", "-v", action="store_true")
     vf.set_defaults(func=cmd_vuln_fetch)
+
+    vc = sub.add_parser(
+        "vuln-coverage",
+        help="count the findings a CPE-only scanner would miss on this SBOM")
+    vc.add_argument("sbom", help="a CycloneDX document from `gangmu scan`")
+    vc.add_argument("--db", required=True,
+                    help="directory of NVD 2.0 and OSV JSON files (as for `vuln`)")
+    vc.add_argument("--cutoff", default="2026-04-15", metavar="YYYY-MM-DD",
+                    help="split NVD records by published date around this day "
+                         "(default 2026-04-15, when NVD moved to risk-based enrichment)")
+    vc.add_argument("--output", "-o")
+    vc.set_defaults(func=cmd_vuln_coverage)
 
     w = sub.add_parser(
         "wrap",
