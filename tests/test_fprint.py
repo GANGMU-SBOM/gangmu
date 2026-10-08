@@ -243,3 +243,11 @@ def test_xtensa_entry_and_l32r():
                     lambda v: got.append(v))
     # l32r at 0x100b: (0x100b+3) & ~3 = 0x100c, imm16 0xFFFF is -1 word -> 0x1008
     assert got == [0x1008, 0x12345678]
+
+
+def test_low_coverage_note():
+    from types import SimpleNamespace
+    from gangmu import binaries
+    prints = SimpleNamespace(versions=["1", "2", "3"])
+    assert binaries._coverage_note(prints, 0.9) == ""
+    assert "nearest of the 3 fingerprinted" in binaries._coverage_note(prints, 0.2)
