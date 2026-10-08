@@ -77,12 +77,14 @@ def calibrate(builds: Dict[str, Dict[str, bytes]], negatives: Sequence[bytes] = 
     corpus.releases[SELF] = list(builds)
     corpus.builds[SELF] = {}
     merged: List[Tuple[str, List[set]]] = []
+    archs: set = set()
     for label, per_build in builds.items():
         corpus.builds[SELF][label] = {}
         union: List[set] = []
         for name, data in per_build.items():
-            ref = fprint.image_function_features(data, min_features=1)
+            ref, ref_arch = fprint.image_features(data, min_features=1)
             img = fprint.image_function_features(data, min_features=1, ignore_symbols=True)
+            archs.add(ref_arch or "")
             corpus.builds[SELF][label][name] = ev.Build(ref, img)
             union += [s for s in ref if len(s) >= k]
         merged.append((label, union))
@@ -91,7 +93,8 @@ def calibrate(builds: Dict[str, Dict[str, bytes]], negatives: Sequence[bytes] = 
         corpus.builds[f"neg{i}"] = {"n": {"x": ev.Build(
             [], fprint.image_function_features(data, min_features=1))}}
 
-    prints = fprint.FunctionPrints.build(merged, min_features=k)
+    arch = archs.pop() if len(archs) == 1 else ""
+    prints = fprint.FunctionPrints.build(merged, min_features=k, arch=arch)
     per_release = min((len(b) for b in builds.values()), default=0)
     report = ev.evaluate(corpus, k, share) if len(builds) >= 2 else ev.Report(k, share)
     mine = [c for c in report.cells if c.lib == SELF]

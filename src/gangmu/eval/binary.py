@@ -40,6 +40,7 @@ class Build:
 
 @dataclass
 class Corpus:
+    arch: str = ""            # what the images were decoded as
     # lib -> ordered releases; builds[lib][tag][opt]
     releases: Dict[str, List[str]] = field(default_factory=dict)
     builds: Dict[str, Dict[str, Dict[str, Build]]] = field(default_factory=dict)
@@ -98,25 +99,29 @@ FEATURES_CACHE = ".features.pickle"
 
 def load_corpus(directory: Path, use_cache: bool = True) -> Corpus:
     """Read ``corpus.json`` and extract features from every ELF (cached beside it)."""
-    from ..fprint import image_function_features
+    from ..fprint import image_features
     root = Path(directory)
     manifest = json.loads((root / "corpus.json").read_text())
     cache_path = root / FEATURES_CACHE
-    cache: Dict[str, Tuple[int, int, List[Set[int]]]] = {}
+    cache: Dict[str, Tuple[int, int, List[Set[int]], str]] = {}
     if use_cache and cache_path.exists():
         try:
             cache = pickle.loads(cache_path.read_bytes())
         except Exception:                                  # noqa: BLE001 - a bad cache is a miss
             cache = {}
 
+    arches: List[str] = []
+
     def features(path: Path) -> List[Set[int]]:
         stat = path.stat()
         key = str(path.relative_to(root))
         hit = cache.get(key)
-        if hit and hit[:2] == (stat.st_mtime_ns, stat.st_size):
+        if hit and len(hit) == 4 and hit[:2] == (stat.st_mtime_ns, stat.st_size):
+            arches.append(hit[3])
             return hit[2]
-        feats = image_function_features(path.read_bytes(), min_features=1)
-        cache[key] = (stat.st_mtime_ns, stat.st_size, feats)
+        feats, arch = image_features(path.read_bytes(), min_features=1)
+        cache[key] = (stat.st_mtime_ns, stat.st_size, feats, arch or "")
+        arches.append(arch or "")
         return feats
 
     corpus = Corpus()
@@ -130,6 +135,7 @@ def load_corpus(directory: Path, use_cache: bool = True) -> Corpus:
                 ref, img = base / f"{opt}.elf", base / f"{opt}.strip.elf"
                 if ref.exists() and img.exists():
                     corpus.builds[lib][rel["tag"]][opt] = Build(features(ref), features(img))
+    corpus.arch = max(set(arches), key=arches.count) if arches else ""
     if use_cache:
         try:
             cache_path.write_bytes(pickle.dumps(cache))
@@ -161,35 +167,45 @@ def _prints_for(corpus: Corpus, lib: str, ref_opt: str, k: int):
     if len(tags) < 2:
         return None, tags
     return FunctionPrints.build(
-        [(t, _filter(corpus.builds[lib][t][ref_opt].ref, k)) for t in tags], min_features=k), tags
+        [(t, _filter(corpus.builds[lib][t][ref_opt].ref, k)) for t in tags], min_features=k,
+        arch=corpus.arch), tags
 
 
-def evaluate(corpus: Corpus, min_features: int = 2, tie_share: float = 0.85) -> Report:
+def evaluate(corpus: Corpus, min_features: int = 2, tie_share: float = 0.85,
+             images: Optional[Corpus] = None) -> Report:
+    """Score *corpus*. With *images* (a corpus of the same libraries built for another
+    architecture) the references come from *corpus* and the images from *images*, which
+    is how a rule author's references meet firmware for a different CPU."""
     report = Report(min_features, tie_share)
+    target = images or corpus
     prints: Dict[Tuple[str, str], object] = {}
     for lib in corpus.builds:
+        if lib not in target.builds:
+            continue
         for ref_opt in corpus.opts(lib):
             built, tags = _prints_for(corpus, lib, ref_opt, min_features)
             if built is None:
                 continue
             prints[(lib, ref_opt)] = (built, tags)
-            for img_opt in corpus.opts(lib):
+            for img_opt in target.opts(lib):
                 for tag in tags:
-                    build = corpus.builds[lib][tag].get(img_opt)
+                    build = target.builds[lib].get(tag, {}).get(img_opt)
                     if build is None:
                         continue
-                    hit = built.match(_filter(build.img, min_features), min_features, tie_share)
+                    hit = built.match(_filter(build.img, min_features), min_features, tie_share,
+                                      target.arch)
                     outcome, reported = _classify(hit, tags, tag)
                     report.cells.append(Cell(lib, ref_opt, img_opt, tag, outcome, reported,
                                              hit[3] if hit else 0.0, hit[1] if hit else 0))
     for (lib, ref_opt), (built, _) in prints.items():
-        for other in corpus.builds:
+        for other in target.builds:
             if other == lib:
                 continue
-            for tag, per_opt in corpus.builds[other].items():
+            for tag, per_opt in target.builds[other].items():
                 for img_opt, build in per_opt.items():
                     report.negative_total += 1
-                    hit = built.match(_filter(build.img, min_features), min_features, tie_share)
+                    hit = built.match(_filter(build.img, min_features), min_features, tie_share,
+                                      target.arch)
                     if hit is not None:
                         report.negatives.append((lib, other, hit[0]))
     return report

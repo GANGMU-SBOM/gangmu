@@ -196,3 +196,37 @@ def test_small_negative_numbers_are_not_constants():
     assert _features("riscv32", struct.pack("<I", addi_sp) + struct.pack("<I", 0x00008067)) == set()
     assert _features("x86-64", b"\xb8" + struct.pack("<i", -36) + b"\xc3") == set()
     assert _features("x86-64", b"\xb8" + struct.pack("<I", SHA1_K) + b"\xc3")   # still a constant
+
+
+def _fs(strings, constants=()):
+    return fprint.FeatureSet(set(strings) | set(constants), strings)
+
+
+def test_other_architectures_are_compared_by_string_literals_only():
+    """A compiler derives different constants on each CPU (a reciprocal multiplier for
+    ``% 65521``, a packed literal), and they made wrong releases; the programmer's strings
+    survive a change of architecture."""
+    def release(consts):
+        return [_fs({100 + i, 200 + i}, {consts + i}) for i in range(12)]
+    prints = fprint.FunctionPrints.build([("1.0", release(5000)), ("1.1", release(5000))],
+                                         min_features=2, arch="thumb")
+    assert prints.knows_strings()
+    image = [_fs({100 + i, 200 + i}, {9000 + i}) for i in range(12)]      # same strings, other constants
+    assert prints.match(image, 2) is None                                  # all features: no match
+    assert prints.match(image, 2, arch="thumb") is None                    # same CPU: ditto
+    hit = prints.match(image, 2, arch="riscv32")                           # other CPU: strings only
+    assert hit is not None and hit[1] == 12
+    # plain feature sets carry no string information: the old behaviour stands
+    plain = fprint.FunctionPrints.build([("1.0", [set(f) for f in release(5000)]),
+                                         ("1.1", [set(f) for f in release(5000)])],
+                                        min_features=2, arch="thumb")
+    assert not plain.knows_strings() and plain.match(image, 2, arch="riscv32") is None
+
+
+def test_the_sidecar_keeps_the_architecture_and_which_features_are_strings():
+    prints = fprint.FunctionPrints.build(
+        [("1.0", [_fs({1, 2}, {3})] * 1 + [_fs({4, 5})]), ("1.1", [_fs({1, 2}, {3})])],
+        min_features=2, arch="aarch64")
+    again = fprint.FunctionPrints.from_bytes(prints.to_bytes())
+    assert again.arch == "aarch64" and again.strings == prints.strings and again.knows_strings()
+    assert sorted(again.strings) == [2, 2]

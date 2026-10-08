@@ -83,8 +83,8 @@ def test_the_selection_prefers_fewer_wrong_answers_to_more_exact_ones():
 def test_the_corpus_loader_reads_the_manifest_and_caches_features(tmp_path, monkeypatch):
     import gangmu.fprint as fp
     calls = []
-    monkeypatch.setattr(fp, "image_function_features",
-                        lambda data, *a, **k: calls.append(data) or [{1, 2, 3}])
+    monkeypatch.setattr(fp, "image_features",
+                        lambda data, *a, **k: (calls.append(data) or [{1, 2, 3}], "thumb"))
     for tag in ("v1", "v2"):
         for opt in ("Os",):
             d = tmp_path / "lib" / tag

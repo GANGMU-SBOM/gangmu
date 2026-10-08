@@ -50,10 +50,12 @@ MIN_COVERAGE = 0.12       # share of the best release's fingerprintable function
 #                         unrelated library through in 1920 negative pairs on RISC-V)
 TIE_SHARE = 0.85         # releases scoring within this share of the best are reported as a span
 #                         (0.95 asserted a wrong release in 3 of 48 real builds, 0.85 in none)
+UNKNOWN_STRINGS = 0xFFFF  # a sidecar made before features told strings from constants
 MAX_DF = 40               # a feature in more reference functions than this says nothing
 MAX_STRING = 512
 MAGIC = b"GMFP"
-FORMAT = 2               # 2 appends the author's self-test (calibration) as JSON; 1 is still read
+FORMAT = 3               # 3 records the architecture and which features are strings; 2 appends the
+#                          author's self-test (calibration) as JSON; 1 and 2 are still read
 _SALT = (0x6D66_7072).to_bytes(8, "big")
 _BRANCHES = ("b", "bl", "blx", "bx", "cbz", "cbnz", "call", "jmp", "j", "jal", "jalr",
              "tbb", "tbh", "it")
@@ -129,18 +131,31 @@ def _unsigned(v: int, bits: int) -> int:
     return v + (1 << 32) if v >= -(1 << 31) else v + (1 << 64)
 
 
-def function_features(mem: Memory, arch: str, address: int, size: int) -> Set[int]:
+class FeatureSet(set):
+    """A function's features. ``strings`` is the part that came from string literals.
+
+    Strings are what the programmer wrote and survive a change of architecture; constants
+    include ones the compiler derived (reciprocal multipliers, packed literals), which do not."""
+
+    strings: Set[int]
+
+    def __init__(self, items=(), strings=()):
+        super().__init__(items)
+        self.strings = set(strings)
+
+
+def function_features(mem: Memory, arch: str, address: int, size: int) -> "FeatureSet":
     """Strings referenced and distinctive constants used by one function."""
     spec = disasm._arch(arch)
     code = mem.read(address, size) if size else None
     if spec is None or not code:
-        return set()
+        return FeatureSet()
     md = disasm.capstone.Cs(spec.cs_arch, spec.cs_mode)
     md.detail = True
     md.skipdata = True
     md.skipdata_setup = ("db", None, None)
     bits = 64 if arch in ("aarch64", "riscv64", "x86-64") else 32
-    out: Set[int] = set()
+    out = FeatureSet()
 
     def emit(v: int) -> None:
         v = _unsigned(v, bits)
@@ -151,7 +166,9 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> Set[in
         if mem.is_address(v):
             s = mem.cstring(v)
             if s:
-                out.add(_hash(b"s", s))
+                h = _hash(b"s", s)
+                out.add(h)
+                out.strings.add(h)
         elif _distinctive(v):
             out.add(_hash(b"c", v.to_bytes(8, "big")))
 
@@ -256,17 +273,17 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> Set[in
     return out
 
 
-def image_function_features(data: bytes, arch: Optional[str] = None,
-                            base: Optional[int] = None,
-                            min_features: Optional[int] = None,
-                            ignore_symbols: bool = False) -> List[Set[int]]:
-    """Feature sets of the fingerprintable functions of an ELF or a Cortex-M ``.bin``.
+def image_features(data: bytes, arch: Optional[str] = None, base: Optional[int] = None,
+                   min_features: Optional[int] = None, ignore_symbols: bool = False
+                   ) -> Tuple[List[Set[int]], Optional[str]]:
+    """Feature sets of the fingerprintable functions of an ELF or a Cortex-M ``.bin``, and
+    the architecture they were decoded as (None if nothing could be decoded).
 
     *min_features*: functions with fewer are left out (default ``MIN_FEATURES``); the
     benchmark passes 1 and applies its own threshold, so one extraction serves every one.
     *ignore_symbols*: recover boundaries as if the ELF were stripped (for a self-test)."""
     if not disasm.available():
-        return []
+        return [], None
     from .elf import parse_elf
     info = parse_elf(data)
     if info is not None:
@@ -279,13 +296,21 @@ def image_function_features(data: bytes, arch: Optional[str] = None,
         start = base if base is not None else disasm.cortex_m_base(data)
         mem = Memory([(start, data)] if start is not None else [])
     if rec is None or not rec.functions or not mem.regions:
-        return []
+        return [], None
     found = []
     for f in rec.functions:
         feats = function_features(mem, rec.arch, f.address, f.size)
         if len(feats) >= (MIN_FEATURES if min_features is None else min_features):
             found.append(feats)
-    return found
+    return found, rec.arch
+
+
+def image_function_features(data: bytes, arch: Optional[str] = None,
+                            base: Optional[int] = None,
+                            min_features: Optional[int] = None,
+                            ignore_symbols: bool = False) -> List[Set[int]]:
+    """:func:`image_features` without the architecture."""
+    return image_features(data, arch, base, min_features, ignore_symbols)[0]
 
 
 # ------------------------------------------------------------------ reference prints
@@ -295,36 +320,53 @@ class FunctionPrints:
     versions: List[str]
     functions: List[Tuple[int, Tuple[int, ...]]] = field(default_factory=list)  # bitmap, features
     meta: Dict[str, object] = field(default_factory=dict)   # the author's self-test, see calibrate.py
+    arch: str = ""            # what the references were built for ("" = not recorded)
+    strings: List[int] = field(default_factory=list)  # per function: how many leading features are
+    #                         string literals (UNKNOWN_STRINGS: not recorded)
     _index: Optional[Dict[int, List[int]]] = field(default=None, repr=False, compare=False)
+    _string_index: Optional[Dict[int, List[int]]] = field(default=None, repr=False,
+                                                          compare=False)
 
     @classmethod
     def build(cls, per_version: Sequence[Tuple[str, Iterable[Set[int]]]],
-              min_features: Optional[int] = None) -> "FunctionPrints":
+              min_features: Optional[int] = None, arch: str = "") -> "FunctionPrints":
+        """*arch*: what the references were built for. With it (and features that know which
+        of them are strings) the prints can be used on other architectures by strings alone."""
         floor = MIN_FEATURES if min_features is None else min_features
         versions = [label for label, _ in per_version][:64]
-        merged: Dict[Tuple[int, ...], int] = {}
+        merged: Dict[Tuple[Tuple[int, ...], int], int] = {}
         for bit, (_, sets) in enumerate(per_version[:64]):
             for feats in sets:
-                key = tuple(sorted(feats)[:MAX_FEATURES])
+                if isinstance(feats, FeatureSet):
+                    strs = sorted(feats.strings)
+                    key = tuple(strs + sorted(feats - feats.strings))[:MAX_FEATURES]
+                    known = min(len(strs), len(key))
+                else:
+                    key, known = tuple(sorted(feats)[:MAX_FEATURES]), UNKNOWN_STRINGS
                 if len(key) >= floor:
-                    merged[key] = merged.get(key, 0) | (1 << bit)
-        return cls(versions, [(bits, key) for key, bits in sorted(merged.items())])
+                    merged[(key, known)] = merged.get((key, known), 0) | (1 << bit)
+        ordered = sorted(merged.items())
+        return cls(versions, [(bits, key) for (key, _), bits in ordered], arch=arch,
+                   strings=[known for (_, known), _ in ordered])
 
     def to_bytes(self) -> bytes:
         out = bytearray(MAGIC + bytes([FORMAT]) + struct.pack("<H", len(self.versions)))
         for v in self.versions:
             raw = v.encode("utf-8")
             out += struct.pack("<H", len(raw)) + raw
+        arch = self.arch.encode("utf-8")
+        out += struct.pack("<H", len(arch)) + arch
         out += struct.pack("<I", len(self.functions))
-        for bits, feats in self.functions:
-            out += struct.pack("<QH", bits, len(feats)) + struct.pack(f"<{len(feats)}Q", *feats)
+        known = self.strings or [UNKNOWN_STRINGS] * len(self.functions)
+        for (bits, feats), n in zip(self.functions, known):
+            out += struct.pack("<QHH", bits, len(feats), n) + struct.pack(f"<{len(feats)}Q", *feats)
         meta = json.dumps(self.meta, sort_keys=True, separators=(",", ":")).encode("utf-8")
         out += struct.pack("<I", len(meta)) + meta
         return bytes(out)
 
     @classmethod
     def from_bytes(cls, raw: bytes) -> "FunctionPrints":
-        if raw[:4] != MAGIC or raw[4] not in (1, FORMAT):
+        if raw[:4] != MAGIC or raw[4] not in (1, 2, FORMAT):
             raise ValueError("not a function-print sidecar")
         pos = 5
         (n,) = struct.unpack_from("<H", raw, pos)
@@ -334,19 +376,30 @@ class FunctionPrints:
             (ln,) = struct.unpack_from("<H", raw, pos)
             versions.append(raw[pos + 2:pos + 2 + ln].decode("utf-8"))
             pos += 2 + ln
+        arch = ""
+        if raw[4] >= 3:
+            (ln,) = struct.unpack_from("<H", raw, pos)
+            arch = raw[pos + 2:pos + 2 + ln].decode("utf-8")
+            pos += 2 + ln
         (count,) = struct.unpack_from("<I", raw, pos)
         pos += 4
-        functions = []
+        functions, strings = [], []
         for _ in range(count):
-            bits, k = struct.unpack_from("<QH", raw, pos)
-            pos += 10
+            if raw[4] >= 3:
+                bits, k, n = struct.unpack_from("<QHH", raw, pos)
+                pos += 12
+            else:
+                bits, k = struct.unpack_from("<QH", raw, pos)
+                n = UNKNOWN_STRINGS
+                pos += 10
             functions.append((bits, struct.unpack_from(f"<{k}Q", raw, pos)))
+            strings.append(n)
             pos += 8 * k
         meta: Dict[str, object] = {}
         if raw[4] >= 2:
             (size,) = struct.unpack_from("<I", raw, pos)
             meta = json.loads(raw[pos + 4:pos + 4 + size].decode("utf-8")) if size else {}
-        return cls(versions, functions, meta)
+        return cls(versions, functions, meta, arch, strings)
 
     def write(self, path) -> str:
         raw = self.to_bytes()
@@ -354,36 +407,63 @@ class FunctionPrints:
             fh.write(raw)
         return hashlib.sha256(raw).hexdigest()
 
-    def index(self) -> Dict[int, List[int]]:
+    def index(self, strings_only: bool = False) -> Dict[int, List[int]]:
+        if strings_only:
+            if self._string_index is None:
+                inverted: Dict[int, List[int]] = {}
+                for i, (_, feats) in enumerate(self.functions):
+                    for f in feats[:self.strings[i]]:
+                        inverted.setdefault(f, []).append(i)
+                self._string_index = {f: ids for f, ids in inverted.items()
+                                      if len(ids) <= MAX_DF}
+            return self._string_index
         if self._index is None:
-            inverted: Dict[int, List[int]] = {}
+            inverted = {}
             for i, (_, feats) in enumerate(self.functions):
                 for f in feats:
                     inverted.setdefault(f, []).append(i)
             self._index = {f: ids for f, ids in inverted.items() if len(ids) <= MAX_DF}
         return self._index
 
+    def knows_strings(self) -> bool:
+        """Whether each function records which of its features are string literals."""
+        return bool(self.functions) and len(self.strings) == len(self.functions) \
+            and UNKNOWN_STRINGS not in self.strings
+
     def match(self, image: Sequence[Set[int]], min_features: Optional[int] = None,
-              tie_share: Optional[float] = None) -> Optional[Tuple[str, int, int, float, str]]:
-        """(best version, matched, of, coverage, tied range or ""), or None."""
+              tie_share: Optional[float] = None, arch: Optional[str] = None
+              ) -> Optional[Tuple[str, int, int, float, str]]:
+        """(best version, matched, of, coverage, tied range or ""), or None.
+
+        *arch*: what the image was decoded as. When it differs from what the references were
+        built for, only string literals are compared: the constants a compiler derives
+        differ between architectures, and on a Cortex-M3 reference against rv32imac and
+        AArch64 images they were the source of every wrong release
+        (docs/BINARY-VALIDATION.md). Fewer functions are recognised, none wrongly."""
         floor = MIN_FEATURES if min_features is None else min_features
         share = TIE_SHARE if tie_share is None else tie_share
-        index = self.index()
+        by_string = bool(arch and self.arch and arch != self.arch and self.knows_strings())
+        index = self.index(by_string)
         matched: Set[int] = set()
         for feats in image:
+            if by_string:
+                feats = getattr(feats, "strings", None) or ()
+                if len(feats) < floor:
+                    continue
             votes: Dict[int, int] = {}
             for f in feats:
                 for i in index.get(f, ()):
                     votes[i] = votes.get(i, 0) + 1
             for i, hits in votes.items():
-                size = len(self.functions[i][1])
+                size = self.strings[i] if by_string else len(self.functions[i][1])
                 if hits >= min(floor, size) and hits >= MIN_CONTAINMENT * size:
                     matched.add(i)
         if len(matched) < MIN_MATCHES:
             return None
         scores, owns = [], []
         for v in range(len(self.versions)):
-            own = {i for i, (bits, _) in enumerate(self.functions) if bits >> v & 1}
+            own = {i for i, (bits, _) in enumerate(self.functions)
+                   if bits >> v & 1 and (not by_string or self.strings[i] >= floor)}
             owns.append(own)
             union = len(own | matched)
             scores.append(len(own & matched) / union if union else 0.0)
