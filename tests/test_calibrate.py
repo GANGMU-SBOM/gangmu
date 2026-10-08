@@ -72,12 +72,26 @@ def test_unrelated_firmware_as_a_negative_control_passes(two_releases, tmp_path)
     assert cal.false_positives == 0 and cal.negative_pairs > 0 and cal.passed, cal.reasons
 
 
-def test_a_version_1_sidecar_is_still_read():
+def _old_sidecar(prints, fmt):
+    """The layout before the architecture and string counts were recorded."""
+    import struct
+    out = bytearray(b"GMFP" + bytes([fmt]) + struct.pack("<H", len(prints.versions)))
+    for v in prints.versions:
+        out += struct.pack("<H", len(v)) + v.encode()
+    out += struct.pack("<I", len(prints.functions))
+    for bits, feats in prints.functions:
+        out += struct.pack("<QH", bits, len(feats)) + struct.pack(f"<{len(feats)}Q", *feats)
+    if fmt >= 2:
+        out += struct.pack("<I", 2) + b"{}"
+    return bytes(out)
+
+
+def test_older_sidecars_are_still_read():
     prints = fprint.FunctionPrints.build([("1", [{1, 2, 3}]), ("2", [{4, 5, 6}])])
-    raw = bytearray(prints.to_bytes())
-    old = bytes(raw[:4]) + bytes([1]) + bytes(raw[5:len(raw) - 4 - 2])    # drop the "{}" meta
-    again = fprint.FunctionPrints.from_bytes(old)
-    assert again.versions == ["1", "2"] and again.meta == {}
+    for fmt in (1, 2):
+        again = fprint.FunctionPrints.from_bytes(_old_sidecar(prints, fmt))
+        assert again.versions == ["1", "2"] and again.meta == {} and again.functions == prints.functions
+        assert again.arch == "" and not again.knows_strings()
 
 
 def _rule(tmp, prints, calibration, digest=None):

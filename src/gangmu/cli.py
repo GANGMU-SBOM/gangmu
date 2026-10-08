@@ -1419,8 +1419,15 @@ def cmd_binary_eval(args: argparse.Namespace) -> int:
         print(f"error: cannot read the corpus in {args.corpus}: {exc} "
               f"(build one with benchmarks/binary/build_corpus.py)", file=sys.stderr)
         return 2
-    report = ev.evaluate(corpus, args.min_features, args.tie_share)
-    folds = ev.leave_one_library_out(corpus) if args.loo else None
+    images = None
+    if args.images:
+        try:
+            images = ev.load_corpus(Path(args.images), use_cache=not args.no_cache)
+        except (OSError, ValueError) as exc:
+            print(f"error: cannot read the corpus in {args.images}: {exc}", file=sys.stderr)
+            return 2
+    report = ev.evaluate(corpus, args.min_features, args.tie_share, images)
+    folds = ev.leave_one_library_out(corpus) if args.loo and images is None else None
     if args.format == "json":
         out = report.to_dict()
         if folds is not None:
@@ -1840,6 +1847,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="score library/release identification on a corpus of real firmware builds")
     be.add_argument("--corpus", required=True,
                     help="directory made by benchmarks/binary/build_corpus.py")
+    be.add_argument("--images", metavar="CORPUS",
+                    help="a corpus of the same libraries built for another architecture: "
+                         "references come from --corpus, images from this one, and only "
+                         "string literals are compared")
     be.add_argument("--min-features", type=int, default=2)
     be.add_argument("--tie-share", type=float, default=0.85)
     be.add_argument("--loo", action="store_true",

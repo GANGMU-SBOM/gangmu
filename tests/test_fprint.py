@@ -186,3 +186,60 @@ def _aarch64() -> bytes:
 
 def test_the_same_function_fingerprints_alike_on_aarch64_too():
     assert _features("aarch64", _aarch64()) == _features("x86-64", _x86())
+
+
+def test_small_negative_numbers_are_not_constants():
+    """-36 is a stack-frame offset or a loop step; at -O0 every function has some, so they
+    made unrelated libraries look alike (zero-FP on 1920 pairs became 3 on RV32 once a
+    larger library was among the images)."""
+    addi_sp = ((-36 & 0xFFF) << 20) | (2 << 15) | (10 << 7) | 0x13       # addi a0, sp, -36
+    assert _features("riscv32", struct.pack("<I", addi_sp) + struct.pack("<I", 0x00008067)) == set()
+    assert _features("x86-64", b"\xb8" + struct.pack("<i", -36) + b"\xc3") == set()
+    assert _features("x86-64", b"\xb8" + struct.pack("<I", SHA1_K) + b"\xc3")   # still a constant
+
+
+def _fs(strings, constants=()):
+    return fprint.FeatureSet(set(strings) | set(constants), strings)
+
+
+def test_other_architectures_are_compared_by_string_literals_only():
+    """A compiler derives different constants on each CPU (a reciprocal multiplier for
+    ``% 65521``, a packed literal), and they made wrong releases; the programmer's strings
+    survive a change of architecture."""
+    def release(consts):
+        return [_fs({100 + i, 200 + i}, {consts + i}) for i in range(12)]
+    prints = fprint.FunctionPrints.build([("1.0", release(5000)), ("1.1", release(5000))],
+                                         min_features=2, arch="thumb")
+    assert prints.knows_strings()
+    image = [_fs({100 + i, 200 + i}, {9000 + i}) for i in range(12)]      # same strings, other constants
+    assert prints.match(image, 2) is None                                  # all features: no match
+    assert prints.match(image, 2, arch="thumb") is None                    # same CPU: ditto
+    hit = prints.match(image, 2, arch="riscv32")                           # other CPU: strings only
+    assert hit is not None and hit[1] == 12
+    # plain feature sets carry no string information: the old behaviour stands
+    plain = fprint.FunctionPrints.build([("1.0", [set(f) for f in release(5000)]),
+                                         ("1.1", [set(f) for f in release(5000)])],
+                                        min_features=2, arch="thumb")
+    assert not plain.knows_strings() and plain.match(image, 2, arch="riscv32") is None
+
+
+def test_the_sidecar_keeps_the_architecture_and_which_features_are_strings():
+    prints = fprint.FunctionPrints.build(
+        [("1.0", [_fs({1, 2}, {3})] * 1 + [_fs({4, 5})]), ("1.1", [_fs({1, 2}, {3})])],
+        min_features=2, arch="aarch64")
+    again = fprint.FunctionPrints.from_bytes(prints.to_bytes())
+    assert again.arch == "aarch64" and again.strings == prints.strings and again.knows_strings()
+    assert sorted(again.strings) == [2, 2]
+
+
+def test_xtensa_entry_and_l32r():
+    from gangmu import xtensa
+    # two functions: `entry a1, 32` at 0 and 8; the first loads a literal placed before it
+    code = bytes([0x36, 0x41, 0x00, 0, 0, 0, 0, 0,
+                  0x36, 0x41, 0x00, 0x01, 0xFF, 0xFF])        # l32r a?, -1 word
+    assert xtensa.starts(code, 0x1000) == [0x1000, 0x1008]
+    got = []
+    xtensa.features(code[8:], 0x1008, lambda a, n: got.append(a) or b"\x78\x56\x34\x12",
+                    lambda v: got.append(v))
+    # l32r at 0x100b: (0x100b+3) & ~3 = 0x100c, imm16 0xFFFF is -1 word -> 0x1008
+    assert got == [0x1008, 0x12345678]

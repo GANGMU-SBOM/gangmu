@@ -6,7 +6,8 @@
 
 Needs git, network (or a --cache of checkouts named <lib>-<tag>) and a cross compiler:
 arm-none-eabi-gcc (--target arm), riscv64-unknown-elf-gcc with newlib headers (--target
-riscv32) or aarch64-linux-gnu-gcc with its libc headers (--target aarch64).
+riscv32) or aarch64-linux-gnu-gcc with its libc headers (--target aarch64) or xtensa-esp32-elf-gcc
+(--target xtensa, ESP32).
 Writes ``<out>/<lib>/<tag>/<opt>.elf`` (with symbols: a reference build) and
 ``<opt>.strip.elf`` (stripped: the image a scanner meets), plus ``corpus.json`` giving each
 library's release order. ``gangmu binary-eval --corpus <out>`` reads that.
@@ -37,6 +38,11 @@ TARGETS = {
                           "-fno-asynchronous-unwind-tables"],
                 "ld": "fw-aarch64.ld", "start": "start-aarch64.c", "include": [],
                 "link": ["-static", "-no-pie"]},
+    # Espressif's crosstool-NG toolchain must be on PATH (idf_tools.py install xtensa-esp32-elf).
+    # -mtext-section-literals keeps each function's literal pool beside it, in .text.
+    "xtensa": {"cc": "xtensa-esp32-elf-gcc", "strip": "xtensa-esp32-elf-strip",
+               "flags": ["-mlongcalls", "-mtext-section-literals", "-ffunction-sections"],
+               "ld": "fw-xtensa.ld", "start": "start-xtensa.c", "include": []},
 }
 
 
@@ -103,7 +109,7 @@ def main(argv=None) -> int:
     ap.add_argument("--out", required=True)
     ap.add_argument("--target", choices=sorted(TARGETS), default="arm",
                     help="arm: Cortex-M3 Thumb (default); riscv32: rv32imac; "
-                         "aarch64: ARMv8-A, freestanding")
+                         "aarch64: ARMv8-A, freestanding; xtensa: ESP32")
     ap.add_argument("--cache", help="checkouts named <lib>-<tag>, reused if present")
     ap.add_argument("--lib", action="append", help="build only these libraries")
     ap.add_argument("--relink", action="store_true",

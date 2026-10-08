@@ -306,25 +306,34 @@ def _recover_functions(blob: Binary, data: bytes, elf: Optional[ElfInfo], raw_ok
 
 def _by_functions(data: bytes, known: Sequence[Embedded], prints: Sequence) -> List[Embedded]:
     """Libraries whose functions are found, one by one, inside a compiled image."""
-    from .fprint import image_function_features
+    from .fprint import image_features
     named = {e.name for e in known if e.version}
     image = None
+    arch = None
     found: List[Embedded] = []
     for display, name, reference in prints:
         if name in named:
             continue
         if image is None:
-            image = image_function_features(data)
-        hit = reference.match(image) if image else None
+            image, arch = image_features(data)
+        hit = reference.match(image, arch=arch) if image else None
         if hit:
             version, matched, total, coverage, tied = hit
             found.append(Embedded(
                 name, display, tied or version,       # a tie is a "low~high" span, as elsewhere
                 f"{matched} of {total} fingerprinted functions of {display} {version} "
                 f"({coverage:.0%})" + (f"; releases {tied} fit equally well" if tied else "")
+                + _architecture_note(reference, arch)
                 + _calibration_note(reference),
                 method="functions"))
     return found
+
+
+def _architecture_note(prints, arch: Optional[str]) -> str:
+    if arch and prints.arch and arch != prints.arch and prints.knows_strings():
+        return (f"; the references were built for {prints.arch} and this image is {arch}, so "
+                "only string literals were compared")
+    return ""
 
 
 def _calibration_note(prints) -> str:
