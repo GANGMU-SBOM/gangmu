@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
@@ -162,9 +163,15 @@ def save_patches(path: Path, records: Dict[str, PatchRecord]) -> None:
 
 # ---------------------------------------------------------------- building
 
+# A throwaway clone must not spawn git's detached auto-gc/maintenance: it keeps
+# writing into .git/objects/pack while the directory is being deleted, and the
+# cleanup then fails with "Directory not empty: 'pack'".
+_NO_AUTO_GC = ["-c", "gc.auto=0", "-c", "maintenance.auto=false"]
+
+
 def _git(args: Sequence[str], cwd: Path) -> str:
     try:
-        return subprocess.run(["git", *args], cwd=cwd, check=True,
+        return subprocess.run(["git", *_NO_AUTO_GC, *args], cwd=cwd, check=True,
                               capture_output=True, text=True,
                               encoding="utf-8", errors="replace").stdout
     except FileNotFoundError as exc:
@@ -309,7 +316,11 @@ def build_record(advisory: str, repo: str, commits: Sequence[str],
             functions.extend(functions_changed_by(checkout, c, only, first_parent))
     finally:
         if tmp is not None:
-            tmp.cleanup()
+            shutil.rmtree(tmp.name, ignore_errors=True)
+            try:
+                tmp.cleanup()
+            except OSError:
+                pass                      # best effort: the dir is scratch
     if not functions:
         raise PatchError(
             f"{', '.join(commits)} changes no C/C++ function body"
