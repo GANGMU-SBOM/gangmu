@@ -186,3 +186,13 @@ def _aarch64() -> bytes:
 
 def test_the_same_function_fingerprints_alike_on_aarch64_too():
     assert _features("aarch64", _aarch64()) == _features("x86-64", _x86())
+
+
+def test_small_negative_numbers_are_not_constants():
+    """-36 is a stack-frame offset or a loop step; at -O0 every function has some, so they
+    made unrelated libraries look alike (zero-FP on 1920 pairs became 3 on RV32 once a
+    larger library was among the images)."""
+    addi_sp = ((-36 & 0xFFF) << 20) | (2 << 15) | (10 << 7) | 0x13       # addi a0, sp, -36
+    assert _features("riscv32", struct.pack("<I", addi_sp) + struct.pack("<I", 0x00008067)) == set()
+    assert _features("x86-64", b"\xb8" + struct.pack("<i", -36) + b"\xc3") == set()
+    assert _features("x86-64", b"\xb8" + struct.pack("<I", SHA1_K) + b"\xc3")   # still a constant

@@ -110,6 +110,8 @@ def memory_from_elf(data: bytes, info: ElfInfo) -> Memory:
 
 # ------------------------------------------------------------------ features
 
+SMALL_NEGATIVE = 0x1000   # a value this close below 2**bits is a small negative number
+
 _SIMPLE = {0xFF, 0xFFFF, 0xFFFFFF, 0xFFFFFFFF, 0x7FFFFFFF, 0x80000000, 0x7FFFFFFFFFFFFFFF}
 
 
@@ -142,6 +144,10 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> Set[in
 
     def emit(v: int) -> None:
         v = _unsigned(v, bits)
+        if v >= (1 << bits) - SMALL_NEGATIVE or (
+                arch == "x86-64" and (1 << 32) - SMALL_NEGATIVE <= v < (1 << 32)):
+            return          # -36 is a frame offset or a step, not a constant (x86-64's
+            #                 32-bit ``mov`` zero-extends, so there it reads 0xFFFFFFDC)
         if mem.is_address(v):
             s = mem.cstring(v)
             if s:
