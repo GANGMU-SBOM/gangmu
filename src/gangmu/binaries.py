@@ -324,9 +324,23 @@ def _by_functions(data: bytes, known: Sequence[Embedded], prints: Sequence) -> L
                 f"{matched} of {total} fingerprinted functions of {display} {version} "
                 f"({coverage:.0%})" + (f"; releases {tied} fit equally well" if tied else "")
                 + _architecture_note(reference, arch)
-                + _calibration_note(reference),
+                + _calibration_note(reference)
+                + _coverage_note(reference, coverage),
                 method="functions"))
     return found
+
+
+LOW_COVERAGE = 0.5
+
+
+def _coverage_note(prints, coverage: float) -> str:
+    """Low coverage means the image is a build the references were not made from: another
+    configuration, a vendor fork, or a release the rule does not cover. The release named is
+    then only the nearest of the fingerprinted ones (docs/BINARY-VALIDATION.md, real firmware)."""
+    if coverage >= LOW_COVERAGE:
+        return ""
+    return (f"; low coverage: the release is the nearest of the {len(prints.versions)} "
+            "fingerprinted ones and may not be the one in the image")
 
 
 def _architecture_note(prints, arch: Optional[str]) -> str:

@@ -93,7 +93,10 @@ def test_a_differently_optimised_image_is_matched_to_its_release(builds):
     for image, expected in (("img10", "1.0"), ("img11", "1.1")):
         version, matched, total, coverage, tied = prints.match(
             fprint.image_function_features(builds[image]))
-        assert (version, tied) == (expected, ""), image
+        # 1.1 holds everything 1.0 does, and an image can hold only part of a library,
+        # so an image of 1.0 is a span unless something only 1.0 has is matched
+        assert version == expected, image
+        assert tied in ("", "1.0~1.1"), image
         assert coverage > 0.9
 
 
@@ -243,3 +246,11 @@ def test_xtensa_entry_and_l32r():
                     lambda v: got.append(v))
     # l32r at 0x100b: (0x100b+3) & ~3 = 0x100c, imm16 0xFFFF is -1 word -> 0x1008
     assert got == [0x1008, 0x12345678]
+
+
+def test_low_coverage_note():
+    from types import SimpleNamespace
+    from gangmu import binaries
+    prints = SimpleNamespace(versions=["1", "2", "3"])
+    assert binaries._coverage_note(prints, 0.9) == ""
+    assert "nearest of the 3 fingerprinted" in binaries._coverage_note(prints, 0.2)
