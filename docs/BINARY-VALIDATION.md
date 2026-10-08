@@ -147,7 +147,7 @@ ARM 的 Cortex-M `.bin` 靠向量表和「代码范围」启发式处理了这�
   lz4 45、littlefs 41；ARM 上对应是 11、7、1、1、141、27、43。
 
 **没有验证的**：RISC-V 上用 x86-64 或 ARM 参考库去匹配（跨架构）；64 位 RISC-V；非 gcc 编译器；
-真实厂商 SDK 编出来的固件（带中断向量表、启动代码、各种库混在一起）。AArch64 和 Xtensa 都还没有。
+真实厂商 SDK 编出来的固件（带中断向量表、启动代码、各种库混在一起）。AArch64 已有（见上），Xtensa 见下一节。
 
 ## AArch64
 
@@ -198,7 +198,7 @@ AArch64 的 `adrp` + `add`（地址）、`movz` + `movk`（常量）也折回源
   mbedtls 199、lz4 45、littlefs 49。inih 和 heatshrink 一个都没有。
 
 **没有验证的**：AArch64 上跨架构参考库；真正的裸机 `aarch64-none-elf` 工具链；64 位 RISC-V；非 gcc 编译器；
-真实厂商 SDK 的固件；带 PAC/BTI 指令（`paciasp` 等）的构建。Xtensa 仍然不支持。
+真实厂商 SDK 的固件；带 PAC/BTI 指令（`paciasp` 等）的构建。Xtensa 只验证过一个 gcc 版本。
 
 ## 规则作者的自校验
 
@@ -272,3 +272,20 @@ RISC-V 少了 19 个答案（其中一部分是靠这些栈偏移撑起来的匹
 - 但对召回几乎没用：Cortex-M3 无变化，rv32imac 无变化，AArch64 只多 1 个。cJSON、inih、heatshrink 认不出的原因是可指纹的函数只有 1~7 个，函数之间根本没有几条调用，没有东西可佐证。
 - 用调用关系区分相邻发行版（打破 `range`）更不行：能转成 exact 的同时，把正确的 range 变成了 wrong（AArch64：19 个转对，21 个转错）；要求大差距则一个也转不了。
 所以格式和代码复杂度不值得，放弃。要认出小库，需要的是新的特征类别，而不是更多佐证。
+
+
+## Xtensa（ESP32）
+
+Capstone 没有 Xtensa 解码器，`src/gangmu/xtensa.py` 只做两件事：按 `entry a1, N`（字节 `36 x1 ..`，4 字节对齐）找函数起点；按 `l32r` 的目标地址读出字面量池里的字（字符串地址和常量都是这样取的）。字面量池本身会被当成指令走一遍，只会多出几个无关特征，包含度匹配能容忍。
+
+语料用 Espressif 官方 `xtensa-esp32-elf-gcc`（`-mlongcalls -mtext-section-literals -ffunction-sections`）交叉编译，由 `benchmarks/binary/build_corpus.py` 的 `xtensa` 目标生成。
+
+| 方向 | 精确 | 区间 | 错 | 认不出 | 负对照 |
+|---|---|---|---|---|---|
+| Cortex-M3 参考库 → ESP32 镜像（只比字符串） | 48 | 12 | 0 | 212 | 0 / 1648 |
+| ESP32 参考库 → Cortex-M3 镜像（只比字符串） | 48 | 0 | 0 | 224 | 0 / 1360 |
+| ESP32 → ESP32（全部特征，含 mbedtls） | 114 | 77 | 1 | 128 | 0 / 1920 |
+
+那 1 个错误：zlib v1.3.1，O1 参考库对 Os 镜像，报了 v1.2.11~v1.2.13（区间不含真实版本）。
+
+局限：解码器是手写的，只在一个 gcc 版本上验证；没有真实 ESP-IDF 固件；字符串太少的库（cJSON、inih、lz4、heatshrink）跨架构认不出来，这是只比字符串的固有代价。

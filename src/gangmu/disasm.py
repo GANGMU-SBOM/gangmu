@@ -25,6 +25,7 @@ import struct
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple
 
+from . import xtensa
 from .elf import EM_386, EM_ARM, EM_RISCV, EM_X86_64, SHF_EXECINSTR, SHT_PROGBITS, ElfInfo
 
 try:                                      # an optional dependency
@@ -259,7 +260,9 @@ def _arch(name: str) -> Optional[_Arch]:
 
 
 def arch_of_elf(info: ElfInfo) -> Optional[str]:
-    """The Capstone architecture for an ELF, or None when it has no decoder here."""
+    """The architecture an ELF is decoded as, or None when it has no decoder here."""
+    if info.machine == EM_XTENSA:
+        return "xtensa"                   # no Capstone: see xtensa.py
     if info.machine == EM_ARM:
         return "thumb" if info.entry & 1 else "arm"
     return {EM_AARCH64: "aarch64", EM_X86_64: "x86-64", EM_386: "x86",
@@ -403,10 +406,7 @@ def recover_elf(data: bytes, info: ElfInfo) -> Optional[Recovery]:
     """Functions of an ELF: its symbols, plus whatever the sweep finds between them."""
     arch = arch_of_elf(info)
     if arch is None:
-        return Recovery("unsupported",
-                        note="no decoder for this architecture (Xtensa is not supported "
-                             "by Capstone)" if info.machine == EM_XTENSA else
-                             f"no decoder for ELF machine {info.machine}")
+        return Recovery("unsupported", note=f"no decoder for ELF machine {info.machine}")
     if capstone is None:
         return None
     mask = ~1 if arch == "thumb" else ~0          # a Thumb symbol's bit 0 is not an address
@@ -420,7 +420,8 @@ def recover_elf(data: bytes, info: ElfInfo) -> Optional[Recovery]:
     for sec in code_sections:
         blob = data[sec.offset:sec.offset + sec.size]
         seeds = [entry] + list(found)
-        starts = sweep(blob, sec.addr, arch, seeds, pools)
+        starts = (xtensa.starts(blob, sec.addr) if arch == "xtensa"
+                  else sweep(blob, sec.addr, arch, seeds, pools))
         for a, size in _sized(starts, sec.addr + len(blob)):
             if a not in found:
                 found[a] = Function(a, size, "", "entry" if a == entry

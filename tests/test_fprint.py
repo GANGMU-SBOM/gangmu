@@ -230,3 +230,16 @@ def test_the_sidecar_keeps_the_architecture_and_which_features_are_strings():
     again = fprint.FunctionPrints.from_bytes(prints.to_bytes())
     assert again.arch == "aarch64" and again.strings == prints.strings and again.knows_strings()
     assert sorted(again.strings) == [2, 2]
+
+
+def test_xtensa_entry_and_l32r():
+    from gangmu import xtensa
+    # two functions: `entry a1, 32` at 0 and 8; the first loads a literal placed before it
+    code = bytes([0x36, 0x41, 0x00, 0, 0, 0, 0, 0,
+                  0x36, 0x41, 0x00, 0x01, 0xFF, 0xFF])        # l32r a?, -1 word
+    assert xtensa.starts(code, 0x1000) == [0x1000, 0x1008]
+    got = []
+    xtensa.features(code[8:], 0x1008, lambda a, n: got.append(a) or b"\x78\x56\x34\x12",
+                    lambda v: got.append(v))
+    # l32r at 0x100b: (0x100b+3) & ~3 = 0x100c, imm16 0xFFFF is -1 word -> 0x1008
+    assert got == [0x1008, 0x12345678]

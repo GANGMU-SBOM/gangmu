@@ -38,7 +38,7 @@ import struct
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
-from . import disasm
+from . import disasm, xtensa
 from .binsig import MIN_LEN, _wanted
 from .elf import ElfInfo
 
@@ -148,12 +148,8 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
     """Strings referenced and distinctive constants used by one function."""
     spec = disasm._arch(arch)
     code = mem.read(address, size) if size else None
-    if spec is None or not code:
+    if (spec is None and arch != "xtensa") or not code:
         return FeatureSet()
-    md = disasm.capstone.Cs(spec.cs_arch, spec.cs_mode)
-    md.detail = True
-    md.skipdata = True
-    md.skipdata_setup = ("db", None, None)
     bits = 64 if arch in ("aarch64", "riscv64", "x86-64") else 32
     out = FeatureSet()
 
@@ -172,6 +168,13 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
         elif _distinctive(v):
             out.add(_hash(b"c", v.to_bytes(8, "big")))
 
+    if arch == "xtensa":
+        xtensa.features(code, address, mem.read, emit)
+        return out
+    md = disasm.capstone.Cs(spec.cs_arch, spec.cs_mode)
+    md.detail = True
+    md.skipdata = True
+    md.skipdata_setup = ("db", None, None)
     building: Dict[int, int] = {}         # AArch64: register -> constant being built
     low: Dict[int, int] = {}              # ARM: register -> movw half
     regs: Dict[int, int] = {}             # RISC-V: register -> known value
