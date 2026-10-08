@@ -93,7 +93,10 @@ def test_a_differently_optimised_image_is_matched_to_its_release(builds):
     for image, expected in (("img10", "1.0"), ("img11", "1.1")):
         version, matched, total, coverage, tied = prints.match(
             fprint.image_function_features(builds[image]))
-        assert (version, tied) == (expected, ""), image
+        # 1.1 holds everything 1.0 does, and an image can hold only part of a library,
+        # so an image of 1.0 is a span unless something only 1.0 has is matched
+        assert version == expected, image
+        assert tied in ("", "1.0~1.1"), image
         assert coverage > 0.9
 
 

@@ -469,12 +469,18 @@ class FunctionPrints:
                    if bits >> v & 1 and (not by_string or self.strings[i] >= floor)}
             owns.append(own)
             union = len(own | matched)
-            scores.append(len(own & matched) / union if union else 0.0)
+            # How much of what matched this release explains, not how closely the two sets
+            # agree: firmware links only part of a library (--gc-sections), so a release
+            # with more functions than the image holds must not lose to a smaller one.
+            # Releases that explain everything tie and are reported as a span. Jaccard
+            # only separates scores that are otherwise equal.
+            explained = len(own & matched) / len(matched)
+            scores.append(explained + 1e-3 * (len(own & matched) / union if union else 0.0))
         best = max(scores)
         index_best = scores.index(best)
         own = owns[index_best]
         coverage = len(own & matched) / len(own) if own else 0.0
-        if coverage < MIN_COVERAGE:
+        if coverage < MIN_COVERAGE or len(own & matched) < MIN_MATCHES:
             return None
         tied = [i for i, s in enumerate(scores) if s >= best * share]
         low, high = self.versions[min(tied)], self.versions[max(tied)]
