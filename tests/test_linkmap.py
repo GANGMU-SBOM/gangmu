@@ -93,3 +93,50 @@ def test_ti_map_keeps_placed_objects_and_library_members(tmp_path):
                           "drivers_cc26x2.aem4f"}
     assert ("drivers_cc26x2.aem4f", "PINCC26XX.oem4f") in lm.members
     assert ("drivers_cc26x2.aem4f", "PINCC26XX_aux.oem4f") in lm.members
+
+
+ARM_MAP = """\
+Component: ARM Compiler 5.06 update 6 (build 750) Tool: armlink [4d35ed]
+
+Removing Unused input sections from the image.
+
+    Removing mpu6050.o(i.MPU_Get_Gyroscope), (80 bytes).
+    Removing core_cm3.o(.emb_text), (56 bytes).
+
+Memory Map of the image
+
+  Image Entry point : 0x08000131
+
+    Exec Addr    Load Addr    Size         Type   Attr      Idx    E Section Name        Object
+
+    0x08000000   0x08000000   0x00000130   Data   RO         1136    RESET               startup_f10x.o
+    0x08000130   0x08000130   0x00000008   Code   RO         2406  * !!!main             c_w.l(__main.o)
+    0x08000188   0x08000188   0x00000020   Code   RO           12    i.main              main.o
+    0x20000000   0x00000060   Zero   RW         1234    .bss                m_ws.l(libspace.o)
+
+Image component sizes
+
+      Code (inc. data)   RO Data    RW Data    ZI Data      Debug   Object Name
+
+       220         26          0          4          0       1735   main.o
+       148         22          0          0          0       5007   mpu6050.o
+
+      Code (inc. data)   RO Data    RW Data    ZI Data      Debug   Library Member Name
+
+         8          0          0          0          0         68   __main.o
+         0          0          0          0          0          0   libspace.o
+
+      Code (inc. data)   RO Data    RW Data    ZI Data      Debug   Library Name
+
+     11876        726        438          0        100       6768   Library Totals
+"""
+
+
+def test_armlink_reads_flagged_and_zero_init_rows_and_keeps_members_out_of_objects(tmp_path):
+    p = tmp_path / "keil.map"
+    p.write_text(ARM_MAP)
+    lm = parse_link_map(p)
+    assert lm.archives == {"c_w.l", "m_ws.l"}
+    assert lm.members == {("c_w.l", "__main.o"), ("m_ws.l", "libspace.o")}
+    assert lm.objects == {"startup_f10x.o", "main.o", "mpu6050.o"}   # no bare library members
+    assert lm.discarded_only == {"core_cm3.o"}

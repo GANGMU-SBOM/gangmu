@@ -90,9 +90,11 @@ _ARM_COMPONENT = re.compile(
     r"^\s+(?:\d+\s+){5}\d+\s+(?P<name>[^\s()]+)(?:\((?P<member>[^()\s]+)\))?\s*$")
 _ARM_COMPONENT_HEADER = re.compile(r"^\s*Code \(inc\. data\)\s+RO Data\s+RW Data\s+ZI Data\s+Debug\s+"
                                    r"(Object|Library Member) Name")
+# ``0x08000130  0x08000130  0x00000008  Code  RO  2406  * !!!main  c_w.l(__main.o)``; zero-init
+# lines carry no load address, and a ``*`` marks an entry-point section
 _ARM_MEMORY_OBJECT = re.compile(
-    r"^\s+0x[0-9a-fA-F]+\s+0x[0-9a-fA-F]+\s+\S+\s+\S+\s+\d+\s+\S+\s+"
-    r"(?P<name>[^\s()]+)(?:\((?P<member>[^()\s]+)\))?\s*$")
+    r"^\s+0x[0-9a-fA-F]+\s+(?:0x[0-9a-fA-F]+\s+)?0x[0-9a-fA-F]+\s+\S+\s+\S+\s+\d+\s+"
+    r"(?:\*\s+)?\S+\s+(?P<name>[^\s()]+)(?:\((?P<member>[^()\s]+)\))?\s*$")
 
 
 _TI_ALLOCATION = re.compile(r"^SECTION ALLOCATION MAP\b")
@@ -225,6 +227,7 @@ def _parse_armlink(path: Path) -> LinkMap:
     in_removed = False
     in_components = False
     in_memory = False
+    lib_table = False
     with open(path, "r", encoding="utf-8", errors="replace") as fh:
         for line in fh:
             if re.match(r"^Removing Unused input sections", line):
@@ -249,12 +252,20 @@ def _parse_armlink(path: Path) -> LinkMap:
                 if m.group("member"):
                     out.discarded_members.add((m.group("obj"), name))
                 continue
+            if in_components:
+                header = _ARM_COMPONENT_HEADER.match(line)
+                if header:
+                    # library members are listed bare here; the memory map names their library
+                    lib_table = header.group(1) == "Library Member"
+                    continue
             m = (_ARM_COMPONENT.match(line) if in_components
                  else _ARM_MEMORY_OBJECT.match(line) if in_memory else None)
             if m is None:
                 continue
             raw = m.group("name")
             member = m.group("member")
+            if in_components and lib_table and not member:
+                continue
             if member:                                  # lib.l(member.o)
                 out.archives.add(raw)
                 out.members.add((raw, Path(member).name))
