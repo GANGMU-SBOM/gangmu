@@ -28,7 +28,8 @@ gangmu 的核心能力全部开源，并会一直开源：识别引擎、构建�
 | CRA 自查与技术文档包 | `cra-check`、`evidence` |
 | 报送草稿 | CRA 第 14 条与工信部《网络产品安全漏洞管理规定》第七条 |
 | 评测基准 | `gangmu eval`，可复现 |
-| CI 模板 | GitHub Action、GitLab CI、Jenkinsfile（`examples/ci/`） |
+| 密码物料清单与 AI 物料清单 | `gangmu cbom`（含后量子迁移摘要、`--libraries`）、`gangmu aibom`，以及规则仓库 gangmu-cbom-rules |
+| CI 模板 | GitHub Action（本仓库的 SBOM 版，和 gangmu-action 的 SBOM + CBOM + 迁移摘要版）、GitLab CI、Jenkinsfile（`examples/ci/`） |
 
 ## 商业版与服务
 
