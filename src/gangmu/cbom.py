@@ -115,7 +115,7 @@ ALGOS: Tuple[Algo, ...] = (
         r"PSA_ALG_SHA_(?:384|512)\b)",),
         "SHA-384 and up are the sizes the post-quantum guidance names."),
     Algo("sha-3", "SHA-3", "hash", SYMMETRIC, (
-        _B + r"(?:mbedtls_sha3\w*|SHA3_\w+|wc_Sha3_\w+|MBEDTLS_SHA3_C\b|keccak_\w+|PSA_ALG_SHA3_\w+)",),
+        _B + r"(?:mbedtls_sha3_\w+|SHA3_\w+|wc_Sha3_\w+|MBEDTLS_SHA3_C\b|keccak_\w+|PSA_ALG_SHA3_\w+)",),
         ""),
     Algo("hmac", "HMAC", "mac", SYMMETRIC, (
         _B + r"(?:mbedtls_md_hmac\w*|HMAC_(?:Init|Update|Final|CTX)\w*|wc_Hmac\w+|PSA_ALG_HMAC\b|"
@@ -145,7 +145,7 @@ ALGOS: Tuple[Algo, ...] = (
         "Broken by Shor's algorithm at every curve."),
     Algo("ed25519", "Ed25519", "signature", VULNERABLE, (
         _B + r"(?:ed25519_(?:sign|verify|create_keypair|publickey)\w*|wc_ed25519_\w+|"
-        r"crypto_sign_ed25519\w*|MBEDTLS_ECP_DP_CURVE448\b|\bEd25519\b)",),
+        r"crypto_sign_ed25519\w*|\bEd25519\b)",),
         "Elliptic-curve scheme: broken by Shor's algorithm."),
     Algo("x25519", "X25519", "key-agree", VULNERABLE, (
         _B + r"(?:curve25519_\w+|x25519_\w+|wc_curve25519\w*|crypto_scalarmult_curve25519\w*|"

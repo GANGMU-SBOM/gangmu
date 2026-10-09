@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from gangmu.cbom import cbom_table, failing, scan_cbom, to_cbom
+from gangmu.cbom import DEFAULT_ALGOS, cbom_table, failing, scan_cbom, to_cbom
 from gangmu.cli import main
 
 SCHEMAS = Path(__file__).resolve().parent / "fixtures" / "schemas"
@@ -365,3 +365,12 @@ def test_cli_libraries_flag_uses_the_identified_components(tmp_path, monkeypatch
     # without the flag nothing is derived
     assert main(["cbom", str(tmp_path / "fw"), "--rules", str(pack)]) == 0
     assert "RSA" not in capsys.readouterr().out
+
+
+def test_builtin_patterns_do_not_confuse_neighbours():
+    # mbedtls_sha384_* is SHA-2, not SHA-3; Curve448 is not Ed25519.
+    by_key = {a.key: a for a in DEFAULT_ALGOS.algos}
+    import re
+    assert not any(re.search(p, "mbedtls_sha384_info") for p in by_key["sha-3"].patterns)
+    assert any(re.search(p, "mbedtls_sha3_init(&ctx)") for p in by_key["sha-3"].patterns)
+    assert not any(re.search(p, "MBEDTLS_ECP_DP_CURVE448") for p in by_key["ed25519"].patterns)
