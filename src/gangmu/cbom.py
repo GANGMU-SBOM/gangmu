@@ -94,7 +94,7 @@ ALGOS: Tuple[Algo, ...] = (
         "Chinese national hash (256-bit output)."),
     Algo("sm2", "SM2", "signature", VULNERABLE, (
         _B + r"(?:sm2_(?:sign|verify|encrypt|decrypt|do_sign|do_verify)\w*|SM2_(?:sign|verify|encrypt|"
-        r"decrypt|compute_z_digest)\w*|mbedtls_sm2_\w+|MBEDTLS_ECP_DP_SM2\w*|\bsm2p256v1\b)",),
+        r"decrypt|compute_z_digest)\w*|mbedtls_sm2_\w+|ossl_sm2_\w+|MBEDTLS_ECP_DP_SM2\w*|\bsm2p256v1\b)",),
         "Elliptic-curve scheme: a quantum computer breaks it like ECDSA."),
     Algo("md5", "MD5", "hash", BROKEN, (
         _B + r"(?:mbedtls_md5\w*|MD5_(?:Init|Update|Final)\b|MD5Init\b|MD5Update\b|wc_Md5\w+|"
