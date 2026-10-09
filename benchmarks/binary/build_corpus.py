@@ -67,12 +67,16 @@ def sources(spec: dict, root: Path):
 
 
 def build(lib: str, spec: dict, tag: str, root: Path, opt: str, out: Path,
-          relink: bool = False, target: str = "arm") -> str:
+          relink: bool = False, target: str = "arm", asserts: bool = False) -> str:
     """Returns "" on success, else why it failed."""
     work = out.parent / f".{opt}.build"
     work.mkdir(parents=True, exist_ok=True)
     t = TARGETS[target]
+    # Shipped firmware is built without assert(): each one leaves its expression, file name
+    # and line number in the image, features a real image does not have (found when the
+    # references for littlefs matched none of the same functions in Zephyr's build).
     flags = [*t["flags"], f"-{opt}", "-fno-tree-loop-distribute-patterns", "-w"] \
+        + ([] if asserts else ["-DNDEBUG", "-DLFS_NO_ASSERT"]) \
         + [f"-I{root / i}" for i in spec.get("include", ["."])] \
         + [f"-I{d}" for d in t["include"]] + [f"-D{d}" for d in spec.get("defines", [])]
     objects, skipped = [], 0
@@ -112,6 +116,8 @@ def main(argv=None) -> int:
                          "aarch64: ARMv8-A, freestanding; xtensa: ESP32")
     ap.add_argument("--cache", help="checkouts named <lib>-<tag>, reused if present")
     ap.add_argument("--lib", action="append", help="build only these libraries")
+    ap.add_argument("--asserts", action="store_true",
+                    help="keep assert() (the default builds with NDEBUG, like shipped firmware)")
     ap.add_argument("--relink", action="store_true",
                     help="reuse the object files of an earlier run and only link again")
     ap.add_argument("--opt", action="append", help=f"optimisation levels (default {OPTS})")
@@ -134,7 +140,7 @@ def main(argv=None) -> int:
             for opt in args.opt or OPTS:
                 dest = out / lib / tag / f"{opt}.elf"
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                why = build(lib, spec, tag, root, opt, dest, args.relink, args.target)
+                why = build(lib, spec, tag, root, opt, dest, args.relink, args.target, args.asserts)
                 if dest.exists():
                     ok.append(opt)
                     if why:
