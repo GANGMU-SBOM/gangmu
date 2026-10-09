@@ -237,7 +237,7 @@ gangmu aibom .                                   # 表格
 gangmu aibom . --format cyclonedx -o aibom.json  # CycloneDX 1.6
 ```
 
-列出目录里的机器学习模型（TFLite、GGUF、ExecuTorch、ONNX、safetensors、PyTorch 等，按文件头或扩展名认，带 SHA-256；编进 C 数组的 TFLite 模型也认）和推理运行时（TFLite Micro、CMSIS-NN、Edge Impulse、ONNX Runtime、llama.cpp 等）。这是最小版：训练数据、许可证和用途读不出来，所以不填；也还没接编译数据库，源码里提到的运行时不一定编进了固件。见 [AIBOM 指南](docs/guides/aibom.md)。
+列出目录里的机器学习模型（TFLite、GGUF、ExecuTorch、ONNX、safetensors、PyTorch 等，按文件头或扩展名认，带 SHA-256；编进 C 数组的 TFLite 模型也认）和推理运行时（TFLite Micro、CMSIS-NN、Edge Impulse、ONNX Runtime、llama.cpp 等）。训练数据、许可证和用途读不出来，由人写进目录根的 `gangmu-aibom.yaml`，工具并进输出（标为人工声明，不核对），`--require-declarations` 可在 CI 里卡住没写清楚的模型；还没接编译数据库，源码里提到的运行时不一定编进了固件。见 [AIBOM 指南](docs/guides/aibom.md)。
 
 ## 能识别什么
 
@@ -372,7 +372,7 @@ ONEKEY、Finite State、Cybellum、NetRise 面向大型企业做固件二进制�
 | `gangmu rules cpe-evidence --nvd DIR` | 从本地 NVD 镜像里找出组件登记用的 CPE，并列出引用其上游仓库的 CVE 作为证据 |
 | `gangmu perf [--check BASELINE]` | 性能基线：规则数与耗时、内存，CI 回归检查 |
 | `gangmu cbom ROOT [--compile-db F] [--link-map F] [--rules DIR] [--libraries]` | 密码物料清单：列出源码、配置、预编译库和固件镜像里的密码算法，输出 CycloneDX 1.6 CBOM（`--format cyclonedx`）或后量子迁移摘要（`--format readiness`）；`--rules` 加载 CBOM 规则包，`--libraries` 按认出的库版本补算法；有构建事实时只统计真正编进固件的，没有时每项标 `unverified`；每个算法标量子风险（RSA、ECDSA、ECDH、SM2 等会被破解），`--fail-on quantum-vulnerable` 可在 CI 里卡住。按名字识别，见 [CBOM 指南](docs/guides/cbom-post-quantum.md) |
-| `gangmu aibom ROOT [--format cyclonedx]` | AI 物料清单（最小版）：列出目录里的机器学习模型（TFLite、GGUF、ONNX、safetensors、PyTorch 等，带 SHA-256；编进 C 数组的 TFLite 模型也认）和推理运行时（TFLite Micro、CMSIS-NN、Edge Impulse、llama.cpp 等），输出 CycloneDX 1.6。不读训练数据和许可证，见 [AIBOM 指南](docs/guides/aibom.md) |
+| `gangmu aibom ROOT [--format cyclonedx]` | AI 物料清单（最小版）：列出目录里的机器学习模型（TFLite、GGUF、ONNX、safetensors、PyTorch 等，带 SHA-256；编进 C 数组的 TFLite 模型也认）和推理运行时（TFLite Micro、CMSIS-NN、Edge Impulse、llama.cpp 等），输出 CycloneDX 1.6。训练数据和许可证读声明文件，见 [AIBOM 指南](docs/guides/aibom.md) |
 | `gangmu sbom-score` / `eval` / `bench` / `diff` | 质量评分、评测基准、性能、召回率对比 |
 
 ## 仓库

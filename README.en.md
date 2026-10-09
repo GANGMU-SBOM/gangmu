@@ -175,9 +175,11 @@ OpenSSL, Tongsuo and GmSSL. It is not on PyPI yet; clone it and pass `--rules ga
 
 `gangmu aibom` finds model files by signature or extension (TensorFlow Lite, GGUF, ExecuTorch, ONNX, safetensors,
 PyTorch and others, each with a SHA-256; TensorFlow Lite models compiled into a C array too) and inference runtimes by
-identifier (TFLite Micro, CMSIS-NN, Edge Impulse, ONNX Runtime, llama.cpp and others). It is a minimal version: training
-data, licence and intended use cannot be read from a model file and are left out, and build facts are not used yet, so a
-runtime named in a source file may not be in the build. Both guides are in Chinese for now:
+identifier (TFLite Micro, CMSIS-NN, Edge Impulse, ONNX Runtime, llama.cpp and others). Training data, licence and intended
+use cannot be read from a model file; a person writes them in `gangmu-aibom.yaml` at the root (or `--declarations FILE`),
+and they are merged into the output marked as declared, not checked. `--require-declarations` exits 1 when a model has
+no declared licence or training data. Build facts are not used yet, so a runtime named in a source file may not be in
+the build. Both guides are in Chinese for now:
 [CBOM](docs/guides/cbom-post-quantum.md), [AIBOM](docs/guides/aibom.md).
 
 ## What it recognises

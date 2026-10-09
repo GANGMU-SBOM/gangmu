@@ -16,6 +16,7 @@ import yaml
 from . import __version__
 from .build.facts import collect_build_facts
 from .aibom import aibom_table, scan_aibom, to_aibom
+from .aibom_decl import DeclarationError, find_declarations, load_declarations
 from .cbom import (CbomRuleError, cbom_roots, cbom_table, failing, load_algo_roots,
                    readiness_report, scan_cbom, to_cbom)
 from .build.kconfig import find_kconfig, read_kconfig
@@ -1389,7 +1390,19 @@ def cmd_aibom(args: argparse.Namespace) -> int:
     if not root.is_dir():
         print(f"error: {args.root} is not a directory", file=sys.stderr)
         return 2
-    result = scan_aibom(root, include_tests=args.include_tests)
+    decl_path = Path(args.declarations) if args.declarations else find_declarations(root)
+    declarations = None
+    if decl_path is not None:
+        try:
+            declarations = load_declarations(decl_path)
+        except DeclarationError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+    elif args.require_declarations:
+        print("error: --require-declarations needs a declaration file "
+              "(gangmu-aibom.yaml in the tree, or --declarations FILE)", file=sys.stderr)
+        return 2
+    result = scan_aibom(root, include_tests=args.include_tests, declarations=declarations)
     if args.format == "table":
         _write(aibom_table(result), args.output)
     else:
@@ -1397,6 +1410,15 @@ def cmd_aibom(args: argparse.Namespace) -> int:
             print(f"note: {note}", file=sys.stderr)
         _write(json.dumps(to_aibom(result, args.app_name, args.app_version),
                           indent=2, ensure_ascii=False), args.output)
+    for entry in result.declared_only:
+        print(f"warning: {declarations.source}: {entry.label} matches no model in the tree; "
+              "kept as a declared-only component", file=sys.stderr)
+    if args.require_declarations:
+        gaps = result.gaps()
+        if gaps:
+            for gap in gaps:
+                print(f"error: {gap}", file=sys.stderr)
+            return 1
     return 0
 
 
@@ -2175,6 +2197,11 @@ def build_parser() -> argparse.ArgumentParser:
     ai.add_argument("--app-version", default="")
     ai.add_argument("--include-tests", action="store_true",
                     help="also read test and fixture directories")
+    ai.add_argument("--declarations", metavar="FILE",
+                    help="declaration file with training data, licence and intended use "
+                         "(default: gangmu-aibom.yaml in the tree, if present)")
+    ai.add_argument("--require-declarations", action="store_true",
+                    help="exit 1 when a model has no declared licence or training data")
     ai.set_defaults(func=cmd_aibom)
 
     sc = sub.add_parser(
