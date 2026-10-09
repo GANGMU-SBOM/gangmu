@@ -740,6 +740,75 @@ def cbom_table(result: CbomResult) -> str:
     return "\n".join(lines)
 
 
+# What to move to, by what the algorithm does. Standards are the NIST ones; a vendor or
+# national scheme may require another, so this is a starting point, not a mandate.
+_TARGET = {
+    "key-agree": "ML-KEM (FIPS 203), usually hybrid with X25519/ECDH during the transition",
+    "kem": "ML-KEM (FIPS 203)",
+    "pke": "ML-KEM (FIPS 203) for encryption or key transport, ML-DSA (FIPS 204) where it signs",
+    "signature": "ML-DSA (FIPS 204) or SLH-DSA (FIPS 205); LMS/XMSS (SP 800-208) for firmware signing",
+}
+
+
+def _where(a: Asset) -> str:
+    first = a.occurrences[0]
+    return first.path + (f":{first.line}" if first.line else "")
+
+
+def readiness_report(result: CbomResult) -> str:
+    """A Markdown post-quantum readiness summary: what to migrate, what is done, what to look at.
+
+    It reads the same assets as the table; nothing is added. Assets the build facts rule
+    out are listed apart, not counted."""
+    counted = result.counted()
+    out = [e for e in result.assets if e.verdict() == "not-linked"]
+    groups = [
+        ("Migrate: broken by a quantum computer", VULNERABLE, True),
+        ("Replace now: weak against classical attackers", BROKEN, False),
+        ("Already post-quantum", PQC, False),
+        ("Symmetric: keep 256-bit keys and SHA-384 or larger", SYMMETRIC, False),
+    ]
+    lines = ["# Post-quantum readiness", ""]
+    vulnerable = [a for a in counted if a.algo.quantum == VULNERABLE]
+    pqc = [a for a in counted if a.algo.quantum == PQC]
+    if vulnerable:
+        verdict = (f"{len(vulnerable)} quantum-vulnerable algorithm(s) in use; "
+                   f"{len(pqc)} post-quantum.")
+    elif pqc:
+        verdict = f"No quantum-vulnerable algorithm found; {len(pqc)} post-quantum in use."
+    else:
+        verdict = "No quantum-vulnerable algorithm found."
+    lines += [f"**{verdict}** {len(counted)} algorithm(s) counted over "
+              f"{result.files_scanned} file(s).", ""]
+    for title, quantum, with_target in groups:
+        items = [a for a in counted if a.algo.quantum == quantum]
+        if not items:
+            continue
+        lines += [f"## {title}", ""]
+        for a in sorted(items, key=lambda x: (-x.confidence(), x.name)):
+            line = f"- **{a.name}**, confidence {a.confidence():.2f}, {a.count} hit(s), first at `{_where(a)}`"
+            if with_target and a.algo.primitive in _TARGET:
+                line += f". Move to: {_TARGET[a.algo.primitive]}"
+            if a.algo.note and quantum != PQC:
+                line += f". {a.algo.note}"
+            lines.append(line)
+        lines.append("")
+    weak = [a for a in counted if a.algo.quantum == VULNERABLE and a.confidence() < 0.6]
+    if weak:
+        lines += ["## Confirm before acting", "",
+                  "These hits rest on weak evidence (a library's capability table, a "
+                  "configuration option, or code the build facts do not confirm): "
+                  + ", ".join(a.name for a in weak) + ".", ""]
+    if out:
+        lines += ["## Not part of this build", "",
+                  "Named in the sources but ruled out by the build facts: "
+                  + ", ".join(a.name for a in out) + ".", ""]
+    lines.extend(f"> note: {n}" for n in result.notes)
+    lines += ["", "Found by name, not by analysis: key sizes, protocol versions and "
+              "hand-written primitives are not inspected."]
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def failing(result: CbomResult, what: Iterable[str]) -> List[Asset]:
     """The counted assets that fall under the ``--fail-on`` classes."""
     want = set(what)
