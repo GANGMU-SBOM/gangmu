@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Set, Tuple
 from .fingerprint import (ALGO, DEFAULT_K, DEFAULT_SKETCH, DEFAULT_WINDOW, Signature,
                           kgram_hashes, signature_from_fingerprints, winnow)
 from .functions import extract_functions
-from .globbing import matches as _glob_matches
+from .core.globbing import matches as _glob_matches
 from .normalize import tokenize
 
 if TYPE_CHECKING:                   # pragma: no cover

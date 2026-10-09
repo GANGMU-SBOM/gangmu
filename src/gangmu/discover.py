@@ -27,7 +27,7 @@ from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from .build.facts import BuildFacts
 from .dirprint import DEFAULT_INCLUDE
-from .globbing import matches_suffix
+from .core.globbing import matches_suffix
 from .manifest import MANIFEST_NAMES, ZEPHYR_MODULE
 from .rules.loader import RuleBase
 

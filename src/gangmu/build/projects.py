@@ -222,7 +222,7 @@ def parse_ccs_project(path: Path, configuration: Optional[str] = None) -> Projec
         except ET.ParseError as exc:
             out.notes.append(f".cproject is not valid XML: {exc}")
 
-    from ..globbing import matches_suffix
+    from ..core.globbing import matches_suffix
     seen: Set[Path] = set(out.sources)
     for base in roots:
         for candidate in sorted(base.rglob("*")):

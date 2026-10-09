@@ -36,7 +36,7 @@ from ..dirprint import (DEFAULT_EXCLUDE, DEFAULT_INCLUDE, DirectoryPrint,
 from ..fingerprint import DEFAULT_K as DEFAULT_K_FALLBACK
 from ..fingerprint import DEFAULT_WINDOW as DEFAULT_WINDOW_FALLBACK
 from ..fnsig import infer_version, infer_version_subset, intersects
-from ..globbing import matches_suffix
+from ..core.globbing import matches_suffix
 from ..manifest import ManifestFacts, read_manifest
 from ..model import Evidence, Finding, Technique
 from ..rules.loader import RuleBase
