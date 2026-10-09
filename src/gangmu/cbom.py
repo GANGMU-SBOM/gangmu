@@ -33,6 +33,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 from . import __version__
 from .binaries import FIXTURE_DIRS, IMAGE_SUFFIXES, MAX_BANNER_BYTES, SKIP_DIRS
 from .build.facts import BuildFacts
+from .core.packs import RuleRoot, check_manifest, default_roots, read_manifest
 from .core.unpack import expand
 
 SPEC_VERSION = "1.6"
@@ -177,9 +178,112 @@ _AES_MODES = {"CBC": "cbc", "ECB": "ecb", "CCM": "ccm", "GCM": "gcm", "CFB": "cf
               "OFB": "ofb", "CTR": "ctr", "XTS": "other"}
 _AES_QUANTUM_LEVEL = {"128": 1, "192": 3, "256": 5}
 
-_ALGO_RE: List[Tuple[Algo, "re.Pattern[bytes]"]] = [
-    (a, re.compile("|".join(a.patterns).encode("ascii"))) for a in ALGOS]
-_BY_KEY: Dict[str, Algo] = {a.key: a for a in ALGOS}
+PRIMITIVES = frozenset({"drbg", "mac", "block-cipher", "stream-cipher", "signature", "hash",
+                        "pke", "xof", "kdf", "key-agree", "kem", "ae", "combiner", "key-wrap",
+                        "other"})                # CycloneDX algorithmProperties.primitive
+QUANTUM_STATUSES = frozenset({VULNERABLE, SYMMETRIC, PQC, BROKEN, NEUTRAL})
+ALGO_DIR = "algorithms"       # inside a rule pack of kind ``cbom``
+
+
+class CbomRuleError(ValueError):
+    """An algorithm rule that cannot be loaded."""
+
+
+class AlgoSet:
+    """The algorithms a scan looks for: the built-in table, overlaid by rule packs.
+
+    A pack entry with the key of a built-in replaces it; a new key adds an algorithm.
+    """
+
+    def __init__(self, algos: Iterable[Algo], sources: Sequence[str] = ()) -> None:
+        by_key: Dict[str, Algo] = {}
+        for a in algos:
+            by_key[a.key] = a                    # dicts keep first-seen order on replacement
+        self.algos: List[Algo] = list(by_key.values())
+        self.by_key = by_key
+        self.sources: List[str] = list(sources)
+        self.regexes: List[Tuple[Algo, "re.Pattern[bytes]"]] = [
+            (a, re.compile("|".join(a.patterns).encode("ascii"))) for a in self.algos]
+
+
+DEFAULT_ALGOS = AlgoSet(ALGOS)
+
+
+def _algo_from_rule(entry: object, where: str) -> Algo:
+    if not isinstance(entry, dict):
+        raise CbomRuleError(f"{where}: an algorithm rule must be a mapping")
+    for field_name in ("key", "name", "primitive", "quantum", "patterns"):
+        if not entry.get(field_name):
+            raise CbomRuleError(f"{where}: missing '{field_name}'")
+    key = str(entry["key"])
+    if not re.fullmatch(r"[a-z0-9][a-z0-9._-]*", key):
+        raise CbomRuleError(f"{where}: key '{key}' must be lower-case letters, digits, . _ -")
+    if entry["primitive"] not in PRIMITIVES:
+        raise CbomRuleError(f"{where}: primitive '{entry['primitive']}' is not one of "
+                            + ", ".join(sorted(PRIMITIVES)))
+    if entry["quantum"] not in QUANTUM_STATUSES:
+        raise CbomRuleError(f"{where}: quantum '{entry['quantum']}' is not one of "
+                            + ", ".join(sorted(QUANTUM_STATUSES)))
+    patterns = entry["patterns"]
+    if isinstance(patterns, str):
+        patterns = [patterns]
+    if not isinstance(patterns, list) or not all(isinstance(p, str) and p for p in patterns):
+        raise CbomRuleError(f"{where}: 'patterns' must be a list of regular expressions")
+    wrapped = []
+    for pat in patterns:
+        try:
+            re.compile(pat.encode("ascii"))
+        except (re.error, UnicodeEncodeError) as exc:
+            raise CbomRuleError(f"{where}: pattern {pat!r} is not a usable ASCII regex: {exc}")
+        wrapped.append(pat)
+    return Algo(key, str(entry["name"]), str(entry["primitive"]), str(entry["quantum"]),
+                (_B + "(?:" + "|".join(wrapped) + ")",), str(entry.get("note") or ""))
+
+
+def load_algo_roots(roots: Sequence["RuleRoot"]) -> AlgoSet:
+    """The built-in algorithms overlaid by the ``algorithms/*.yaml`` of each rule root.
+
+    Roots load in order, so a later root replaces an earlier one's rule of the same key.
+    Each pattern is a regular expression for an identifier; the scan puts an identifier
+    boundary in front of it, so write ``mbedtls_aes_`` and not ``\\bmbedtls_aes_``.
+    """
+    import yaml
+
+    algos: List[Algo] = list(ALGOS)
+    sources: List[str] = []
+    for root in roots:
+        folder = root.path / ALGO_DIR
+        if not folder.is_dir():
+            continue
+        added = 0
+        for path in sorted(folder.glob("*.y*ml")):
+            where = f"{path}"
+            try:
+                data = yaml.safe_load(path.read_text(encoding="utf-8"))
+            except (OSError, yaml.YAMLError) as exc:
+                raise CbomRuleError(f"{where}: unreadable: {exc}") from exc
+            entries = data.get("algorithms") if isinstance(data, dict) else data
+            if not isinstance(entries, list):
+                raise CbomRuleError(f"{where}: expected a list under 'algorithms:'")
+            for i, entry in enumerate(entries):
+                algos.append(_algo_from_rule(entry, f"{where}[{i}]"))
+                added += 1
+        if added:
+            sources.append(f"{root.label}: {added} algorithm rule(s)")
+    return AlgoSet(algos, sources)
+
+
+def cbom_roots(given: Sequence[str] = ()) -> List["RuleRoot"]:
+    """Rule roots for a CBOM scan: the ones named, else the installed packs of kind ``cbom``."""
+    if given:
+        roots = [RuleRoot(Path(p), "--rules") for p in given]
+        for r in roots:
+            r.manifest = read_manifest(r.path)
+    else:
+        roots = default_roots(kind="cbom")
+    for r in roots:
+        check_manifest(r.path, r.manifest)
+    return roots
 
 
 @dataclass
@@ -294,11 +398,11 @@ def _line_of(offsets: Sequence[int], pos: int) -> int:
 
 def _scan_bytes(data: bytes, path: str, kind: str, state: str,
                 assets: Dict[Tuple[str, str], Asset], with_lines: bool,
-                image: bool = False) -> None:
+                image: bool = False, algos: AlgoSet = DEFAULT_ALGOS) -> None:
     offsets: List[int] = []
     if with_lines:
         offsets = [m.start() for m in re.finditer(b"\n", data)]
-    for algo, regex in _ALGO_RE:
+    for algo, regex in algos.regexes:
         for m in regex.finditer(data):
             asset = assets.setdefault((algo.key, ""), Asset(algo))
             asset.add(Occurrence(path, _line_of(offsets, m.start()) if with_lines else None,
@@ -309,7 +413,7 @@ def _scan_bytes(data: bytes, path: str, kind: str, state: str,
         bits = m.group(1).decode()
         mode = m.group(2).decode().upper()
         label = f"AES-{bits}-{mode}"
-        asset = assets.setdefault(("aes", label), Asset(_BY_KEY["aes"], label, bits, mode))
+        asset = assets.setdefault(("aes", label), Asset(algos.by_key["aes"], label, bits, mode))
         asset.add(Occurrence(path, _line_of(offsets, m.start()) if with_lines else None,
                              m.group(0).decode("ascii", "replace")[:80], kind, state, image))
 
@@ -344,7 +448,8 @@ def _blob_state(path: Path, facts: Optional[BuildFacts]) -> str:
 
 
 def scan_cbom(root: Path, facts: Optional[BuildFacts] = None,
-              include_tests: bool = False, binaries: bool = True) -> CbomResult:
+              include_tests: bool = False, binaries: bool = True,
+              algos: AlgoSet = DEFAULT_ALGOS) -> CbomResult:
     root = Path(root).resolve()
     assets: Dict[Tuple[str, str], Asset] = {}
     scanned = 0
@@ -376,7 +481,7 @@ def scan_cbom(root: Path, facts: Optional[BuildFacts] = None,
                     state = "unknown" if kind == "config" else _source_state(path, kind, facts)
                     if state is None:
                         continue
-                    _scan_bytes(path.read_bytes(), rel, kind, state, assets, True)
+                    _scan_bytes(path.read_bytes(), rel, kind, state, assets, True, algos=algos)
                     scanned += 1
                 elif binaries and suffix in BLOB_SUFFIXES and size <= MAX_BANNER_BYTES:
                     state = _blob_state(path, facts)
@@ -385,7 +490,7 @@ def scan_cbom(root: Path, facts: Optional[BuildFacts] = None,
                               else None)
                     is_image = suffix in IMAGE_SUFFIXES
                     for blob in ([l.data for l in layers] if layers else [data]):
-                        _scan_bytes(blob, rel, "binary", state, assets, False, is_image)
+                        _scan_bytes(blob, rel, "binary", state, assets, False, is_image, algos)
                     scanned += 1
                     if is_image and state != "not-linked":
                         images += 1
@@ -395,6 +500,7 @@ def scan_cbom(root: Path, facts: Optional[BuildFacts] = None,
         notes.append("No compile database or link map was given, so this lists what the tree "
                      "contains, not what ships: every algorithm in a crypto library's source "
                      "appears. Pass --compile-db / --link-map to count only what was built.")
+    notes.extend(f"Algorithm rules from {src}" for src in algos.sources)
     ordered = sorted(assets.values(), key=lambda a: (a.algo.key, a.variant))
     return CbomResult(str(root), ordered, facts is not None, scanned, notes, images)
 

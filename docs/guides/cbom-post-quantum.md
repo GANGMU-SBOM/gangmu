@@ -60,6 +60,22 @@ gangmu cbom . --compile-db build/compile_commands.json \
 另外 `compile_commands.json` 列出整个构建的所有目标，不只是这个可执行文件；链接 map 只对应一个目标，同名目标文件（本次有 29 个）按保守处理为已链接。
 所以结果适合当“待核对清单”，不能直接当最终结论。
 
+## 用规则包扩充算法表
+
+内置的算法表可以被规则包补充或覆盖，不用改工具。规则包的 `rulebase.json` 写 `"kind": "cbom"`，算法放在 `algorithms/*.yaml`：
+
+```yaml
+algorithms:
+  - key: frodokem            # 与内置同名则替换，否则新增
+    name: FrodoKEM
+    primitive: kem           # CycloneDX algorithmProperties.primitive 的取值
+    quantum: pqc             # vulnerable | symmetric | pqc | broken | neutral
+    patterns: ['FrodoKEM\w*', 'PQCLEAN_FRODOKEM\w*']   # 标识符的正则，工具会自动加上标识符边界
+    note: NIST 未标准化。
+```
+
+`gangmu cbom --rules DIR`（可重复）指定目录；不指定时读取已安装的 `kind` 为 `cbom` 的规则包。`kind` 为 `sbom` 或不写的包不会被当作算法规则读取。规则有错（未知的 primitive、写不出的正则）时命令退出码为 2，并说明是哪个文件哪一条。
+
 ## 它不做什么
 
 - **按名字识别，不按行为识别。** 自己手写、没用常见名字的算法看不到；

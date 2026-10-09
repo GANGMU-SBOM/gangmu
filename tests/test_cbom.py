@@ -185,3 +185,82 @@ def test_image_presence_survives_many_source_hits(tmp_path):
     (root / "fw.elf").write_bytes(b"\x00mbedtls_aes_crypt_ecb\x00")
     result = scan_cbom(root)
     assert _names(result)["AES"].image_check(result.images) == "present"
+
+
+# algorithm rules from rule packs --------------------------------------------------
+
+def _pack(base: Path, rules: str, kind: str = "cbom") -> Path:
+    (base / "algorithms").mkdir(parents=True)
+    (base / "rulebase.json").write_text(json.dumps({"name": "extra", "version": "1", "kind": kind}))
+    (base / "algorithms" / "extra.yaml").write_text(rules)
+    return base
+
+
+FRODO = """\
+algorithms:
+  - key: frodokem
+    name: FrodoKEM
+    primitive: kem
+    quantum: pqc
+    patterns: ['FrodoKEM\\w*', 'PQCLEAN_FRODOKEM\\w*']
+    note: Not standardised by NIST.
+"""
+
+
+def test_a_pack_adds_an_algorithm_and_can_replace_a_built_in(tmp_path):
+    from gangmu.cbom import cbom_roots, load_algo_roots
+    (tmp_path / "fw").mkdir()
+    root = _tree(tmp_path / "fw")
+    (root / "src" / "kem.c").write_text("int k = FrodoKEM_keypair(0); int h = mbedtls_md5(0);\n")
+    pack = _pack(tmp_path / "pack", FRODO + """\
+  - key: md5
+    name: MD5
+    primitive: hash
+    quantum: neutral
+    patterns: ['mbedtls_md5\\w*']
+""")
+    result = scan_cbom(root, algos=load_algo_roots(cbom_roots([str(pack)])))
+    assets = _names(result)
+    assert assets["FrodoKEM"].algo.quantum == "pqc"
+    assert assets["MD5"].algo.quantum == "neutral"                  # the pack's reading wins
+    assert any("2 algorithm rule(s)" in n for n in result.notes)
+    assert "FrodoKEM" not in _names(scan_cbom(root))                # built-ins alone do not know it
+
+
+def test_cli_rules_option_and_bad_rules(tmp_path, capsys):
+    (tmp_path / "fw").mkdir()
+    root = _tree(tmp_path / "fw")
+    (root / "k.c").write_text("FrodoKEM_enc();\n")
+    pack = _pack(tmp_path / "pack", FRODO)
+    out = tmp_path / "o.json"
+    assert main(["cbom", str(root), "--rules", str(pack), "--format", "cyclonedx",
+                 "-o", str(out)]) == 0
+    assert "FrodoKEM" in out.read_text()
+
+    bad = _pack(tmp_path / "bad", "algorithms:\n  - {key: x, name: X, primitive: nope, "
+                                  "quantum: pqc, patterns: [x]}\n")
+    assert main(["cbom", str(root), "--rules", str(bad)]) == 2
+    assert "primitive 'nope'" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("entry, message", [
+    ("{key: a, name: A, primitive: kem, quantum: maybe, patterns: [a]}", "quantum 'maybe'"),
+    ("{key: a, name: A, primitive: kem, quantum: pqc, patterns: ['(']}", "usable ASCII regex"),
+    ("{key: A!, name: A, primitive: kem, quantum: pqc, patterns: [a]}", "key 'A!'"),
+    ("{key: a, name: A, primitive: kem, quantum: pqc}", "missing 'patterns'"),
+])
+def test_an_invalid_algorithm_rule_is_refused_with_the_reason(tmp_path, entry, message):
+    from gangmu.cbom import CbomRuleError, cbom_roots, load_algo_roots
+    pack = _pack(tmp_path / "p", f"algorithms:\n  - {entry}\n")
+    with pytest.raises(CbomRuleError, match=message):
+        load_algo_roots(cbom_roots([str(pack)]))
+
+
+def test_installed_packs_of_another_kind_are_not_read_for_algorithms(tmp_path):
+    from gangmu import cbom
+    from gangmu.core import packs
+    sbom_pack = _pack(tmp_path / "s", FRODO, kind="sbom")
+    cbom_pack = _pack(tmp_path / "c", FRODO.replace("frodokem", "frodo2"), kind="cbom")
+    roots = packs.default_roots(packs=[("s", sbom_pack), ("c", cbom_pack)], kind="cbom")
+    assert [r.pack_name for r in roots] == ["extra"] and roots[0].path == cbom_pack
+    assert "frodo2" in cbom.load_algo_roots(roots).by_key
