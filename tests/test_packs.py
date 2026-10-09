@@ -198,8 +198,10 @@ def test_without_a_manifest_the_pack_is_named_by_its_directory_and_has_no_versio
 
 # a pack says what its rules are for ----------------------------------------------
 
-def test_pack_kind_defaults_to_sbom_and_other_kinds_are_skipped(tmp_path):
+def test_pack_kind_defaults_to_sbom_and_other_kinds_are_skipped(tmp_path, monkeypatch):
     from gangmu.core.packs import default_roots
+
+    monkeypatch.delenv("GANGMU_RULES", raising=False)
 
     sbom, cbom = tmp_path / "sbom", tmp_path / "cbom"
     sbom.mkdir(), cbom.mkdir()
@@ -212,8 +214,10 @@ def test_pack_kind_defaults_to_sbom_and_other_kinds_are_skipped(tmp_path):
     assert default_roots(packs=packs)[0].kind == "sbom"
 
 
-def test_a_pack_with_a_broken_manifest_is_still_handed_to_the_loader(tmp_path):
+def test_a_pack_with_a_broken_manifest_is_still_handed_to_the_loader(tmp_path, monkeypatch):
     from gangmu.core.packs import default_roots
+
+    monkeypatch.delenv("GANGMU_RULES", raising=False)
 
     bad = tmp_path / "bad"
     bad.mkdir()

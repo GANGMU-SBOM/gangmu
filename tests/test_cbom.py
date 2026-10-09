@@ -256,9 +256,10 @@ def test_an_invalid_algorithm_rule_is_refused_with_the_reason(tmp_path, entry, m
         load_algo_roots(cbom_roots([str(pack)]))
 
 
-def test_installed_packs_of_another_kind_are_not_read_for_algorithms(tmp_path):
+def test_installed_packs_of_another_kind_are_not_read_for_algorithms(tmp_path, monkeypatch):
     from gangmu import cbom
     from gangmu.core import packs
+    monkeypatch.delenv("GANGMU_RULES", raising=False)
     sbom_pack = _pack(tmp_path / "s", FRODO, kind="sbom")
     cbom_pack = _pack(tmp_path / "c", FRODO.replace("frodokem", "frodo2"), kind="cbom")
     roots = packs.default_roots(packs=[("s", sbom_pack), ("c", cbom_pack)], kind="cbom")
