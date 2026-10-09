@@ -15,7 +15,7 @@ import yaml
 
 from . import __version__
 from .build.facts import collect_build_facts
-from .cbom import cbom_table, failing, scan_cbom, to_cbom
+from .cbom import CbomRuleError, cbom_roots, cbom_table, failing, load_algo_roots, scan_cbom, to_cbom
 from .build.kconfig import find_kconfig, read_kconfig
 from .config import CONFIG_NAMES, Config, load_config, write_template
 from .cra import REPORT_STAGES, build_evidence_bundle, check_cra, draft_report
@@ -1341,8 +1341,13 @@ def cmd_cbom(args: argparse.Namespace) -> int:
                                     Path(args.compile_db) if args.compile_db else None,
                                     Path(args.link_map) if args.link_map else None)
         print(f"build facts: {facts.summary()}", file=sys.stderr)
+    try:
+        algos = load_algo_roots(cbom_roots(args.rules or []))
+    except (CbomRuleError, RulePackError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     result = scan_cbom(root, facts, include_tests=args.include_tests,
-                       binaries=not args.no_binaries)
+                       binaries=not args.no_binaries, algos=algos)
     if args.format == "table":
         _write(cbom_table(result), args.output)
     else:
@@ -2110,6 +2115,10 @@ def build_parser() -> argparse.ArgumentParser:
                     help="also read test and fixture directories")
     cb.add_argument("--no-binaries", action="store_true",
                     help="do not read prebuilt libraries and firmware images")
+    cb.add_argument("--rules", action="append", metavar="DIR",
+                    help="a rule pack directory whose algorithms/*.yaml add to or replace the "
+                         "built-in algorithm table (default: installed packs of kind 'cbom'); "
+                         "repeatable")
     cb.add_argument("--fail-on", action="append", choices=["quantum-vulnerable", "legacy"],
                     help="exit 1 when a counted algorithm is in this class (repeatable)")
     cb.set_defaults(func=cmd_cbom)
