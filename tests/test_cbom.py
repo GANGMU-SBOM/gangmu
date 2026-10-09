@@ -375,3 +375,23 @@ def test_builtin_patterns_do_not_confuse_neighbours():
     assert not any(re.search(p, "mbedtls_sha384_info") for p in by_key["sha-3"].patterns)
     assert any(re.search(p, "mbedtls_sha3_init(&ctx)") for p in by_key["sha-3"].patterns)
     assert not any(re.search(p, "MBEDTLS_ECP_DP_CURVE448") for p in by_key["ed25519"].patterns)
+
+
+def test_readiness_report_groups_by_action(tmp_path, capsys):
+    root = _tree(tmp_path)
+    assert main(["cbom", str(root), "--format", "readiness"]) == 0
+    text = capsys.readouterr().out
+    assert text.startswith("# Post-quantum readiness")
+    assert "## Migrate: broken by a quantum computer" in text
+    assert "Move to:" in text and "FIPS 20" in text
+    assert "Found by name, not by analysis" in text
+
+
+def test_readiness_report_clean_tree(tmp_path, capsys):
+    root = tmp_path / "fw"
+    root.mkdir()
+    (root / "a.c").write_text("int x = mbedtls_sha3_init;\n")   # SHA-3: symmetric, no migration
+    assert main(["cbom", str(root), "--format", "readiness"]) == 0
+    text = capsys.readouterr().out
+    assert "No quantum-vulnerable algorithm found" in text
+    assert "## Migrate" not in text

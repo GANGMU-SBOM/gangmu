@@ -15,7 +15,8 @@ import yaml
 
 from . import __version__
 from .build.facts import collect_build_facts
-from .cbom import CbomRuleError, cbom_roots, cbom_table, failing, load_algo_roots, scan_cbom, to_cbom
+from .cbom import (CbomRuleError, cbom_roots, cbom_table, failing, load_algo_roots,
+                   readiness_report, scan_cbom, to_cbom)
 from .build.kconfig import find_kconfig, read_kconfig
 from .config import CONFIG_NAMES, Config, load_config, write_template
 from .cra import REPORT_STAGES, build_evidence_bundle, check_cra, draft_report
@@ -1365,6 +1366,8 @@ def cmd_cbom(args: argparse.Namespace) -> int:
                        binaries=not args.no_binaries, algos=algos, components=components)
     if args.format == "table":
         _write(cbom_table(result), args.output)
+    elif args.format == "readiness":
+        _write(readiness_report(result), args.output)
     else:
         for note in result.notes:
             print(f"note: {note}", file=sys.stderr)
@@ -2122,7 +2125,8 @@ def build_parser() -> argparse.ArgumentParser:
     cb.add_argument("root", nargs="?", default=".")
     cb.add_argument("--compile-db", help="count only source files this build compiled")
     cb.add_argument("--link-map", help="count only what the link map kept")
-    cb.add_argument("--format", choices=["table", "cyclonedx"], default="table")
+    cb.add_argument("--format", choices=["table", "cyclonedx", "readiness"], default="table",
+                    help="readiness: a Markdown post-quantum migration summary")
     cb.add_argument("--output", "-o")
     cb.add_argument("--app-name", default="firmware")
     cb.add_argument("--app-version", default="")
