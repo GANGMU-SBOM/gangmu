@@ -162,7 +162,7 @@ GitHub Action 已上架 [GitHub Marketplace](https://github.com/marketplace/acti
 ```yaml
 # .pre-commit-config.yaml
 - repo: https://github.com/GANGMU-SBOM/gangmu
-  rev: v0.8.0
+  rev: v0.9.0
   hooks:
     - id: gangmu-scan
 ```
@@ -176,7 +176,7 @@ GitHub Action 已上架 [GitHub Marketplace](https://github.com/marketplace/acti
     fail-on: quantum-vulnerable
 ```
 
-迁移摘要需要 gangmu 0.9 及以上；PyPI 上目前是 0.8.0，在 0.9.0 发布前加 `install-spec: git+https://github.com/GANGMU-SBOM/gangmu.git@main`。
+迁移摘要需要 gangmu 0.9 及以上。
 
 ### 漏洞比对与合规
 
@@ -213,7 +213,7 @@ gangmu cbom . --compile-db build/compile_commands.json --format readiness -o pqc
 gangmu cbom . --libraries                                # 再按认出的库和版本补上它们提供的算法（置信度不超过 0.6）
 ```
 
-`--format readiness` 和 `--libraries` 在 0.9 里（当前 main）。摘要把算法分成「必须迁移 / 现在就换 / 已是后量子 / 对称」，量子易受攻击的附 NIST 的替代方案。
+`--format readiness` 和 `--libraries` 从 0.9 起可用。摘要把算法分成「必须迁移 / 现在就换 / 已是后量子 / 对称」，量子易受攻击的附 NIST 的替代方案。
 
 在 Mbed TLS（本机 gcc 构建 `ssl_client1`）上的一次实际输出，节选（不是准确率，局限见[指南](docs/guides/cbom-post-quantum.md)）：
 

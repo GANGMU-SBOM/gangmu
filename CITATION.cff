@@ -6,7 +6,7 @@ authors:
   - name: "The gangmu-sbom authors"
 repository-code: "https://github.com/GANGMU-SBOM/gangmu"
 license: Apache-2.0
-version: 0.8.0
+version: 0.9.0
 abstract: >-
   Gangmu identifies open-source components that chip-vendor SDKs have copied,
   renamed and modified in embedded C/C++ firmware, using function-level

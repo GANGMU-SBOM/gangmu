@@ -137,7 +137,7 @@ The GitHub Action is listed on the [GitHub Marketplace](https://github.com/marke
 ```yaml
 # .pre-commit-config.yaml
 - repo: https://github.com/GANGMU-SBOM/gangmu
-  rev: v0.8.0
+  rev: v0.9.0
   hooks:
     - id: gangmu-scan
 ```
@@ -152,8 +152,7 @@ the job when a quantum-vulnerable algorithm is found, use [gangmu-action](https:
     fail-on: quantum-vulnerable
 ```
 
-The migration summary needs gangmu 0.9 or later. PyPI currently has 0.8.0, so until 0.9.0 is released add
-`install-spec: git+https://github.com/GANGMU-SBOM/gangmu.git@main`.
+The migration summary needs gangmu 0.9 or later.
 
 ### Cryptographic BOM (CBOM) and AI BOM (AIBOM)
 
@@ -167,7 +166,7 @@ gangmu aibom . --format cyclonedx -o aibom.json            # ML models and infer
 
 `gangmu cbom` lists the cryptographic algorithms named in sources, configuration, prebuilt libraries and firmware
 images, each with its quantum status (RSA, ECDSA, ECDH and SM2 are broken by a quantum computer). With build facts it
-counts only what was built. `--format readiness` and `--libraries` are in 0.9 (current main). The summary groups
+counts only what was built. `--format readiness` and `--libraries` are available from 0.9. The summary groups
 algorithms into migrate / replace now / already post-quantum / symmetric and names the NIST replacement. The algorithm
 table can be extended by rule packs: [gangmu-cbom-rules](https://github.com/GANGMU-SBOM/gangmu-cbom-rules) holds an export
 of the built-in table, a few post-quantum candidates and "library version to algorithms" tables for Mbed TLS, wolfSSL,

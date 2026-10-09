@@ -2,7 +2,7 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
-## Unreleased
+## 0.9.0
 
 * **`gangmu aibom --rules`: the model-format and inference-runtime tables can be extended with a rule pack.** A pack of `kind` `aibom` holds `formats/*.yaml` and `runtimes/*.yaml`; a rule with the key of a built-in replaces it, a new key adds one; installed aibom packs are read automatically. The seed is [gangmu-aibom-rules](https://github.com/GANGMU-SBOM/gangmu-aibom-rules), an exact export of the built-in tables.
 * **`gangmu aibom` reads a declaration file for training data, licence, intended use and metrics.** `gangmu-aibom.yaml` at the root (or `--declarations FILE`) is matched to models by path glob or SHA-256 and merged into the CycloneDX licence, datasets, `modelCard.considerations` and metrics; an entry that matches nothing is kept as a declaration-only component; everything is marked as declared by a person and not checked. `--require-declarations` exits 1 when a model has no declared licence or training data. See the [AIBOM guide](guides/aibom.md#声明文件) (Chinese).
