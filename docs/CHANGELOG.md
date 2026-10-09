@@ -2,7 +2,7 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
-## 未发布
+## 0.9.0
 
 * **`gangmu aibom --rules`：模型格式和推理库的识别表可以用规则包扩充。** 规则包 `kind` 为 `aibom`，目录里放 `formats/*.yaml` 和 `runtimes/*.yaml`；同名 `key` 替换内置项，新 `key` 新增；已安装的 aibom 包自动读取。种子规则在 [gangmu-aibom-rules](https://github.com/GANGMU-SBOM/gangmu-aibom-rules)，是内置表的原样导出。
 * **`gangmu aibom` 支持声明文件，补训练数据、许可证、用途和评测。** 目录根的 `gangmu-aibom.yaml`（或 `--declarations FILE`）按路径通配符或 SHA-256 对应到模型，并进 CycloneDX 的许可证、数据集、`modelCard.considerations` 和评测；对不上的条目保留为“仅声明”组件；内容标为人工声明，不核对。`--require-declarations` 在有模型缺许可证或训练数据时退出 1。见 [AIBOM 指南](guides/aibom.md#声明文件)。
