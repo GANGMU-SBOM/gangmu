@@ -52,7 +52,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from .fingerprint import DEFAULT_SKETCH, sorted_fingerprints
 from .functions import extract_functions
-from .globbing import compile_any
+from .core.globbing import compile_any
 from .normalize import tokenize
 
 MAX_FILE_BYTES = 4 * 1024 * 1024

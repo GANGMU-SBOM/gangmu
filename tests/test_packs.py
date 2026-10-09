@@ -194,3 +194,28 @@ def test_without_a_manifest_the_pack_is_named_by_its_directory_and_has_no_versio
     bom = json.loads(_scan_json(project_dir, [own_rules], tmp_path, "cyclonedx"))
     props = {p["name"]: p["value"] for p in bom["components"][0]["properties"]}
     assert props["gangmu:rulePack"] == own_rules.name and "gangmu:rulePackVersion" not in props
+
+
+# a pack says what its rules are for ----------------------------------------------
+
+def test_pack_kind_defaults_to_sbom_and_other_kinds_are_skipped(tmp_path):
+    from gangmu.core.packs import default_roots
+
+    sbom, cbom = tmp_path / "sbom", tmp_path / "cbom"
+    sbom.mkdir(), cbom.mkdir()
+    (sbom / "rulebase.json").write_text('{"name": "a"}')
+    (cbom / "rulebase.json").write_text('{"name": "b", "kind": "cbom"}')
+    packs = [("a", sbom), ("b", cbom)]
+
+    assert [r.pack_name for r in default_roots(packs=packs)] == ["a"]
+    assert [r.pack_name for r in default_roots(packs=packs, kind="cbom")] == ["b"]
+    assert default_roots(packs=packs)[0].kind == "sbom"
+
+
+def test_a_pack_with_a_broken_manifest_is_still_handed_to_the_loader(tmp_path):
+    from gangmu.core.packs import default_roots
+
+    bad = tmp_path / "bad"
+    bad.mkdir()
+    (bad / "rulebase.json").write_text("{not json")
+    assert [r.path for r in default_roots(packs=[("bad", bad)])] == [bad]

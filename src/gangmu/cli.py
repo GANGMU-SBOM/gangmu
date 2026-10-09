@@ -29,10 +29,10 @@ from .fingerprint import ALGO
 from .model import ScanResult
 from .rules.loader import RuleBase, load_rule_roots, load_rules
 from .rules.schema import RuleError
-from .plugins import register_commands
-from .rules.packs import RulePackError, RuleRoot, default_roots
+from .core.plugins import register_commands
+from .core.packs import RulePackError, RuleRoot, default_roots
 from .sbom import to_cyclonedx, to_spdx, to_spdx3
-from .globbing import matches_suffix
+from .core.globbing import matches_suffix
 from .importers import (build_function_signature, dump_rule, import_gitmodules,
                         import_west, list_tags, pick_releases, tag_to_version)
 from .scan import POSSIBLE_BELOW, ScanOptions, scan
@@ -1285,7 +1285,7 @@ _STANDARDS = {"ntia-2021": (NTIA_2021, "NTIA 2021 minimum elements"),
 
 
 def cmd_keygen(args: argparse.Namespace) -> int:
-    from .signing import SigningError, generate_keypair
+    from .core.signing import SigningError, generate_keypair
     try:
         priv, pub = generate_keypair(Path(args.out), args.name)
     except SigningError as exc:
@@ -1296,7 +1296,7 @@ def cmd_keygen(args: argparse.Namespace) -> int:
 
 
 def cmd_sign(args: argparse.Namespace) -> int:
-    from .signing import SigningError, sign_file
+    from .core.signing import SigningError, sign_file
     try:
         out = sign_file(Path(args.file), Path(args.key),
                         Path(args.output) if args.output else None)
@@ -1308,7 +1308,7 @@ def cmd_sign(args: argparse.Namespace) -> int:
 
 
 def cmd_sign_verify(args: argparse.Namespace) -> int:
-    from .signing import SigningError, verify_file
+    from .core.signing import SigningError, verify_file
     try:
         result = verify_file(Path(args.file), Path(args.sig) if args.sig else None,
                              Path(args.pubkey) if args.pubkey else None)

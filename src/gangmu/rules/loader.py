@@ -15,8 +15,8 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import yaml
 
-from ..globbing import matches_suffix
-from .packs import RuleRoot, check_manifest, read_manifest
+from ..core.globbing import matches_suffix
+from ..core.packs import RuleRoot, check_manifest, read_manifest
 from .schema import Rule, RuleError, rule_from_dict
 
 

@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from .build.facts import BuildFacts
 from .licenses import observe
-from .globbing import matches_suffix
+from .core.globbing import matches_suffix
 from .build.kconfig import KconfigValues, disabled_by
 from .declared import Declaration, collect_declarations
 from .binaries import collect_binaries

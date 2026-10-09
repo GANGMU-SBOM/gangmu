@@ -2,6 +2,11 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
+## 未发布
+
+* **内部拆出 `gangmu.core`，为后续的 CBOM、AIBOM 共用做准备，行为不变。** 插件入口点、规则包与清单、证据类型（`Technique`、`Evidence`）、路径匹配、固件容器解包和签名搬进 `gangmu/core/`；原来的导入路径（`gangmu.plugins`、`gangmu.signing`、`gangmu.globbing`、`gangmu.unpack`、`gangmu.rules.packs`）保留为同一模块的别名，外部插件不用改。`tests/test_architecture.py` 检查 core 不依赖任何引擎模块。
+* **规则包清单可以写 `kind`。** 不写等于 `sbom`（组件指纹，和以前一样）；写了别的值（例如 `cbom`）的包，SBOM 扫描会跳过而不是当成组件规则去解析。用 `--rules` 或 `GANGMU_RULES` 明确指定的目录不受影响。
+
 ## 0.8.0
 
 * **函数级二进制识别支持更多架构，并加了真实固件验证。** 指纹现在记录它是为哪种架构编的；参考库和镜像架构不同时只比较字符串字面量（常量会随编译器而变，曾是所有错误版本的来源）。Cortex-M3 的参考库去认 rv32imac、AArch64、ESP32（Xtensa）镜像：给出答案的 0 个错、负对照 0 次误报，但许多库认不出来。旧版 `.fnprint` 仍可读，需要重新生成才有架构记录。

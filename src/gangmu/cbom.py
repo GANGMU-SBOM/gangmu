@@ -33,7 +33,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 from . import __version__
 from .binaries import FIXTURE_DIRS, IMAGE_SUFFIXES, MAX_BANNER_BYTES, SKIP_DIRS
 from .build.facts import BuildFacts
-from .unpack import expand
+from .core.unpack import expand
 
 SPEC_VERSION = "1.6"
 

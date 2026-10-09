@@ -30,7 +30,7 @@ from typing import List, Optional, Sequence, Set
 
 from . import disasm
 from .elf import ElfInfo, parse_elf
-from .unpack import IMAGE_SUFFIXES as UNPACK_SUFFIXES, Layer, expand
+from .core.unpack import IMAGE_SUFFIXES as UNPACK_SUFFIXES, Layer, expand
 
 IMAGE_SUFFIXES = {".elf", ".axf", ".bin"} | UNPACK_SUFFIXES   # linked products, not link inputs:
 #                                      a link map has nothing to say about them
