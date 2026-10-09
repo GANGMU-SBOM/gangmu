@@ -69,3 +69,10 @@ def test_old_import_paths_are_the_same_modules():
     from gangmu.model import Evidence, Technique
     from gangmu.core.evidence import Evidence as E2, Technique as T2
     assert Evidence is E2 and Technique is T2
+
+
+def test_aibom_stands_on_core_only():
+    """The AIBOM module reads no other engine: not the SBOM scan, not the CBOM."""
+    bad = [n for n in _gangmu_imports(SRC / "aibom.py")
+           if n.startswith(("gangmu.cbom", "gangmu.scan", "gangmu.match", "gangmu.sbom"))]
+    assert not bad, bad

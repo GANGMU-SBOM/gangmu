@@ -346,6 +346,7 @@ ONEKEY、Finite State、Cybellum、NetRise 面向大型企业做固件二进制�
 | `gangmu rules cpe-evidence --nvd DIR` | 从本地 NVD 镜像里找出组件登记用的 CPE，并列出引用其上游仓库的 CVE 作为证据 |
 | `gangmu perf [--check BASELINE]` | 性能基线：规则数与耗时、内存，CI 回归检查 |
 | `gangmu cbom ROOT [--compile-db F] [--link-map F]` | 密码物料清单：列出源码、配置、预编译库和固件镜像里的密码算法，输出 CycloneDX 1.6 CBOM（`--format cyclonedx`）；有构建事实时只统计真正编进固件的，没有时每项标 `unverified`；每个算法标量子风险（RSA、ECDSA、ECDH、SM2 等会被破解），`--fail-on quantum-vulnerable` 可在 CI 里卡住。按名字识别，见 [CBOM 指南](docs/guides/cbom-post-quantum.md) |
+| `gangmu aibom ROOT [--format cyclonedx]` | AI 物料清单（最小版）：列出目录里的机器学习模型（TFLite、GGUF、ONNX、safetensors、PyTorch 等，带 SHA-256；编进 C 数组的 TFLite 模型也认）和推理运行时（TFLite Micro、CMSIS-NN、Edge Impulse、llama.cpp 等），输出 CycloneDX 1.6。不读训练数据和许可证，见 [AIBOM 指南](docs/guides/aibom.md) |
 | `gangmu sbom-score` / `eval` / `bench` / `diff` | 质量评分、评测基准、性能、召回率对比 |
 
 ## 仓库
