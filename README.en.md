@@ -178,7 +178,7 @@ PyTorch and others, each with a SHA-256; TensorFlow Lite models compiled into a 
 identifier (TFLite Micro, CMSIS-NN, Edge Impulse, ONNX Runtime, llama.cpp and others). Training data, licence and intended
 use cannot be read from a model file; a person writes them in `gangmu-aibom.yaml` at the root (or `--declarations FILE`),
 and they are merged into the output marked as declared, not checked. `--require-declarations` exits 1 when a model has
-no declared licence or training data. Build facts are not used yet, so a runtime named in a source file may not be in
+no declared licence or training data. The recognition tables can be extended with a rule pack (`--rules`, [gangmu-aibom-rules](https://github.com/GANGMU-SBOM/gangmu-aibom-rules)). Build facts are not used yet, so a runtime named in a source file may not be in
 the build. Both guides are in Chinese for now:
 [CBOM](docs/guides/cbom-post-quantum.md), [AIBOM](docs/guides/aibom.md).
 
@@ -240,7 +240,7 @@ Gangmu is a set of public repositories, released independently:
 | **[gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench)** | The benchmark: pinned real upstream releases with their correct answers and a scoring script anyone can re-run | Apache-2.0 |
 | **[gangmu-cbom-rules](https://github.com/GANGMU-SBOM/gangmu-cbom-rules)** | CBOM rules: the algorithm table and library capability tables, loaded with `gangmu cbom --rules`; not on PyPI yet | CDLA-Permissive-2.0 (rules), Apache-2.0 (packaging code) |
 | **[gangmu-action](https://github.com/GANGMU-SBOM/gangmu-action)** | GitHub Action: SBOM, CBOM and post-quantum summary in one step, with an optional fail gate | Apache-2.0 |
-| [gangmu-aibom-rules](https://github.com/GANGMU-SBOM/gangmu-aibom-rules) | Planned, README only; AIBOM detection currently lives inside `gangmu aibom` | |
+| **[gangmu-aibom-rules](https://github.com/GANGMU-SBOM/gangmu-aibom-rules)** | The free AIBOM rule base: the model formats and inference runtimes `gangmu aibom` recognises, as a rule pack; not on PyPI yet | CDLA-Permissive-2.0 (rules), Apache-2.0 (packaging code) |
 
 The commercial edition (rule packs, monitoring, reporting workbench) is not in these repositories; see [docs/EDITIONS.md](docs/EDITIONS.md).
 

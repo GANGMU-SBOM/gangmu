@@ -237,7 +237,7 @@ gangmu aibom .                                   # 表格
 gangmu aibom . --format cyclonedx -o aibom.json  # CycloneDX 1.6
 ```
 
-列出目录里的机器学习模型（TFLite、GGUF、ExecuTorch、ONNX、safetensors、PyTorch 等，按文件头或扩展名认，带 SHA-256；编进 C 数组的 TFLite 模型也认）和推理运行时（TFLite Micro、CMSIS-NN、Edge Impulse、ONNX Runtime、llama.cpp 等）。训练数据、许可证和用途读不出来，由人写进目录根的 `gangmu-aibom.yaml`，工具并进输出（标为人工声明，不核对），`--require-declarations` 可在 CI 里卡住没写清楚的模型；还没接编译数据库，源码里提到的运行时不一定编进了固件。见 [AIBOM 指南](docs/guides/aibom.md)。
+列出目录里的机器学习模型（TFLite、GGUF、ExecuTorch、ONNX、safetensors、PyTorch 等，按文件头或扩展名认，带 SHA-256；编进 C 数组的 TFLite 模型也认）和推理运行时（TFLite Micro、CMSIS-NN、Edge Impulse、ONNX Runtime、llama.cpp 等）。训练数据、许可证和用途读不出来，由人写进目录根的 `gangmu-aibom.yaml`，工具并进输出（标为人工声明，不核对），`--require-declarations` 可在 CI 里卡住没写清楚的模型；还没接编译数据库，源码里提到的运行时不一定编进了固件。识别表可以用规则包扩充（`--rules`，[gangmu-aibom-rules](https://github.com/GANGMU-SBOM/gangmu-aibom-rules)）。见 [AIBOM 指南](docs/guides/aibom.md)。
 
 ## 能识别什么
 
@@ -386,7 +386,7 @@ ONEKEY、Finite State、Cybellum、NetRise 面向大型企业做固件二进制�
 | **[gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench)** | 评测基准：固定的真实上游版本和正确答案，加评分脚本，任何人都能复现 | Apache-2.0 |
 | **[gangmu-cbom-rules](https://github.com/GANGMU-SBOM/gangmu-cbom-rules)** | CBOM 规则：算法表和库能力表，`gangmu cbom --rules` 加载；尚未发布到 PyPI | CDLA-Permissive-2.0（规则），Apache-2.0（打包代码） |
 | **[gangmu-action](https://github.com/GANGMU-SBOM/gangmu-action)** | GitHub Action：一步出 SBOM、CBOM 和后量子迁移摘要，可按算法让 job 失败 | Apache-2.0 |
-| [gangmu-aibom-rules](https://github.com/GANGMU-SBOM/gangmu-aibom-rules) | 规划中，目前只有说明；AIBOM 的识别规则现在写在 `gangmu aibom` 里 | |
+| **[gangmu-aibom-rules](https://github.com/GANGMU-SBOM/gangmu-aibom-rules)** | 免费的 AIBOM 规则库：`gangmu aibom` 认的模型格式和推理库，规则包形式，尚未发布到 PyPI | CDLA-Permissive-2.0（规则），Apache-2.0（打包代码） |
 
 商业版（规则包、持续监测、报送工作台等）不在这些仓库里，见 [docs/EDITIONS.md](docs/EDITIONS.md)。
 

@@ -15,7 +15,8 @@ import yaml
 
 from . import __version__
 from .build.facts import collect_build_facts
-from .aibom import aibom_table, scan_aibom, to_aibom
+from .aibom import (AibomRuleError, aibom_roots, aibom_table, load_aibom_roots, scan_aibom,
+                    to_aibom)
 from .aibom_decl import DeclarationError, find_declarations, load_declarations
 from .cbom import (CbomRuleError, cbom_roots, cbom_table, failing, load_algo_roots,
                    readiness_report, scan_cbom, to_cbom)
@@ -1402,7 +1403,13 @@ def cmd_aibom(args: argparse.Namespace) -> int:
         print("error: --require-declarations needs a declaration file "
               "(gangmu-aibom.yaml in the tree, or --declarations FILE)", file=sys.stderr)
         return 2
-    result = scan_aibom(root, include_tests=args.include_tests, declarations=declarations)
+    try:
+        rules = load_aibom_roots(aibom_roots(args.rules or []))
+    except (AibomRuleError, RulePackError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    result = scan_aibom(root, include_tests=args.include_tests, declarations=declarations,
+                        rules=rules)
     if args.format == "table":
         _write(aibom_table(result), args.output)
     else:
@@ -2197,6 +2204,10 @@ def build_parser() -> argparse.ArgumentParser:
     ai.add_argument("--app-version", default="")
     ai.add_argument("--include-tests", action="store_true",
                     help="also read test and fixture directories")
+    ai.add_argument("--rules", action="append", metavar="DIR",
+                    help="a rule pack directory whose formats/*.yaml and runtimes/*.yaml add to "
+                         "or replace the built-in tables (default: installed packs of kind "
+                         "'aibom'); repeatable")
     ai.add_argument("--declarations", metavar="FILE",
                     help="declaration file with training data, licence and intended use "
                          "(default: gangmu-aibom.yaml in the tree, if present)")

@@ -29,6 +29,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 from . import __version__
 from .aibom_decl import Declarations, ModelDeclaration, license_entry
 from .binaries import FIXTURE_DIRS, SKIP_DIRS
+from .core.packs import RuleRoot, check_manifest, default_roots, read_manifest
 
 SPEC_VERSION = "1.6"
 
@@ -108,7 +109,138 @@ RUNTIMES: Tuple[Runtime, ...] = (
         _B + r"(?:TF_NewGraph|TF_NewSession\w*|tensorflow/c/c_api\.h)",)),
 )
 
-_COMPILED = [(rt, [re.compile(p.encode()) for p in rt.patterns]) for rt in RUNTIMES]
+FORMAT_DIR = "formats"
+RUNTIME_DIR = "runtimes"
+
+
+class AibomRuleError(ValueError):
+    pass
+
+
+@dataclass
+class AibomRules:
+    """The model formats and inference runtimes a scan looks for.
+
+    Starts from the built-in tables; each rule root can replace an entry (same ``key``) or
+    add one. Runtime patterns here are final regexes (the identifier boundary is already in).
+    """
+    formats: Tuple[ModelFormat, ...]
+    runtimes: Tuple[Runtime, ...]
+    sources: List[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        self.compiled = [(rt, [re.compile(p.encode()) for p in rt.patterns])
+                         for rt in self.runtimes]
+
+
+def _format_from_rule(entry: Any, where: str) -> ModelFormat:
+    if not isinstance(entry, dict):
+        raise AibomRuleError(f"{where}: a format rule must be a mapping")
+    for key in ("key", "name"):
+        if not str(entry.get(key) or "").strip():
+            raise AibomRuleError(f"{where}: missing '{key}'")
+    suffixes = entry.get("suffixes") or []
+    if not isinstance(suffixes, list) or not all(
+            isinstance(x, str) and re.fullmatch(r"\.[A-Za-z0-9_+-]+", x) for x in suffixes):
+        raise AibomRuleError(f"{where}: 'suffixes' must be a list like ['.tflite']")
+    magic = None
+    raw = entry.get("magic")
+    if raw is not None:
+        if not isinstance(raw, dict) or isinstance(raw.get("offset", 0), bool) \
+                or not isinstance(raw.get("offset", 0), int) or raw.get("offset", 0) < 0 \
+                or raw.get("offset", 0) > 4096:
+            raise AibomRuleError(f"{where}: 'magic.offset' must be a whole number from 0 to 4096")
+        if ("ascii" in raw) == ("hex" in raw):
+            raise AibomRuleError(f"{where}: 'magic' needs exactly one of 'ascii' or 'hex'")
+        try:
+            data = (str(raw["ascii"]).encode("ascii") if "ascii" in raw
+                    else bytes.fromhex(str(raw["hex"])))
+        except (ValueError, UnicodeEncodeError) as exc:
+            raise AibomRuleError(f"{where}: 'magic' is not usable: {exc}") from exc
+        if not data or len(data) > 64:
+            raise AibomRuleError(f"{where}: 'magic' must be 1 to 64 bytes")
+        magic = (int(raw.get("offset", 0)), data)
+    if not suffixes and magic is None:
+        raise AibomRuleError(f"{where}: give 'suffixes', 'magic' or both")
+    return ModelFormat(str(entry["key"]).strip(), str(entry["name"]).strip(),
+                       tuple(x.lower() for x in suffixes), magic, str(entry.get("note") or ""))
+
+
+def _runtime_from_rule(entry: Any, where: str) -> Runtime:
+    if not isinstance(entry, dict):
+        raise AibomRuleError(f"{where}: a runtime rule must be a mapping")
+    for key in ("key", "name"):
+        if not str(entry.get(key) or "").strip():
+            raise AibomRuleError(f"{where}: missing '{key}'")
+    patterns = entry.get("patterns")
+    if not isinstance(patterns, list) or not patterns \
+            or not all(isinstance(x, str) and x for x in patterns):
+        raise AibomRuleError(f"{where}: 'patterns' must be a list of regular expressions")
+    for pat in patterns:
+        try:
+            re.compile(pat.encode("ascii"))
+        except (re.error, UnicodeEncodeError) as exc:
+            raise AibomRuleError(f"{where}: pattern {pat!r} is not a usable ASCII regex: {exc}")
+    return Runtime(str(entry["key"]).strip(), str(entry["name"]).strip(),
+                   (_B + "(?:" + "|".join(patterns) + ")",))
+
+
+def _rule_entries(path: Path, section: str) -> List[Any]:
+    import yaml
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
+        raise AibomRuleError(f"{path}: unreadable: {exc}") from exc
+    entries = data.get(section) if isinstance(data, dict) else data
+    if not isinstance(entries, list):
+        raise AibomRuleError(f"{path}: expected a list under '{section}:'")
+    return entries
+
+
+def load_aibom_roots(roots: Sequence[RuleRoot]) -> AibomRules:
+    """The built-in formats and runtimes overlaid by ``formats/*.yaml`` and
+    ``runtimes/*.yaml`` of each rule root. Roots load in order; a later rule of the same
+    ``key`` replaces an earlier one, in the earlier one's place. Write a runtime pattern as
+    an identifier (``llama_model_load\\w*``); the scan puts the identifier boundary in front."""
+    formats: Dict[str, ModelFormat] = {f.key: f for f in FORMATS}
+    runtimes: Dict[str, Runtime] = {r.key: r for r in RUNTIMES}
+    sources: List[str] = []
+    for root in roots:
+        added_f = added_r = 0
+        folder = root.path / FORMAT_DIR
+        if folder.is_dir():
+            for path in sorted(folder.glob("*.y*ml")):
+                for i, entry in enumerate(_rule_entries(path, "formats")):
+                    fmt = _format_from_rule(entry, f"{path}[{i}]")
+                    formats[fmt.key] = fmt
+                    added_f += 1
+        folder = root.path / RUNTIME_DIR
+        if folder.is_dir():
+            for path in sorted(folder.glob("*.y*ml")):
+                for i, entry in enumerate(_rule_entries(path, "runtimes")):
+                    rt = _runtime_from_rule(entry, f"{path}[{i}]")
+                    runtimes[rt.key] = rt
+                    added_r += 1
+        if added_f or added_r:
+            sources.append(f"{root.label}: {added_f} format rule(s), {added_r} runtime rule(s)")
+    return AibomRules(tuple(formats.values()), tuple(runtimes.values()), sources)
+
+
+def aibom_roots(given: Sequence[str] = ()) -> List[RuleRoot]:
+    """Rule roots for an AIBOM scan: the ones named, else the installed packs of kind
+    ``aibom``."""
+    if given:
+        roots = [RuleRoot(Path(p), "--rules") for p in given]
+        for r in roots:
+            r.manifest = read_manifest(r.path)
+    else:
+        roots = default_roots(kind="aibom")
+    for r in roots:
+        check_manifest(r.path, r.manifest)
+    return roots
+
+
+BUILTIN_RULES = AibomRules(FORMATS, RUNTIMES)
 
 
 @dataclass
@@ -179,15 +311,16 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _sniff(path: Path, head: bytes) -> Optional[Tuple[ModelFormat, bool]]:
+def _sniff(path: Path, head: bytes,
+           formats: Sequence[ModelFormat] = FORMATS) -> Optional[Tuple[ModelFormat, bool]]:
     """The model format of a file and whether its signature (not just its name) says so."""
     suffix = path.suffix.lower()
-    for fmt in FORMATS:
+    for fmt in formats:
         if fmt.magic:
             offset, magic = fmt.magic
             if head[offset:offset + len(magic)] == magic:
                 return fmt, True
-    for fmt in FORMATS:
+    for fmt in formats:
         if suffix in fmt.suffixes:
             return fmt, False
     return None
@@ -241,9 +374,9 @@ def _line_of(offsets: Sequence[int], pos: int) -> int:
 
 
 def _scan_text(data: bytes, rel: str, runtimes: Dict[str, RuntimeHit],
-               embedded: List[EmbeddedModel]) -> None:
+               embedded: List[EmbeddedModel], compiled=None) -> None:
     offsets: Optional[List[int]] = None
-    for rt, regexes in _COMPILED:
+    for rt, regexes in (BUILTIN_RULES.compiled if compiled is None else compiled):
         for regex in regexes:
             for m in regex.finditer(data):
                 if offsets is None:
@@ -262,8 +395,10 @@ def _scan_text(data: bytes, rel: str, runtimes: Dict[str, RuntimeHit],
 
 
 def scan_aibom(root: Path, include_tests: bool = False,
-               declarations: Optional[Declarations] = None) -> AibomResult:
+               declarations: Optional[Declarations] = None,
+               rules: Optional[AibomRules] = None) -> AibomResult:
     root = Path(root).resolve()
+    rules = rules or BUILTIN_RULES
     models: List[ModelFile] = []
     embedded: List[EmbeddedModel] = []
     runtimes: Dict[str, RuntimeHit] = {}
@@ -282,7 +417,7 @@ def scan_aibom(root: Path, include_tests: bool = False,
                 size = path.stat().st_size
                 with open(path, "rb") as fh:
                     head = fh.read(HEAD_BYTES)
-                sniffed = _sniff(path, head)
+                sniffed = _sniff(path, head, rules.formats)
                 if sniffed:
                     fmt, verified = sniffed
                     detail = _gguf_detail(head) if fmt.key == "gguf" else {}
@@ -290,7 +425,7 @@ def scan_aibom(root: Path, include_tests: bool = False,
                     scanned += 1
                 elif path.suffix.lower() in SOURCE_SUFFIXES and size <= MAX_TEXT_BYTES:
                     data = head if size <= HEAD_BYTES else path.read_bytes()
-                    _scan_text(data, rel, runtimes, embedded)
+                    _scan_text(data, rel, runtimes, embedded, rules.compiled)
                     scanned += 1
             except OSError:
                 continue
@@ -304,6 +439,7 @@ def scan_aibom(root: Path, include_tests: bool = False,
         "analysis. No compile database or link map is used, so a runtime named in a source "
         "file may not be part of the build.",
     ]
+    notes.extend(f"Rules: {src}" for src in rules.sources)
     if declarations is None:
         notes.append("Training data, licence and intended use cannot be read from a model "
                      "file; they are not filled in. Supply them in a declaration file "
