@@ -10,7 +10,8 @@ Two things are looked for, and both by name or by file signature, not by behavio
 The result is a CycloneDX 1.6 document: models are ``machine-learning-model`` components
 with a SHA-256, runtimes are ``library`` components. Where the artifact itself states
 something (a GGUF file names its architecture) that goes into the model card; what it
-cannot state -- training data, licence, intended use -- is left out, not guessed.
+cannot state -- training data, licence, intended use -- is left out, not guessed, unless a
+person supplies it in a declaration file (:mod:`gangmu.aibom_decl`); that is marked as theirs.
 
 This module stands on ``gangmu.core`` and the shared directory lists; it does not import the
 SBOM or CBOM engines.
@@ -26,6 +27,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from . import __version__
+from .aibom_decl import Declarations, ModelDeclaration, license_entry
 from .binaries import FIXTURE_DIRS, SKIP_DIRS
 
 SPEC_VERSION = "1.6"
@@ -124,12 +126,14 @@ class ModelFile:
     sha256: str
     verified: bool                  # the signature matched, not just the extension
     detail: Dict[str, str] = field(default_factory=dict)
+    decl: Optional[ModelDeclaration] = None
 
 
 @dataclass
 class EmbeddedModel:
     path: str
     line: int
+    decl: Optional[ModelDeclaration] = None
 
 
 @dataclass
@@ -147,6 +151,24 @@ class AibomResult:
     runtimes: List[RuntimeHit]
     files_scanned: int = 0
     notes: List[str] = field(default_factory=list)
+    declarations: Optional[Declarations] = None
+    declared_only: List[ModelDeclaration] = field(default_factory=list)
+
+    def gaps(self) -> List[str]:
+        """Models whose licence or training data nobody has declared, as ``path: what``."""
+        out = []
+        entries = ([(m.path, m.decl) for m in self.models]
+                   + [(e.path, e.decl) for e in self.embedded]
+                   + [(d.label, d) for d in self.declared_only])
+        for where, decl in entries:
+            missing = []
+            if decl is None or not decl.has_license():
+                missing.append("licence")
+            if decl is None or not decl.has_training_data():
+                missing.append("training data")
+            if missing:
+                out.append(f"{where}: no {' or '.join(missing)} declared")
+        return out
 
 
 def _sha256(path: Path) -> str:
@@ -239,7 +261,8 @@ def _scan_text(data: bytes, rel: str, runtimes: Dict[str, RuntimeHit],
         embedded.append(EmbeddedModel(rel, _line_of(offsets, m.start())))
 
 
-def scan_aibom(root: Path, include_tests: bool = False) -> AibomResult:
+def scan_aibom(root: Path, include_tests: bool = False,
+               declarations: Optional[Declarations] = None) -> AibomResult:
     root = Path(root).resolve()
     models: List[ModelFile] = []
     embedded: List[EmbeddedModel] = []
@@ -271,16 +294,28 @@ def scan_aibom(root: Path, include_tests: bool = False) -> AibomResult:
                     scanned += 1
             except OSError:
                 continue
+    if declarations is not None:
+        for m in models:
+            m.decl = declarations.find(m.path, m.sha256)
+        for e in embedded:
+            e.decl = declarations.find(e.path, "")
     notes = [
         "Models and runtimes are found by file signature, extension or identifier, not by "
         "analysis. No compile database or link map is used, so a runtime named in a source "
         "file may not be part of the build.",
-        "Training data, licence and intended use cannot be read from a model file; they are "
-        "not filled in.",
     ]
+    if declarations is None:
+        notes.append("Training data, licence and intended use cannot be read from a model "
+                     "file; they are not filled in. Supply them in a declaration file "
+                     "(gangmu-aibom.yaml).")
+    else:
+        notes.append(f"Training data, licence, intended use and metrics come from "
+                     f"{declarations.source}, written by a person; gangmu did not check them "
+                     "against the models.")
     return AibomResult(str(root), models, embedded,
                        sorted(runtimes.values(), key=lambda h: h.runtime.key),
-                       scanned, notes)
+                       scanned, notes, declarations,
+                       declarations.unmatched() if declarations else [])
 
 
 def _now() -> str:
@@ -306,11 +341,91 @@ def _model_component(m: ModelFile) -> Dict[str, Any]:
     if m.detail.get("architecture"):
         comp["modelCard"] = {"modelParameters": {
             "architectureFamily": m.detail["architecture"]}}
+    if m.decl:
+        _apply_declaration(comp, m.decl)
+    return comp
+
+
+def _apply_declaration(comp: Dict[str, Any], d: ModelDeclaration) -> None:
+    """Merge a person's statements into a component; each is marked as declared."""
+    if d.name:
+        comp["name"] = d.name
+    if d.version:
+        comp["version"] = d.version
+    if d.supplier:
+        comp["supplier"] = {"name": d.supplier}
+    if d.description:
+        comp["description"] = d.description
+    if d.license:
+        comp["licenses"] = [license_entry(d.license)]
+    if d.url:
+        comp.setdefault("externalReferences", []).append({"type": "website", "url": d.url})
+    card: Dict[str, Any] = comp.setdefault("modelCard", {})
+    params: Dict[str, Any] = card.setdefault("modelParameters", {})
+    if d.datasets:
+        params["datasets"] = [_dataset_entry(ds) for ds in d.datasets]
+    considerations: Dict[str, Any] = {}
+    if d.users:
+        considerations["users"] = d.users
+    if d.intended_use:
+        considerations["useCases"] = d.intended_use
+    if d.limitations:
+        considerations["technicalLimitations"] = d.limitations
+    if d.ethical_considerations:
+        considerations["ethicalConsiderations"] = [
+            {"name": text} for text in d.ethical_considerations]
+    if considerations:
+        card["considerations"] = considerations
+    if d.metrics:
+        card["quantitativeAnalysis"] = {"performanceMetrics": [
+            {"type": mt.type, "value": mt.value} for mt in d.metrics]}
+    if not params:
+        card.pop("modelParameters")
+    if not card:
+        comp.pop("modelCard")
+    props = comp.setdefault("properties", [])
+    props.append({"name": "gangmu:declaredBy", "value": "declaration file"})
+    if d.base_model:
+        props.append({"name": "gangmu:baseModel", "value": d.base_model})
+    for ds in d.datasets:
+        if ds.personal_data is False:
+            props.append({"name": f"gangmu:dataset:{ds.name}:personalData", "value": "false"})
+    if d.metrics and any(mt.unit for mt in d.metrics):
+        props.append({"name": "gangmu:metricUnits", "value": "; ".join(
+            f"{mt.type}={mt.unit}" for mt in d.metrics if mt.unit)})
+
+
+def _dataset_entry(ds) -> Dict[str, Any]:
+    entry: Dict[str, Any] = {"type": "dataset", "name": ds.name}
+    if ds.description:
+        entry["description"] = ds.description
+    contents: Dict[str, Any] = {}
+    if ds.url:
+        contents["url"] = ds.url
+    if ds.license:
+        contents["properties"] = [{"name": "gangmu:datasetLicense", "value": ds.license}]
+    if contents:
+        entry["contents"] = contents
+    if ds.personal_data:
+        entry["sensitiveData"] = ["personal data"]
+    return entry
+
+
+def _declared_only_component(d: ModelDeclaration) -> Dict[str, Any]:
+    comp: Dict[str, Any] = {
+        "type": "machine-learning-model",
+        "bom-ref": f"model/declared/{d.label}",
+        "name": d.name or d.label,
+        "properties": [{"name": "gangmu:detectedBy", "value": "declaration only"}],
+    }
+    if d.sha256:
+        comp["hashes"] = [{"alg": "SHA-256", "content": d.sha256.lower()}]
+    _apply_declaration(comp, d)
     return comp
 
 
 def _embedded_component(e: EmbeddedModel) -> Dict[str, Any]:
-    return {
+    comp = {
         "type": "machine-learning-model",
         "bom-ref": f"model/embedded/{e.path}",
         "name": f"TensorFlow Lite model compiled into {Path(e.path).name}",
@@ -320,6 +435,9 @@ def _embedded_component(e: EmbeddedModel) -> Dict[str, Any]:
             {"name": "gangmu:detectedBy", "value": "C array starting 0x54 0x46 0x4c 0x33 (TFL3)"},
         ],
     }
+    if e.decl:
+        _apply_declaration(comp, e.decl)
+    return comp
 
 
 def _runtime_component(h: RuntimeHit) -> Dict[str, Any]:
@@ -344,6 +462,7 @@ def to_aibom(result: AibomResult, app_name: str = "firmware",
         app["version"] = app_version
     comps = ([_model_component(m) for m in result.models]
              + [_embedded_component(e) for e in result.embedded]
+             + [_declared_only_component(d) for d in result.declared_only]
              + [_runtime_component(h) for h in result.runtimes])
     return {
         "bomFormat": "CycloneDX",
@@ -370,6 +489,8 @@ def aibom_table(result: AibomResult) -> str:
                      + ("" if m.verified else ", by extension"), m.path))
     for e in result.embedded:
         rows.append(("model", "TensorFlow Lite", "compiled into a C array", f"{e.path}:{e.line}"))
+    for d in result.declared_only:
+        rows.append(("model", d.name or d.label, "declared only", d.label))
     for h in result.runtimes:
         first = h.occurrences[0]
         rows.append(("runtime", h.runtime.name, f"{h.count} hit(s)", f"{first.path}:{first.line}"))
@@ -382,5 +503,10 @@ def aibom_table(result: AibomResult) -> str:
     if unsafe:
         lines.append(f"{len(unsafe)} model file(s) use a pickle-based format that can run code "
                      "when loaded: " + ", ".join(m.path for m in unsafe[:5]))
+    if result.declarations is not None:
+        gaps = result.gaps()
+        lines.append(f"{len(gaps)} gap(s) in the declarations." if gaps
+                     else "Every model has a declared licence and training data.")
+        lines.extend(f"  {g}" for g in gaps)
     lines.extend(f"note: {n}" for n in result.notes)
     return "\n".join(lines)

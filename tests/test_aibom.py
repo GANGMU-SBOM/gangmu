@@ -1,5 +1,7 @@
 """``gangmu aibom``: models by signature or extension, runtimes by identifier."""
 import json
+
+import pytest
 import struct
 from pathlib import Path
 
@@ -93,3 +95,143 @@ def test_cli_table_json_and_missing_dir(tmp_path, capsys):
     assert main(["aibom", str(root), "--format", "cyclonedx", "-o", str(out)]) == 0
     assert json.loads(out.read_text())["bomFormat"] == "CycloneDX"
     assert main(["aibom", str(tmp_path / "nope")]) == 2
+
+
+# --- the declaration file -------------------------------------------------------------
+
+DECL = """\
+version: 1
+models:
+  - path: models/kws.tflite
+    name: Keyword spotter
+    version: "1.2"
+    supplier: ACME Audio
+    license: Apache-2.0
+    intended-use: Wake-word detection on a Cortex-M4
+    limitations: [English only, "Degrades above 70 dB noise"]
+    datasets:
+      - name: Speech Commands v2
+        url: https://example.org/speech-commands
+        license: CC-BY-4.0
+        personal-data: true
+    metrics:
+      - {type: accuracy, value: "0.94", unit: top-1}
+  - path: models/chat.gguf
+    license: Llama 3 Community License
+  - sha256: "%s"
+    name: Fetched at run time
+    license: MIT
+    datasets: [Internal corpus]
+"""
+
+
+def _declared(tmp: Path) -> Path:
+    root = _tree(tmp)
+    (root / "gangmu-aibom.yaml").write_text(DECL % ("ab" * 32))
+    return root
+
+
+def test_declarations_fill_the_model_card(tmp_path):
+    from gangmu.aibom_decl import find_declarations, load_declarations
+    root = _declared(tmp_path)
+    decls = load_declarations(find_declarations(root))
+    bom = to_aibom(scan_aibom(root, declarations=decls))
+    kws = next(c for c in bom["components"] if c["bom-ref"] == "model/models/kws.tflite")
+    assert kws["name"] == "Keyword spotter" and kws["version"] == "1.2"
+    assert kws["supplier"] == {"name": "ACME Audio"}
+    assert kws["licenses"] == [{"license": {"id": "Apache-2.0"}}]
+    card = kws["modelCard"]
+    ds = card["modelParameters"]["datasets"][0]
+    assert ds["name"] == "Speech Commands v2" and ds["sensitiveData"] == ["personal data"]
+    assert card["considerations"]["technicalLimitations"][0] == "English only"
+    assert card["quantitativeAnalysis"]["performanceMetrics"] == [
+        {"type": "accuracy", "value": "0.94"}]
+    assert {"name": "gangmu:declaredBy", "value": "declaration file"} in kws["properties"]
+    # a licence that is not an SPDX id goes out as a name, not as a made-up id
+    gguf = next(c for c in bom["components"] if c["bom-ref"] == "model/models/chat.gguf")
+    assert gguf["licenses"] == [{"license": {"name": "Llama 3 Community License"}}]
+    assert gguf["modelCard"]["modelParameters"]["architectureFamily"] == "llama"
+    # an entry that matches nothing in the tree is kept, marked declaration-only
+    only = next(c for c in bom["components"] if c["bom-ref"].startswith("model/declared/"))
+    assert only["name"] == "Fetched at run time"
+    assert {"name": "gangmu:detectedBy", "value": "declaration only"} in only["properties"]
+    # the model with no entry is untouched
+    onnx = next(c for c in bom["components"] if c["bom-ref"] == "model/models/net.onnx")
+    assert "licenses" not in onnx and "declaredBy" not in json.dumps(onnx)
+
+
+def test_declared_cyclonedx_validates_against_the_schema(tmp_path):
+    jsonschema = pytest.importorskip("jsonschema")
+    from referencing import Registry, Resource
+    from gangmu.aibom_decl import find_declarations, load_declarations
+    schemas = Path(__file__).resolve().parent / "fixtures" / "schemas"
+    registry = Registry()
+    for name, uri in (("spdx.schema.json", "http://cyclonedx.org/schema/spdx.schema.json"),
+                      ("jsf-0.82.schema.json", "http://cyclonedx.org/schema/jsf-0.82.schema.json")):
+        registry = registry.with_resource(
+            uri, Resource.from_contents(json.loads((schemas / name).read_text(encoding="utf-8"))))
+    schema = json.loads((schemas / "bom-1.6.schema.json").read_text(encoding="utf-8"))
+    root = _declared(tmp_path)
+    bom = to_aibom(scan_aibom(root, declarations=load_declarations(find_declarations(root))))
+    errors = list(jsonschema.Draft7Validator(schema, registry=registry).iter_errors(bom))
+    assert not errors, errors[0].message
+
+
+def test_gaps_name_models_without_licence_or_training_data(tmp_path):
+    from gangmu.aibom_decl import find_declarations, load_declarations
+    root = _declared(tmp_path)
+    result = scan_aibom(root, declarations=load_declarations(find_declarations(root)))
+    gaps = result.gaps()
+    assert "models/kws.tflite: no licence or training data declared" not in gaps
+    assert "models/chat.gguf: no training data declared" in gaps
+    assert "models/net.onnx: no licence or training data declared" in gaps
+    assert not any("Fetched at run time" in g or "abababab" in g for g in gaps)
+
+
+@pytest.mark.parametrize("text, message", [
+    ("models: {}", "'models' must be a list"),
+    ("models: [{name: x}]", "give a 'path'"),
+    ("models: [{path: a, sha256: zz}]", "64 hex digits"),
+    ("models: [{path: a, datasets: [{url: u}]}]", "needs a name"),
+    ("models: [{path: a, metrics: [{type: t}]}]", "type and a value"),
+    ("version: 2\nmodels: []", "unsupported version"),
+])
+def test_bad_declarations_are_rejected_with_a_reason(tmp_path, text, message):
+    import pytest as _pytest
+    from gangmu.aibom_decl import DeclarationError, load_declarations
+    path = tmp_path / "gangmu-aibom.yaml"
+    path.write_text(text)
+    with _pytest.raises(DeclarationError, match=message):
+        load_declarations(path)
+
+
+def test_cli_picks_up_the_file_and_gates_on_gaps(tmp_path, capsys):
+    root = _declared(tmp_path)
+    assert main(["aibom", str(root)]) == 0
+    out = capsys.readouterr().out
+    assert "gap(s) in the declarations" in out and "declared only" in out
+    assert main(["aibom", str(root), "--require-declarations"]) == 1
+    err = capsys.readouterr().err
+    assert "models/net.onnx: no licence or training data declared" in err
+    # the gate needs a file to compare against
+    bare = tmp_path / "bare"
+    bare.mkdir()
+    (bare / "a.tflite").write_bytes(b"\x1c\0\0\0TFL3")
+    assert main(["aibom", str(bare), "--require-declarations"]) == 2
+    # a broken file is an error, not a silent skip
+    (bare / "gangmu-aibom.yaml").write_text("models: 3")
+    assert main(["aibom", str(bare)]) == 2
+    assert "must be a list" in capsys.readouterr().err
+
+
+def test_json_declaration_file_and_explicit_path(tmp_path):
+    root = _tree(tmp_path)
+    other = tmp_path / "elsewhere.json"
+    other.write_text(json.dumps({"models": [{"path": "models/*.onnx", "license": "MIT",
+                                            "datasets": ["ImageNet"]}]}))
+    out = tmp_path / "out.json"
+    assert main(["aibom", str(root), "--declarations", str(other),
+                 "--format", "cyclonedx", "-o", str(out)]) == 0
+    bom = json.loads(out.read_text())
+    onnx = next(c for c in bom["components"] if c["bom-ref"] == "model/models/net.onnx")
+    assert onnx["licenses"] == [{"license": {"id": "MIT"}}]
