@@ -15,6 +15,7 @@ import yaml
 
 from . import __version__
 from .build.facts import collect_build_facts
+from .aibom import aibom_table, scan_aibom, to_aibom
 from .cbom import (CbomRuleError, cbom_roots, cbom_table, failing, load_algo_roots,
                    readiness_report, scan_cbom, to_cbom)
 from .build.kconfig import find_kconfig, read_kconfig
@@ -1382,6 +1383,23 @@ def cmd_cbom(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_aibom(args: argparse.Namespace) -> int:
+    """List the machine-learning models and inference runtimes in a tree as an AIBOM."""
+    root = Path(args.root)
+    if not root.is_dir():
+        print(f"error: {args.root} is not a directory", file=sys.stderr)
+        return 2
+    result = scan_aibom(root, include_tests=args.include_tests)
+    if args.format == "table":
+        _write(aibom_table(result), args.output)
+    else:
+        for note in result.notes:
+            print(f"note: {note}", file=sys.stderr)
+        _write(json.dumps(to_aibom(result, args.app_name, args.app_version),
+                          indent=2, ensure_ascii=False), args.output)
+    return 0
+
+
 def cmd_sbom_score(args: argparse.Namespace) -> int:
     """Score an SBOM against the published minimum-element standards."""
     bom = _load_json(args.sbom, "SBOM")
@@ -2145,6 +2163,19 @@ def build_parser() -> argparse.ArgumentParser:
     cb.add_argument("--fail-on", action="append", choices=["quantum-vulnerable", "legacy"],
                     help="exit 1 when a counted algorithm is in this class (repeatable)")
     cb.set_defaults(func=cmd_cbom)
+
+    ai = sub.add_parser(
+        "aibom",
+        help="list the ML models and inference runtimes in a tree or firmware "
+             "(CycloneDX 1.6 AIBOM)")
+    ai.add_argument("root", help="source tree or firmware directory to read")
+    ai.add_argument("--format", choices=["table", "cyclonedx"], default="table")
+    ai.add_argument("--output", "-o")
+    ai.add_argument("--app-name", default="firmware")
+    ai.add_argument("--app-version", default="")
+    ai.add_argument("--include-tests", action="store_true",
+                    help="also read test and fixture directories")
+    ai.set_defaults(func=cmd_aibom)
 
     sc = sub.add_parser(
         "sbom-score",

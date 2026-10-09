@@ -4,6 +4,7 @@
 
 ## 未发布
 
+* **新命令 `gangmu aibom`：AI 物料清单最小版（CycloneDX 1.6）。** 列出目录里的机器学习模型（按文件签名或扩展名：TFLite、GGUF、ExecuTorch、ONNX、safetensors、PyTorch 等，带 SHA-256，GGUF 读出架构；编进 C 数组的 TFLite 模型也认）和推理运行时（TFLite Micro、CMSIS-NN、Edge Impulse、ONNX Runtime、llama.cpp 等）。PyTorch pickle 格式附“加载可能执行代码”的提示。不读训练数据和许可证，不看构建事实。见 [AIBOM 指南](guides/aibom.md)。
 * **`gangmu cbom --format readiness`：后量子迁移摘要（Markdown）。** 把清单按“必须迁移、现在就换、已是后量子、对称”分组，给出 NIST 的替代方案；证据弱的和被构建事实排除的分开列。见 [CBOM 指南](guides/cbom-post-quantum.md)。
 * **`gangmu cbom --libraries`：从认出的库和版本推出算法。** 先跑 SBOM 扫描，再按 CBOM 规则包 `libraries/*.yaml` 的能力表，把该版本源码提供的算法加进清单，证据类型 `library`、可信度最高 0.6（提供不等于调用）。版本认不出或不在任何版本段内时在提示里列出，不猜。见 [CBOM 指南](guides/cbom-post-quantum.md)。
 * **内部拆出 `gangmu.core`，为后续的 CBOM、AIBOM 共用做准备，行为不变。** 插件入口点、规则包与清单、证据类型（`Technique`、`Evidence`）、路径匹配、固件容器解包和签名搬进 `gangmu/core/`；原来的导入路径（`gangmu.plugins`、`gangmu.signing`、`gangmu.globbing`、`gangmu.unpack`、`gangmu.rules.packs`）保留为同一模块的别名，外部插件不用改。`tests/test_architecture.py` 检查 core 不依赖任何引擎模块。
