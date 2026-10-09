@@ -45,7 +45,7 @@ from a different release by 0.06; function level separates them by 0.25.
 
 ## Which SDKs and chips are covered?
 
-The free rule base ([gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules)) has 60 rules.
+The free rule base ([gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules)) has 80 rules.
 
 Covered: Zephyr (Mbed TLS 4.1, TF-PSA-Crypto, hostap, FatFs, littlefs, MCUboot, nanopb, zcbor, uOSCORE/uEDHOC) and its HALs for Chinese and APAC silicon from Zephyr 4.4 (GigaDevice GD32, Bouffalo Lab, WCH CH32, SiFli, Telink, Realtek); and the general components lwIP, cJSON, OpenSSL, GmSSL, Tongsuo, Mbed TLS, TF-PSA-Crypto, FatFs, littlefs, LVGL, libcoap, TinyCrypt, nghttp2, libwebsockets, Paho MQTT C, OpenThread, the AWS IoT Device SDK, FreeType, libjpeg-turbo, giflib, Opus and OpenAMP, plus the FreeRTOS, RT-Thread, TencentOS-tiny, AliOS Things and LiteOS (M, A, 5.x) kernels (found by marker files wherever a vendor put them).
 
@@ -146,7 +146,7 @@ run the process long term. See [EDITIONS.md](EDITIONS.md).
    "name": "Which SDKs and chips are covered?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "The free rule base (gangmu-rules) has 60 rules."
+    "text": "The free rule base (gangmu-rules) has 80 rules."
    }
   },
   {

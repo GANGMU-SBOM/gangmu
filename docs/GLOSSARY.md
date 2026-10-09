@@ -47,6 +47,15 @@
 | 链接 map | Linker map | 链接器输出的映射文件，说明哪些目标文件进入了最终镜像。 |
 | west manifest | west manifest | Zephyr 的多仓库清单，纲目从中导入锁定版本的规则。 |
 
+## 密码与 AI 清单 · CBOM and AIBOM
+
+| 术语 | English | 含义 |
+| --- | --- | --- |
+| 密码物料清单（CBOM） | Cryptographic BOM | 固件里用到的密码算法清单，CycloneDX 1.6 的 `cryptographic-asset`；`gangmu cbom` 生成。 |
+| 后量子密码 | Post-quantum cryptography | 能抵抗量子计算机的算法，如 ML-KEM（FIPS 203）、ML-DSA（FIPS 204）、SLH-DSA（FIPS 205）；RSA、ECDSA、ECDH、SM2 会被 Shor 算法破解。 |
+| 库能力表 | Library capability table | 「某库的某版本源码提供哪些算法」，放在 CBOM 规则包的 `libraries/*.yaml`；提供不等于调用，所以可信度不超过 0.6。 |
+| AI 物料清单（AIBOM） | AI BOM | 固件里的机器学习模型和推理运行时清单；`gangmu aibom` 生成最小版，不含训练数据和许可证。 |
+
 ## 国密 · Chinese commercial cryptography
 
 | 术语 | English | 含义 |

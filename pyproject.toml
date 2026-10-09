@@ -14,7 +14,7 @@ keywords = [
     "sbom", "software-bill-of-materials", "embedded", "firmware", "c", "cpp",
     "cyclonedx", "spdx", "vex", "cyber-resilience-act", "cra",
     "software-composition-analysis", "esp-idf", "zephyr", "rt-thread",
-    "openharmony", "gmssl", "tongsuo", "guomi",
+    "openharmony", "gmssl", "tongsuo", "guomi", "cbom", "aibom", "post-quantum",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",

@@ -10,6 +10,7 @@ Key facts:
 - Reads the build: `compile_commands.json`, GNU ld, lld, IAR ilink and Arm armlink link maps, IAR `.ewp`, Keil `.uvprojx`, TI CCS / Eclipse projects, or a compiler wrapper (`gangmu wrap`).
 - Rules never guess a CPE; PURL/OSV is a first-class matching channel. CI re-derives every rule's evidence from the upstream release it names.
 - Works offline: vulnerability matching reads local NVD / OSV / CNNVD / CNVD directories; `gangmu vuln-fetch` is the separate online step that fills them.
+- Also lists the cryptographic algorithms in a firmware (`gangmu cbom`, CycloneDX 1.6 CBOM, with a post-quantum migration summary) and its machine-learning models and inference runtimes (`gangmu aibom`); both match names and file signatures, not behaviour.
 - Does not do deep binary analysis (only banners and exported symbols in prebuilt libraries and firmware images), security testing, legal conclusions or submission to official platforms (the ENISA Single Reporting Platform has no API at first release).
 
 ## Docs
@@ -38,6 +39,8 @@ Key facts:
 - [GmSSL and Tongsuo (Chinese commercial cryptography) in an SBOM](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/gmssl-tongsuo-sbom.md): supported versions and why Tongsuo and OpenSSL are not confused
 - [Identifying renamed and vendor-modified open-source components](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/vendor-modified-components.md): function-level containment, with a reproducible experiment
 - [CRA 24-hour early warning and China MIIT 2-day reporting](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/cra-and-miit-reporting.md): the two duties compared and how `gangmu report` drafts both
+- [Cryptographic BOM (CBOM) and post-quantum readiness](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/cbom-post-quantum.md): `gangmu cbom`, rule packs, `--libraries`, the migration summary (Chinese)
+- [AI BOM (AIBOM)](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/guides/aibom.md): `gangmu aibom`, ML models and inference runtimes in a firmware tree (Chinese)
 - [Gangmu compared with Syft, Trivy, cdxgen, esp-idf-sbom and commercial tools](https://github.com/GANGMU-SBOM/gangmu/blob/main/docs/COMPARE.md): when to choose it and when not to
 - [Example output](https://github.com/GANGMU-SBOM/gangmu/blob/main/examples/output/README.md): real CycloneDX, SPDX, CRA check and report drafts
 

@@ -46,7 +46,7 @@ TIVER（ICSE 2025）。
 
 ## 支持哪些芯片 SDK，包括哪些国产芯片？
 
-免费的 [gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules) 现有 60 条规则（Zephyr 及其 HAL、通用开源组件）。主要覆盖：
+免费的 [gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules) 现有 80 条规则（Zephyr 及其 HAL、通用开源组件）。主要覆盖：
 
 - **Zephyr**：Mbed TLS 4.1、TF-PSA-Crypto、hostap（wpa_supplicant / hostapd）、FatFs、littlefs、MCUboot、nanopb、zcbor、uOSCORE/uEDHOC；
 - **国产与亚太芯片 HAL**（取自 Zephyr 4.4 的锁定提交）：兆易创新 GD32、博流智能 BL60x/BL70x、沁恒 CH32、
@@ -130,7 +130,7 @@ ONEKEY、Finite State 等固件二进制分析产品面向没有源码的场景�
 - 不做安全测试或渗透测试；
 - 不替你下法律结论；
 - 不替代 ENISA 或工信部的官方报送平台；
-- 不猜 CPE：免费规则库 60 条里 29 条带 CPE，新增的都附有 NVD 里的 CVE 作为证据（`cpe_evidence`）；另外 31 条写明了没有 CPE 的原因。PURL 和 OSV 是一等匹配通道。
+- 不猜 CPE：免费规则库 80 条里 40 条带 CPE，新增的都附有 NVD 里的 CVE 作为证据（`cpe_evidence`）；另外 40 条写明了没有 CPE 的原因。PURL 和 OSV 是一等匹配通道。
 
 ## 怎么贡献一条规则？
 
@@ -187,7 +187,7 @@ ONEKEY、Finite State 等固件二进制分析产品面向没有源码的场景�
    "name": "支持哪些芯片 SDK，包括哪些国产芯片？",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "免费的 gangmu-rules 现有 60 条规则（Zephyr 及其 HAL、通用开源组件）。主要覆盖："
+    "text": "免费的 gangmu-rules 现有 80 条规则（Zephyr 及其 HAL、通用开源组件）。主要覆盖："
    }
   },
   {
@@ -267,7 +267,7 @@ ONEKEY、Finite State 等固件二进制分析产品面向没有源码的场景�
    "name": "纲目不做什么？",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "- 不做深度二进制分析（只读横幅和导出符号）； - 不做安全测试或渗透测试； - 不替你下法律结论； - 不替代 ENISA 或工信部的官方报送平台； - 不猜 CPE：免费规则库 60 条里 29 条带 CPE，新增的都附有 NVD 里的 CVE 作为证据（cpe_evidence）；另外 31 条写明了没有 CPE 的原因。PURL 和 OSV 是一等匹配通道。"
+    "text": "- 不做深度二进制分析（只读横幅和导出符号）； - 不做安全测试或渗透测试； - 不替你下法律结论； - 不替代 ENISA 或工信部的官方报送平台； - 不猜 CPE：免费规则库 80 条里 40 条带 CPE，新增的都附有 NVD 里的 CVE 作为证据（cpe_evidence）；另外 40 条写明了没有 CPE 的原因。PURL 和 OSV 是一等匹配通道。"
    }
   },
   {
