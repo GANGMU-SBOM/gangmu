@@ -235,3 +235,97 @@ def test_json_declaration_file_and_explicit_path(tmp_path):
     bom = json.loads(out.read_text())
     onnx = next(c for c in bom["components"] if c["bom-ref"] == "model/models/net.onnx")
     assert onnx["licenses"] == [{"license": {"id": "MIT"}}]
+
+
+# --- rule packs -------------------------------------------------------------------------
+
+PACK_RULES = """\
+formats:
+  - key: edgeimpulse-eim
+    name: Edge Impulse Linux model
+    suffixes: [".eim"]
+  - key: acme
+    name: ACME model
+    magic: {offset: 0, ascii: "ACME"}
+  - key: onnx
+    name: ONNX (pack's reading)
+    suffixes: [".onnx"]
+    note: replaced
+"""
+PACK_RUNTIMES = """\
+runtimes:
+  - key: acme-rt
+    name: ACME runtime
+    patterns: ['acme_infer\\w*', 'acme/rt\\.h']
+"""
+
+
+def _aibom_pack(base: Path, formats: str = PACK_RULES, runtimes: str = PACK_RUNTIMES,
+                kind: str = "aibom") -> Path:
+    (base / "formats").mkdir(parents=True)
+    (base / "runtimes").mkdir()
+    (base / "rulebase.json").write_text(json.dumps(
+        {"format": 1, "name": "extra", "version": "1", "kind": kind}))
+    (base / "formats" / "f.yaml").write_text(formats)
+    (base / "runtimes" / "r.yaml").write_text(runtimes)
+    return base
+
+
+def test_a_rule_pack_adds_and_replaces_formats_and_runtimes(tmp_path):
+    from gangmu.aibom import aibom_roots, load_aibom_roots
+    (tmp_path / "fw").mkdir()
+    root = _tree(tmp_path / "fw")
+    (root / "m.eim").write_bytes(b"\0" * 8)
+    (root / "x.bin").write_bytes(b"ACME" + b"\0" * 8)
+    (root / "src" / "acme.c").write_text('#include "acme/rt.h"\nacme_infer_run(m);\n')
+    plain = scan_aibom(root)
+    assert "m.eim" not in {m.path for m in plain.models}
+    rules = load_aibom_roots(aibom_roots([str(_aibom_pack(tmp_path / "pack"))]))
+    result = scan_aibom(root, rules=rules)
+    by = {m.path: m for m in result.models}
+    assert by["m.eim"].fmt.name == "Edge Impulse Linux model" and not by["m.eim"].verified
+    assert by["x.bin"].fmt.key == "acme" and by["x.bin"].verified
+    assert by["models/net.onnx"].fmt.note == "replaced"       # same key: the pack's reading wins
+    assert {h.runtime.key for h in result.runtimes} >= {"acme-rt", "tflite-micro"}
+    acme = next(h for h in result.runtimes if h.runtime.key == "acme-rt")
+    assert acme.count == 2
+    assert any("format rule(s)" in n for n in result.notes)
+
+
+def test_cli_rules_option_and_bad_rules(tmp_path, capsys):
+    (tmp_path / "fw").mkdir()
+    root = _tree(tmp_path / "fw")
+    (root / "m.eim").write_bytes(b"\0" * 8)
+    pack = _aibom_pack(tmp_path / "pack")
+    assert main(["aibom", str(root), "--rules", str(pack)]) == 0
+    assert "Edge Impulse Linux model" in capsys.readouterr().out
+    bad = _aibom_pack(tmp_path / "bad", runtimes="runtimes:\n  - {key: x, name: X, patterns: ['(']}\n")
+    assert main(["aibom", str(root), "--rules", str(bad)]) == 2
+    assert "usable ASCII regex" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("formats, message", [
+    ("formats:\n  - {key: a, name: A}\n", "give 'suffixes', 'magic' or both"),
+    ("formats:\n  - {key: a, name: A, suffixes: [eim]}\n", "must be a list like"),
+    ("formats:\n  - {key: a, name: A, magic: {offset: 0}}\n", "exactly one of"),
+    ("formats:\n  - {key: a, name: A, magic: {hex: zz}}\n", "not usable"),
+    ("formats:\n  - {key: a, name: A, magic: {offset: -1, ascii: X}}\n", "offset"),
+    ("formats:\n  - {name: A, suffixes: ['.a']}\n", "missing 'key'"),
+    ("formats: 3\n", "expected a list"),
+])
+def test_an_invalid_format_rule_is_refused_with_the_reason(tmp_path, formats, message):
+    from gangmu.aibom import AibomRuleError, aibom_roots, load_aibom_roots
+    pack = _aibom_pack(tmp_path / "p", formats=formats)
+    with pytest.raises(AibomRuleError, match=message):
+        load_aibom_roots(aibom_roots([str(pack)]))
+
+
+def test_only_installed_packs_of_kind_aibom_are_read_by_default(tmp_path, monkeypatch):
+    from gangmu.aibom import load_aibom_roots
+    from gangmu.core import packs
+    monkeypatch.delenv("GANGMU_RULES", raising=False)
+    wrong = _aibom_pack(tmp_path / "w", kind="cbom")
+    right = _aibom_pack(tmp_path / "r")
+    roots = packs.default_roots(packs=[("w", wrong), ("r", right)], kind="aibom")
+    assert [r.path for r in roots] == [right]
+    assert "acme" in {f.key for f in load_aibom_roots(roots).formats}

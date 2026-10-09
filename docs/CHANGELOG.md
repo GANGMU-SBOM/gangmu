@@ -4,6 +4,7 @@
 
 ## 未发布
 
+* **`gangmu aibom --rules`：模型格式和推理库的识别表可以用规则包扩充。** 规则包 `kind` 为 `aibom`，目录里放 `formats/*.yaml` 和 `runtimes/*.yaml`；同名 `key` 替换内置项，新 `key` 新增；已安装的 aibom 包自动读取。种子规则在 [gangmu-aibom-rules](https://github.com/GANGMU-SBOM/gangmu-aibom-rules)，是内置表的原样导出。
 * **`gangmu aibom` 支持声明文件，补训练数据、许可证、用途和评测。** 目录根的 `gangmu-aibom.yaml`（或 `--declarations FILE`）按路径通配符或 SHA-256 对应到模型，并进 CycloneDX 的许可证、数据集、`modelCard.considerations` 和评测；对不上的条目保留为“仅声明”组件；内容标为人工声明，不核对。`--require-declarations` 在有模型缺许可证或训练数据时退出 1。见 [AIBOM 指南](guides/aibom.md#声明文件)。
 * **新命令 `gangmu aibom`：AI 物料清单最小版（CycloneDX 1.6）。** 列出目录里的机器学习模型（按文件签名或扩展名：TFLite、GGUF、ExecuTorch、ONNX、safetensors、PyTorch 等，带 SHA-256，GGUF 读出架构；编进 C 数组的 TFLite 模型也认）和推理运行时（TFLite Micro、CMSIS-NN、Edge Impulse、ONNX Runtime、llama.cpp 等）。PyTorch pickle 格式附“加载可能执行代码”的提示。不读训练数据和许可证，不看构建事实。见 [AIBOM 指南](guides/aibom.md)。
 * **`gangmu cbom --format readiness`：后量子迁移摘要（Markdown）。** 把清单按“必须迁移、现在就换、已是后量子、对称”分组，给出 NIST 的替代方案；证据弱的和被构建事实排除的分开列。见 [CBOM 指南](guides/cbom-post-quantum.md)。

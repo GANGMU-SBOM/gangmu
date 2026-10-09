@@ -34,6 +34,17 @@ gangmu aibom . --format cyclonedx -o aibom.json  # CycloneDX 1.6
 * `gangmu:detectedBy` 说明是靠文件签名、扩展名还是 C 数组认出的。
 * 有声明文件时，许可证进 `licenses`，数据集进 `modelCard.modelParameters.datasets`，用途和限制进 `modelCard.considerations`，评测进 `quantitativeAnalysis`。
 
+## 扩充识别规则
+
+模型格式和推理库的识别表是数据：内置一份，也可以用规则包补充或覆盖。
+
+```bash
+gangmu aibom . --rules path/to/pack          # 指定规则包目录，可重复
+pip install git+https://github.com/GANGMU-SBOM/gangmu-aibom-rules.git   # 已安装且 kind 为 aibom 的包自动读取
+```
+
+规则包目录里放 `rulebase.json`（`"kind": "aibom"`）、`formats/*.yaml` 和 `runtimes/*.yaml`。同名 `key` 替换内置项，新 `key` 新增；写错的规则（坏正则、缺字段、扩展名不带点）会报出文件和原因并退出 2。格式见 [gangmu-aibom-rules](https://github.com/GANGMU-SBOM/gangmu-aibom-rules) 的 README。需要读内容才能认的（编进 C 数组的 TFLite 模型、GGUF 头里的架构）仍在工具里。
+
 ## 声明文件
 
 训练数据、许可证、用途和评测结果不在 `.tflite` 或 `.gguf` 里。把它们写在目录根的 `gangmu-aibom.yaml`（也可以是 `.yml` 或 `.json`，或用 `--declarations FILE` 指定），`gangmu aibom` 会并进它认出的模型：
