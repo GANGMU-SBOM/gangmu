@@ -1329,6 +1329,18 @@ def cmd_sign_verify(args: argparse.Namespace) -> int:
     return 0
 
 
+def _identified_components(root: Path, facts) -> list:
+    """The components the SBOM scan identifies in *root*, for the CBOM's library tables."""
+    rulebase = _load_rulebase(None)
+    for err in rulebase.errors:
+        print(f"warning: {err}", file=sys.stderr)
+    if not rulebase.rules:
+        print("warning: no SBOM rules are installed, so no library was identified",
+              file=sys.stderr)
+        return []
+    return list(scan(root, rulebase, facts).findings)
+
+
 def cmd_cbom(args: argparse.Namespace) -> int:
     """Inventory the cryptographic algorithms in a source tree or firmware as a CBOM."""
     root = Path(args.root)
@@ -1341,13 +1353,16 @@ def cmd_cbom(args: argparse.Namespace) -> int:
                                     Path(args.compile_db) if args.compile_db else None,
                                     Path(args.link_map) if args.link_map else None)
         print(f"build facts: {facts.summary()}", file=sys.stderr)
+    components = None
+    if args.libraries:
+        components = _identified_components(root, facts)
     try:
         algos = load_algo_roots(cbom_roots(args.rules or []))
     except (CbomRuleError, RulePackError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     result = scan_cbom(root, facts, include_tests=args.include_tests,
-                       binaries=not args.no_binaries, algos=algos)
+                       binaries=not args.no_binaries, algos=algos, components=components)
     if args.format == "table":
         _write(cbom_table(result), args.output)
     else:
@@ -2119,6 +2134,10 @@ def build_parser() -> argparse.ArgumentParser:
                     help="a rule pack directory whose algorithms/*.yaml add to or replace the "
                          "built-in algorithm table (default: installed packs of kind 'cbom'); "
                          "repeatable")
+    cb.add_argument("--libraries", action="store_true",
+                    help="also run the SBOM scan and add the algorithms that the identified "
+                         "libraries' capability tables list (needs a cbom rule pack with "
+                         "libraries/*.yaml)")
     cb.add_argument("--fail-on", action="append", choices=["quantum-vulnerable", "legacy"],
                     help="exit 1 when a counted algorithm is in this class (repeatable)")
     cb.set_defaults(func=cmd_cbom)

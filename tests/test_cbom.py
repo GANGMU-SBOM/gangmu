@@ -264,3 +264,104 @@ def test_installed_packs_of_another_kind_are_not_read_for_algorithms(tmp_path):
     roots = packs.default_roots(packs=[("s", sbom_pack), ("c", cbom_pack)], kind="cbom")
     assert [r.pack_name for r in roots] == ["extra"] and roots[0].path == cbom_pack
     assert "frodo2" in cbom.load_algo_roots(roots).by_key
+
+
+# what an identified library provides ----------------------------------------------
+
+LIBS = """\
+libraries:
+  - rule: generic/mbedtls
+    name: Mbed TLS
+    releases:
+      - {introduced: "2.0", fixed: "3.0", algorithms: [aes, rsa, md5, des], source: "tags v2.28.9"}
+      - {introduced: "3.0", algorithms: [aes, rsa, ecdsa], source: "tags v3.6.2"}
+"""
+
+
+def _lib_pack(base: Path, text: str = LIBS) -> Path:
+    pack = _pack(base, FRODO)
+    (pack / "libraries").mkdir()
+    (pack / "libraries" / "mbedtls.yaml").write_text(text)
+    return pack
+
+
+def _finding(version, linked=None, rule="generic/mbedtls"):
+    from gangmu.model import Finding
+    return Finding(directory="third_party/mbedtls", rule_id=rule, upstream_name="Mbed TLS",
+                   version=version, linked=linked)
+
+
+def test_the_release_span_holding_the_version_decides_the_algorithms(tmp_path):
+    from gangmu.cbom import cbom_roots, load_algo_roots
+    algos = load_algo_roots(cbom_roots([str(_lib_pack(tmp_path / "p"))]))
+    lib = algos.libraries["generic/mbedtls"]
+    assert lib.algorithms_for("2.28.9") == ("aes", "rsa", "md5", "des")
+    assert lib.algorithms_for("3.6.2") == ("aes", "rsa", "ecdsa")
+    assert lib.algorithms_for("1.3.0") is None                      # before every span
+
+
+def test_library_hits_are_marked_as_provided_not_called(tmp_path):
+    from gangmu.cbom import cbom_roots, load_algo_roots
+    (tmp_path / "fw").mkdir()
+    root = tmp_path / "fw"
+    (root / "a.c").write_text("int x;\n")
+    algos = load_algo_roots(cbom_roots([str(_lib_pack(tmp_path / "p"))]))
+    result = scan_cbom(root, algos=algos, components=[_finding("2.28.9", linked=True)])
+    assets = _names(result)
+    assert set(assets) == {"AES", "RSA", "MD5", "DES/3DES"}
+    rsa = assets["RSA"]
+    assert rsa.occurrences[0].kind == "library" and rsa.verdict() == "linked"
+    assert rsa.confidence() == 0.6                                  # below a linked call site
+    assert any("derived from 1 identified library" in n for n in result.notes)
+    comp = next(c for c in to_cbom(result)["components"] if c["name"] == "RSA")
+    assert comp["evidence"]["occurrences"][0]["additionalContext"] == "library; build: linked"
+
+
+def test_a_library_the_build_left_out_does_not_count(tmp_path):
+    from gangmu.cbom import cbom_roots, load_algo_roots
+    (tmp_path / "fw").mkdir()
+    algos = load_algo_roots(cbom_roots([str(_lib_pack(tmp_path / "p"))]))
+    result = scan_cbom(tmp_path / "fw", algos=algos,
+                       components=[_finding("3.6.2", linked=False)])
+    assert result.assets and result.counted() == []
+
+
+def test_unknown_versions_and_libraries_are_said_not_guessed(tmp_path):
+    from gangmu.cbom import cbom_roots, load_algo_roots
+    (tmp_path / "fw").mkdir()
+    algos = load_algo_roots(cbom_roots([str(_lib_pack(tmp_path / "p"))]))
+    result = scan_cbom(tmp_path / "fw", algos=algos, components=[
+        _finding(None), _finding("0.9"), _finding("1.0", rule="generic/unknown")])
+    assert result.assets == []
+    assert any("No capability table covers: Mbed TLS (no version), Mbed TLS 0.9" in n
+               for n in result.notes)
+
+
+def test_libraries_without_a_table_pack_say_so(tmp_path):
+    (tmp_path / "fw").mkdir()
+    result = scan_cbom(tmp_path / "fw", components=[_finding("3.6.2")])
+    assert any("needs a rule pack with libraries/*.yaml" in n for n in result.notes)
+
+
+def test_a_library_rule_naming_an_unknown_algorithm_is_refused(tmp_path):
+    from gangmu.cbom import CbomRuleError, cbom_roots, load_algo_roots
+    bad = _lib_pack(tmp_path / "p", "libraries:\n  - {rule: r, name: R, releases: "
+                                   "[{algorithms: [aes, nope]}]}\n")
+    with pytest.raises(CbomRuleError, match="unknown algorithm key.*nope"):
+        load_algo_roots(cbom_roots([str(bad)]))
+
+
+def test_cli_libraries_flag_uses_the_identified_components(tmp_path, monkeypatch, capsys):
+    import gangmu.cli as cli
+    (tmp_path / "fw").mkdir()
+    (tmp_path / "fw" / "a.c").write_text("int x;\n")
+    pack = _lib_pack(tmp_path / "p")
+    monkeypatch.setattr(cli, "_identified_components",
+                        lambda root, facts: [_finding("3.6.2", linked=True)])
+    out = tmp_path / "o.json"
+    assert main(["cbom", str(tmp_path / "fw"), "--libraries", "--rules", str(pack),
+                 "--format", "cyclonedx", "-o", str(out)]) == 0
+    assert {c["name"] for c in json.loads(out.read_text())["components"]} == {"AES", "RSA", "ECDSA"}
+    # without the flag nothing is derived
+    assert main(["cbom", str(tmp_path / "fw"), "--rules", str(pack)]) == 0
+    assert "RSA" not in capsys.readouterr().out

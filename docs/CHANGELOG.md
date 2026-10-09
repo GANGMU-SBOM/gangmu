@@ -4,6 +4,7 @@
 
 ## 未发布
 
+* **`gangmu cbom --libraries`：从认出的库和版本推出算法。** 先跑 SBOM 扫描，再按 CBOM 规则包 `libraries/*.yaml` 的能力表，把该版本源码提供的算法加进清单，证据类型 `library`、可信度最高 0.6（提供不等于调用）。版本认不出或不在任何版本段内时在提示里列出，不猜。见 [CBOM 指南](guides/cbom-post-quantum.md)。
 * **内部拆出 `gangmu.core`，为后续的 CBOM、AIBOM 共用做准备，行为不变。** 插件入口点、规则包与清单、证据类型（`Technique`、`Evidence`）、路径匹配、固件容器解包和签名搬进 `gangmu/core/`；原来的导入路径（`gangmu.plugins`、`gangmu.signing`、`gangmu.globbing`、`gangmu.unpack`、`gangmu.rules.packs`）保留为同一模块的别名，外部插件不用改。`tests/test_architecture.py` 检查 core 不依赖任何引擎模块。
 * **`gangmu cbom` 的算法表可以由规则包补充或覆盖。** 规则包写 `"kind": "cbom"`，算法放在 `algorithms/*.yaml`，用 `--rules DIR` 指定，或安装后自动读取；同名 `key` 替换内置项，新 `key` 新增。见 [CBOM 指南](guides/cbom-post-quantum.md)。
 * **规则包清单可以写 `kind`。** 不写等于 `sbom`（组件指纹，和以前一样）；写了别的值（例如 `cbom`）的包，SBOM 扫描会跳过而不是当成组件规则去解析。用 `--rules` 或 `GANGMU_RULES` 明确指定的目录不受影响。
