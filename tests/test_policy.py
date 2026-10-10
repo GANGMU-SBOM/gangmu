@@ -118,6 +118,7 @@ def test_report_formats_carry_the_citation_and_the_findings(tmp_path):
     md = policy_markdown([rep])
     assert "[Demo document](https://example.org/demo) (draft)" in md
     assert "Move to: ML-DSA (FIPS 204)" in md and "FAIL: MD5 banned" in md
+    assert "RSA**, next date 2030-12-31" in md
     doc = json.loads(policy_json([rep]))[0]
     assert doc["status"] == "fail" and doc["asOf"] == "2026-10-10"
     assert {c["id"] for c in doc["checks"]} == {"rsa", "md5", "pqc-here", "licence"}

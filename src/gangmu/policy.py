@@ -316,7 +316,11 @@ def policy_markdown(reports: Sequence[PolicyReport]) -> str:
         for r in rep.results:
             if r.status == "ok":
                 continue
-            due = f", next date {r.due}" if r.due else ""
+            if r.due:
+                label = "next date" if r.status == "due" else "disallowed after"
+                due = f", {label} {r.due}"
+            else:
+                due = ""
             out.append(f"- **{_LABEL[r.status]}: {r.check.title}**{due}"
                        + (f" ({r.check.reference})" if r.check.reference else ""))
             out.extend(f"  - {f}" for f in r.findings)
