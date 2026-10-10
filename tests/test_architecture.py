@@ -76,3 +76,10 @@ def test_aibom_stands_on_core_only():
     bad = [n for n in _gangmu_imports(SRC / "aibom.py")
            if n.startswith(("gangmu.cbom", "gangmu.scan", "gangmu.match", "gangmu.sbom"))]
     assert not bad, bad
+
+
+def test_scanners_do_not_import_the_policy_module():
+    """A policy reads the CBOM and AIBOM results; the scanners know nothing of policies."""
+    for name in ("cbom.py", "aibom.py", "aibom_decl.py", "scan.py"):
+        bad = [n for n in _gangmu_imports(SRC / name) if n.startswith("gangmu.policy")]
+        assert not bad, name
