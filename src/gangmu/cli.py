@@ -1429,6 +1429,62 @@ def cmd_aibom(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_policy_check(args: argparse.Namespace) -> int:
+    """Read the CBOM and AIBOM of a tree against written policies and say what is due."""
+    import datetime as dt
+    from . import policy as pol
+    root = Path(args.root)
+    if not root.is_dir():
+        print(f"error: {args.root} is not a directory", file=sys.stderr)
+        return 2
+    try:
+        as_of = (dt.date.fromisoformat(args.as_of) if args.as_of else dt.date.today())
+    except ValueError:
+        print(f"error: --as-of '{args.as_of}' is not a date (write YYYY-MM-DD)", file=sys.stderr)
+        return 2
+    try:
+        policies = pol.load_policy_roots(pol.policy_roots(args.policy or []))
+    except (pol.PolicyError, RulePackError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if args.id:
+        policies = [p for p in policies if p.id in set(args.id)]
+    if not policies:
+        print("error: no policy found; install a policy pack or pass --policy DIR "
+              "(and --id to pick one)", file=sys.stderr)
+        return 2
+    need_cbom, need_aibom = pol.needs(policies)
+    cbom_result = aibom_result = None
+    try:
+        if need_cbom:
+            facts = None
+            if args.compile_db or args.link_map:
+                facts = collect_build_facts(root,
+                                            Path(args.compile_db) if args.compile_db else None,
+                                            Path(args.link_map) if args.link_map else None)
+            algos = load_algo_roots(cbom_roots([]))
+            cbom_result = scan_cbom(root, facts, algos=algos)
+        if need_aibom:
+            decl_path = Path(args.declarations) if args.declarations else find_declarations(root)
+            declarations = load_declarations(decl_path) if decl_path else None
+            aibom_result = scan_aibom(root, declarations=declarations,
+                                      rules=load_aibom_roots(aibom_roots([])))
+        reports = [pol.evaluate(p, as_of, cbom_result, aibom_result) for p in policies]
+    except (pol.PolicyError, CbomRuleError, AibomRuleError, DeclarationError,
+            RulePackError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    render = {"table": pol.policy_table, "markdown": pol.policy_markdown,
+              "json": pol.policy_json}[args.format]
+    _write(render(reports), args.output)
+    bad = pol.failing(reports, args.fail_on or ["fail"])
+    if bad:
+        print("error: " + ", ".join(f"{p.id}/{c.check.id}" for p, c in bad)
+              + f" ({len(bad)} check(s)) at or above --fail-on", file=sys.stderr)
+        return 1
+    return 0
+
+
 def cmd_sbom_score(args: argparse.Namespace) -> int:
     """Score an SBOM against the published minimum-element standards."""
     bom = _load_json(args.sbom, "SBOM")
@@ -2214,6 +2270,28 @@ def build_parser() -> argparse.ArgumentParser:
     ai.add_argument("--require-declarations", action="store_true",
                     help="exit 1 when a model has no declared licence or training data")
     ai.set_defaults(func=cmd_aibom)
+
+    po = sub.add_parser("policy", help="read a CBOM or AIBOM against a written policy")
+    psub = po.add_subparsers(dest="policy_command", required=True)
+    pc = psub.add_parser(
+        "check", help="scan a tree and report what each policy check finds, and when it is due")
+    pc.add_argument("root", help="source tree or firmware directory to read")
+    pc.add_argument("--policy", action="append", metavar="DIR",
+                    help="a policy pack directory with policies/*.yaml (default: installed "
+                         "packs of kind 'policy'); repeatable")
+    pc.add_argument("--id", action="append", metavar="POLICY",
+                    help="only this policy id; repeatable")
+    pc.add_argument("--as-of", metavar="YYYY-MM-DD",
+                    help="judge deadlines as of this date (default: today)")
+    pc.add_argument("--format", choices=["table", "markdown", "json"], default="table")
+    pc.add_argument("--output", "-o")
+    pc.add_argument("--fail-on", action="append", choices=["due", "deprecated", "fail"],
+                    help="exit 1 when a check is at or above this status (default: fail)")
+    pc.add_argument("--compile-db", help="compile_commands.json from the real build")
+    pc.add_argument("--link-map", help="linker .map file from the real build")
+    pc.add_argument("--declarations", metavar="FILE",
+                    help="AIBOM declaration file (default: gangmu-aibom.yaml in the tree)")
+    pc.set_defaults(func=cmd_policy_check)
 
     sc = sub.add_parser(
         "sbom-score",

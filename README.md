@@ -14,7 +14,7 @@
 [![CycloneDX 1.6](https://img.shields.io/badge/CycloneDX-1.6-green.svg)](https://cyclonedx.org/)
 [![SPDX 2.3](https://img.shields.io/badge/SPDX-2.3-green.svg)](https://spdx.dev/)
 
-[English](README.en.md) · [规则库 gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules) · [评测 gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench) · [常见问题](docs/FAQ.md) · [术语表](docs/GLOSSARY.md) · [规则格式](docs/RULE-FORMAT.md) · [评测基准](docs/BENCHMARK.md) · [CRA 对标](docs/CRA.md) · [国内合规](docs/CHINA.md) · [示例产物](examples/output/) · [与同类工具对比](docs/COMPARE.md) · [密码清单 CBOM](docs/guides/cbom-post-quantum.md) · [AI 清单 AIBOM](docs/guides/aibom.md)
+[English](README.en.md) · [规则库 gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules) · [评测 gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench) · [常见问题](docs/FAQ.md) · [术语表](docs/GLOSSARY.md) · [规则格式](docs/RULE-FORMAT.md) · [评测基准](docs/BENCHMARK.md) · [CRA 对标](docs/CRA.md) · [国内合规](docs/CHINA.md) · [示例产物](examples/output/) · [与同类工具对比](docs/COMPARE.md) · [密码清单 CBOM](docs/guides/cbom-post-quantum.md) · [AI 清单 AIBOM](docs/guides/aibom.md) · [策略检查](docs/guides/policy.md)
 
 > **名称由来**：「纲目」取自李时珍《本草纲目》。那部书把近两千种药物按「纲」分部、按「目」列种，
 > 每一味都写明出处、形态与性味，后世才能辨认、比对、追溯。
@@ -239,6 +239,15 @@ gangmu aibom . --format cyclonedx -o aibom.json  # CycloneDX 1.6
 
 列出目录里的机器学习模型（TFLite、GGUF、ExecuTorch、ONNX、safetensors、PyTorch 等，按文件头或扩展名认，带 SHA-256；编进 C 数组的 TFLite 模型也认）和推理运行时（TFLite Micro、CMSIS-NN、Edge Impulse、ONNX Runtime、llama.cpp 等）。训练数据、许可证和用途读不出来，由人写进目录根的 `gangmu-aibom.yaml`，工具并进输出（标为人工声明，不核对），`--require-declarations` 可在 CI 里卡住没写清楚的模型；还没接编译数据库，源码里提到的运行时不一定编进了固件。识别表可以用规则包扩充（`--rules`，[gangmu-aibom-rules](https://github.com/GANGMU-SBOM/gangmu-aibom-rules)）。见 [AIBOM 指南](docs/guides/aibom.md)。
 
+### 策略检查
+
+```bash
+gangmu policy check firmware/ --policy path/to/policy-pack
+gangmu policy check firmware/ --format markdown --fail-on deprecated -o policy.md
+```
+
+把 CBOM 和 AIBOM 对照写成数据的策略（`policies/*.yaml`，带出处和 `deprecated-after` / `disallowed-after` 日期），每条检查给出 `ok`、`due`（还没到期，是迁移清单）、`deprecated`、`fail`，可按 `--as-of` 判断，`--fail-on` 作 CI 闸门。不下法律结论，也不看密钥长度。见[策略检查指南](docs/guides/policy.md)。维护好的法规策略包（NIST IR 8547 等）在商业版的 gangmu-policy-pro；格式和引擎开源。
+
 ## 能识别什么
 
 | 类别 | 例子 | 怎么认 |
@@ -373,6 +382,7 @@ ONEKEY、Finite State、Cybellum、NetRise 面向大型企业做固件二进制�
 | `gangmu perf [--check BASELINE]` | 性能基线：规则数与耗时、内存，CI 回归检查 |
 | `gangmu cbom ROOT [--compile-db F] [--link-map F] [--rules DIR] [--libraries]` | 密码物料清单：列出源码、配置、预编译库和固件镜像里的密码算法，输出 CycloneDX 1.6 CBOM（`--format cyclonedx`）或后量子迁移摘要（`--format readiness`）；`--rules` 加载 CBOM 规则包，`--libraries` 按认出的库版本补算法；有构建事实时只统计真正编进固件的，没有时每项标 `unverified`；每个算法标量子风险（RSA、ECDSA、ECDH、SM2 等会被破解），`--fail-on quantum-vulnerable` 可在 CI 里卡住。按名字识别，见 [CBOM 指南](docs/guides/cbom-post-quantum.md) |
 | `gangmu aibom ROOT [--format cyclonedx]` | AI 物料清单（最小版）：列出目录里的机器学习模型（TFLite、GGUF、ONNX、safetensors、PyTorch 等，带 SHA-256；编进 C 数组的 TFLite 模型也认）和推理运行时（TFLite Micro、CMSIS-NN、Edge Impulse、llama.cpp 等），输出 CycloneDX 1.6。训练数据和许可证读声明文件，见 [AIBOM 指南](docs/guides/aibom.md) |
+| `gangmu policy check ROOT [--policy DIR] [--as-of DATE] [--fail-on fail]` | 把 CBOM、AIBOM 对照策略包里的法规或内部要求，每条检查给出 `ok` / `due` / `deprecated` / `fail` 和下一个期限；输出表格、Markdown、JSON，见 [策略检查指南](docs/guides/policy.md) |
 | `gangmu sbom-score` / `eval` / `bench` / `diff` | 质量评分、评测基准、性能、召回率对比 |
 
 ## 仓库

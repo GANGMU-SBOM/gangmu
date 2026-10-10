@@ -286,21 +286,27 @@ class AibomResult:
     declarations: Optional[Declarations] = None
     declared_only: List[ModelDeclaration] = field(default_factory=list)
 
-    def gaps(self) -> List[str]:
-        """Models whose licence or training data nobody has declared, as ``path: what``."""
+    def missing(self) -> List[Tuple[str, List[str]]]:
+        """Per model, what nobody has declared: ``license`` and/or ``training-data``."""
         out = []
         entries = ([(m.path, m.decl) for m in self.models]
                    + [(e.path, e.decl) for e in self.embedded]
                    + [(d.label, d) for d in self.declared_only])
         for where, decl in entries:
-            missing = []
+            lacking = []
             if decl is None or not decl.has_license():
-                missing.append("licence")
+                lacking.append("license")
             if decl is None or not decl.has_training_data():
-                missing.append("training data")
-            if missing:
-                out.append(f"{where}: no {' or '.join(missing)} declared")
+                lacking.append("training-data")
+            if lacking:
+                out.append((where, lacking))
         return out
+
+    def gaps(self) -> List[str]:
+        """Models whose licence or training data nobody has declared, as ``path: what``."""
+        names = {"license": "licence", "training-data": "training data"}
+        return [f"{where}: no {' or '.join(names[x] for x in lacking)} declared"
+                for where, lacking in self.missing()]
 
 
 def _sha256(path: Path) -> str:

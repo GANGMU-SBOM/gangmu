@@ -19,7 +19,7 @@ machine-learning models (AIBOM).
 [![CycloneDX 1.6](https://img.shields.io/badge/CycloneDX-1.6-green.svg)](https://cyclonedx.org/)
 [![SPDX 2.3](https://img.shields.io/badge/SPDX-2.3-green.svg)](https://spdx.dev/)
 
-[中文](README.md) · [Rules: gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules) · [Benchmark: gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench) · [FAQ](docs/FAQ.en.md) · [Glossary](docs/GLOSSARY.md) · [Rule format](docs/RULE-FORMAT.md) · [Benchmark](docs/BENCHMARK.md) · [CRA](docs/CRA.md) · [China](docs/CHINA.md) · [Example output](examples/output/) · [Comparison](docs/COMPARE.md) · [CBOM guide (中文)](docs/guides/cbom-post-quantum.md) · [AIBOM guide (中文)](docs/guides/aibom.md)
+[中文](README.md) · [Rules: gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules) · [Benchmark: gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench) · [FAQ](docs/FAQ.en.md) · [Glossary](docs/GLOSSARY.md) · [Rule format](docs/RULE-FORMAT.md) · [Benchmark](docs/BENCHMARK.md) · [CRA](docs/CRA.md) · [China](docs/CHINA.md) · [Example output](examples/output/) · [Comparison](docs/COMPARE.md) · [CBOM guide (中文)](docs/guides/cbom-post-quantum.md) · [AIBOM guide (中文)](docs/guides/aibom.md) · [Policy check (中文)](docs/guides/policy.md)
 
 The Chinese README is the primary document; this is a shorter English version.
 
@@ -179,7 +179,13 @@ use cannot be read from a model file; a person writes them in `gangmu-aibom.yaml
 and they are merged into the output marked as declared, not checked. `--require-declarations` exits 1 when a model has
 no declared licence or training data. The recognition tables can be extended with a rule pack (`--rules`, [gangmu-aibom-rules](https://github.com/GANGMU-SBOM/gangmu-aibom-rules)). Build facts are not used yet, so a runtime named in a source file may not be in
 the build. Both guides are in Chinese for now:
-[CBOM](docs/guides/cbom-post-quantum.md), [AIBOM](docs/guides/aibom.md).
+[CBOM](docs/guides/cbom-post-quantum.md), [AIBOM](docs/guides/aibom.md), [policy check](docs/guides/policy.md).
+
+`gangmu policy check` reads the CBOM and AIBOM against policies written as data (`policies/*.yaml` in a rule pack of
+kind `policy`, each with a source and `deprecated-after` / `disallowed-after` dates). Every check ends `ok`, `due`
+(not yet in force: the migration backlog), `deprecated` or `fail` as of `--as-of`; `--fail-on` is the CI gate; output is
+a table, Markdown or JSON. It gives no legal conclusion and does not inspect key sizes. The format and engine are open;
+the maintained regulatory packs (NIST IR 8547 and others) are the commercial gangmu-policy-pro.
 
 ## What it recognises
 
