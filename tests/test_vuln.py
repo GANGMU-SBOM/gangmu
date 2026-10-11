@@ -33,6 +33,23 @@ def test_version_ordering_handles_what_embedded_actually_uses():
     assert compare("0.2-265-gad902ca", "0.2") == 1
 
 
+def test_a_git_describe_version_is_ordered_only_where_its_tag_decides():
+    # 0.2-265-gad902ca descends from tag 0.2 and nothing more is known.
+    assert compare("0.2-265-gad902ca", "0.1.9") == 1
+    assert compare("0.2.1", "0.2-265-gad902ca") is None
+    assert compare("0.2-265-gad902ca", "0.2.1") is None
+    assert compare("v1.2.3-5-g1234abc", "1.2.3-5-g9999fff") is None   # hash digits are not a version
+    assert compare("1.2.3-5-g1234abc", "1.2.3-5-g1234ABC") == 0
+
+
+def test_a_git_describe_version_is_never_called_fixed_by_a_later_release():
+    # Fixed in 0.2.1: 265 commits past 0.2 may or may not carry the fix.
+    assert in_range("0.2-265-gad902ca", introduced="0", fixed="0.2.1") is None
+    assert in_range("0.2-265-gad902ca", introduced="0", fixed="0.2") is False
+    assert in_range("0.2-265-gad902ca", introduced="0.2", fixed="0.3") is None
+    assert in_range("0.2-265-gad902ca", introduced="0.1", last_affected="0.1.5") is False
+
+
 def test_a_release_candidate_sorts_below_its_release():
     assert compare("v2.6.0-RC1", "2.6.0") == -1
 

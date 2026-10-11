@@ -80,8 +80,19 @@ def split_interval(version: Optional[str]) -> Optional[Tuple[str, str]]:
     return _interval_ends(version)
 
 
+# `git describe`: N commits after the tag, at commit H (0.2-265-gad902ca).
+_DESCRIBE = re.compile(r"^(.+?)-(\d+)-g[0-9a-f]{4,40}$", re.I)
+
+
+def _describe_base(version: str) -> Optional[str]:
+    """The tag a ``git describe`` version counts from, else ``None``."""
+    found = _DESCRIBE.match(version.strip())
+    return found.group(1) if found else None
+
+
 def _parts(version: str) -> Tuple[List[int], int, int]:
-    text = version.strip().lstrip("vV")
+    text = version.strip()
+    text = (_describe_base(text) or text).lstrip("vV")
     pre = _PRERELEASE.search(text)
     rank, pre_num = 4, 0          # 4 = a final release, higher than any pre-release
     if pre:
@@ -107,6 +118,16 @@ def compare(left: str, right: str) -> Optional[int]:
         return None
     if not is_orderable(left) or not is_orderable(right):
         return None
+    # A `git describe` version descends from its tag and nothing more is known: it is
+    # after anything its tag is at or after, and unordered against anything later --
+    # 265 commits past 0.2 may or may not include the fix released as 0.2.1.
+    lbase, rbase = _describe_base(left), _describe_base(right)
+    if lbase or rbase:
+        if lbase and rbase:
+            return 0 if left.strip().lower() == right.strip().lower() else None
+        base, other, sign = (lbase, right, 1) if lbase else (rbase, left, -1)
+        order = compare(base, other)
+        return sign if order is not None and order >= 0 else None
     ln, lr, lp = _parts(left)
     rn, rr, rp = _parts(right)
     if not ln or not rn:

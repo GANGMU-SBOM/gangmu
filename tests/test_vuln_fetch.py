@@ -81,9 +81,48 @@ def test_scoped_fetch_queries_by_product_and_merges_with_full(tmp_path):
 
 def test_an_unreadable_shard_is_replaced_not_trusted(tmp_path):
     (tmp_path / "nvd-2023.json.xz").write_bytes(b"not xz")
-    merge_nvd(tmp_path, [_cve("CVE-2023-0001")])
+    with pytest.warns(UserWarning, match="full download"):
+        merge_nvd(tmp_path, [_cve("CVE-2023-0001")])
     with lzma.open(tmp_path / "nvd-2023.json.xz", "rt") as fh:
         assert len(json.load(fh)["vulnerabilities"]) == 1
+    assert (tmp_path / "nvd-2023.json.xz.unreadable").read_bytes() == b"not xz"
+
+
+def test_a_damaged_shard_makes_the_next_run_a_full_download(tmp_path):
+    # A truncated shard used to be emptied by one incremental run and never refilled:
+    # the watermark moved on past every record it had held.
+    now = datetime(2026, 5, 1, tzinfo=timezone.utc)
+    full = [_cve(f"CVE-2023-{i:04d}") for i in range(1, 7)]
+    fetch_nvd(tmp_path, get=FakeNvd(full), now=now, sleep=lambda s: None)
+    shard = tmp_path / "nvd-2023.json.xz"
+    shard.write_bytes(shard.read_bytes()[:40])
+
+    with pytest.warns(UserWarning):
+        fetch_nvd(tmp_path, get=FakeNvd([_cve("CVE-2023-0099")]),
+                  now=now + timedelta(days=1), sleep=lambda s: None)
+    again = FakeNvd(full + [_cve("CVE-2023-0099")])
+    fetch_nvd(tmp_path, get=again, now=now + timedelta(days=2), sleep=lambda s: None)
+    assert not any("lastModStartDate" in u for u in again.urls)       # full download
+    assert len(load_database(tmp_path)) == 7
+
+
+def test_a_scoped_fetch_since_long_ago_covers_the_whole_span(tmp_path):
+    # NVD rejects lastMod ranges over 120 days; the span is split, not cut short.
+    fake = FakeNvd([])
+    since = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    now = datetime(2026, 10, 11, tzinfo=timezone.utc)
+    fetch_nvd(tmp_path, get=fake, products=["a:lwip_project:lwip"], since=since,
+              now=now, sleep=lambda s: None)
+    spans = []
+    for url in fake.urls:
+        q = {k: v[0] for k, v in parse_qs(urlparse(url).query).items()}
+        assert "virtualMatchString" in q
+        start = datetime.fromisoformat(q["lastModStartDate"]).replace(tzinfo=timezone.utc)
+        end = datetime.fromisoformat(q["lastModEndDate"]).replace(tzinfo=timezone.utc)
+        assert end - start <= timedelta(days=120)
+        spans.append((start, end))
+    assert spans[0][0] == since and spans[-1][1] == now
+    assert all(a[1] == b[0] for a, b in zip(spans, spans[1:]))
 
 
 def test_api_key_goes_in_a_header(tmp_path):
