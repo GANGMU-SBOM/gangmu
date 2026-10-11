@@ -43,6 +43,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from .core.walk import NOT_CONTENT_DIRS
+
 ECOSYSTEM_RTTHREAD = "rt-thread"
 ECOSYSTEM_OPENHARMONY = "openharmony"
 
@@ -50,7 +52,7 @@ OPENSOURCE_README = "README.OpenSource"
 OPENHARMONY_BUNDLE = "bundle.json"
 OPENHARMONY_SUPPLIER = "OpenAtom Foundation (OpenHarmony project)"
 THIRD_PARTY_SUBSYSTEM = "thirdparty"
-_SKIP_DIRS = {".git", "out", "build", "node_modules", "__pycache__"}
+_SKIP_DIRS = NOT_CONTENT_DIRS | {"out", "build"}
 
 _PKG_USING = re.compile(r"^CONFIG_PKG_USING_([A-Z0-9_]+)=y\s*$", re.M)
 _PKG_STRING = re.compile(r'^CONFIG_PKG_([A-Z0-9_]+?)_(PATH|VER)="([^"]*)"\s*$', re.M)

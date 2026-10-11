@@ -54,14 +54,16 @@ from typing import Dict, Iterator, List, Optional, Set, Tuple
 
 from .declared import Declaration
 from .declared_linux import _known
+from .core.walk import NOT_CONTENT_DIRS
 
 ECOSYSTEM_YOCTO = "yocto"
 ECOSYSTEM_PLATFORMIO = "platformio"
 ECOSYSTEM_CONAN = "conan"
 ECOSYSTEM_BAZEL = "bazel"
 
-_SKIP = {".git", "node_modules", "__pycache__", "sstate-cache", "downloads", "work",
-         "work-shared", "cache", "buildhistory"}
+# Plus Yocto's caches and work directories: build state, not the layers' recipes.
+_SKIP = NOT_CONTENT_DIRS | {"sstate-cache", "downloads", "work", "work-shared", "cache",
+                            "buildhistory"}
 _MAX_DEPTH = 5
 
 
