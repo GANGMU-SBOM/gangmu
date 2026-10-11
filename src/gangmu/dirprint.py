@@ -27,7 +27,7 @@ import os
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Set, Tuple
+from typing import TYPE_CHECKING, AbstractSet, Dict, List, Optional, Sequence, Set, Tuple
 
 from .fingerprint import (ALGO, DEFAULT_K, DEFAULT_SKETCH, DEFAULT_WINDOW, Signature,
                           kgram_hashes, signature_from_fingerprints, winnow)
@@ -119,6 +119,8 @@ class DirectoryPrint:
     _fileset: Optional[str] = field(default=None, repr=False)
     _sketches: Dict[Tuple[int, int, int], Signature] = field(default_factory=dict,
                                                              repr=False)
+    # The union of the files' stored bottom values: a superset of every sketch.
+    _bottoms: Optional[Set[int]] = field(default=None, repr=False)
 
     @property
     def file_count(self) -> int:
@@ -209,17 +211,42 @@ class DirectoryPrint:
         self._functions = fn_out
         self._abstract = ab_out
 
+    def _bottom_union(self) -> Set[int]:
+        """Every file's stored bottom values together; computed once per print."""
+        if self._bottoms is None:
+            store = self.store
+            assert store is not None
+            store.ensure(self.rels)
+            union: Set[int] = set()
+            for rel in self.rels:
+                union.update(store.analysis(rel).bottom)
+            self._bottoms = union
+        return self._bottoms
+
     def _store_sketch(self, size: int) -> Optional[Signature]:
         """Exact bottom-k sketch from per-file bottoms; see analysis.py."""
         store = self.store
         if store is None or size > store.cap or (self.k, self.window) != (
                 store.k, store.window):
             return None
-        store.ensure(self.rels)
-        union: Set[int] = set()
-        for rel in self.rels:
-            union.update(store.analysis(rel).bottom)
-        return signature_from_fingerprints(union, self.k, self.window, size)
+        return signature_from_fingerprints(self._bottom_union(), self.k, self.window, size)
+
+    def sketch_cannot_share(self, values: AbstractSet[int], k: int, window: int,
+                            size: int) -> bool:
+        """True when no value of *values* can be in this directory's sketch.
+
+        Every value of the bottom-*size* sketch is among the bottom values its own
+        file keeps in the store, so values missing from all of those are missing
+        from the sketch too. The union is formed once per print and shared by every
+        rule; no smallest-*size* selection is needed. False means "cannot tell":
+        take the exact sketch.
+        """
+        store = self.store
+        if (store is None or size > store.cap or (k, window) != (self.k, self.window)
+                or (k, window) != (store.k, store.window)
+                or (k, window, size) in self._sketches):
+            return False
+        return values.isdisjoint(self._bottom_union())
 
     def signature(self, k: Optional[int] = None, window: Optional[int] = None,
                   size: int = DEFAULT_SKETCH) -> Signature:
