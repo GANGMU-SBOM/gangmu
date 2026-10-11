@@ -18,6 +18,7 @@ import uuid
 from typing import Any, Dict, List, Optional, Sequence
 
 from .. import __version__
+from .cvss import level, method_for
 from .model import Match, VexState
 
 _SOURCE_URL = {
@@ -56,14 +57,18 @@ def _vulnerability(match: Match, bom: Optional[dict]) -> Dict[str, Any]:
         entry["analysis"]["justification"] = match.justification
     if advisory.summary:
         entry["description"] = advisory.summary[:1000]
-    ratings = []
+    rating: Dict[str, Any] = {}
     if advisory.cvss is not None:
-        ratings.append({"score": advisory.cvss, "method": "CVSSv31",
-                        "severity": advisory.severity or "unknown"})
-    elif advisory.severity:
-        ratings.append({"severity": advisory.severity, "method": "other"})
-    if ratings:
-        entry["ratings"] = ratings
+        rating["score"] = advisory.cvss
+    # The schema allows only its own level names here; a vector goes in "vector".
+    word = level(advisory.severity)
+    if word or rating:
+        rating["severity"] = word or "unknown"
+    if advisory.vector:
+        rating["vector"] = advisory.vector
+    if rating:
+        rating["method"] = advisory.cvss_method or method_for(advisory.vector)
+        entry["ratings"] = [rating]
     if advisory.references:
         entry["advisories"] = [{"url": u} for u in advisory.references[:10]]
     properties = [

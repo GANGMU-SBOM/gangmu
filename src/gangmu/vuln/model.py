@@ -22,8 +22,10 @@ class Advisory:
     id: str
     source: str                       # "nvd" | "osv" | the file it came from
     summary: str = ""
-    severity: Optional[str] = None
+    severity: Optional[str] = None    # critical | high | medium | low | info | none | unknown
     cvss: Optional[float] = None
+    vector: Optional[str] = None      # the CVSS vector string the rating comes from
+    cvss_method: Optional[str] = None  # CycloneDX rating method: CVSSv31, CVSSv4, ...
     references: List[str] = field(default_factory=list)
     cpe_ranges: List[Dict[str, Any]] = field(default_factory=list)
     osv_ranges: List[Dict[str, Any]] = field(default_factory=list)

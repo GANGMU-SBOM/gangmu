@@ -93,7 +93,7 @@ def coverage(candidates: Sequence[Candidate], db: Path,
              matches: Optional[Sequence[Match]] = None) -> Dict[str, Any]:
     wanted = wanted_for(candidates)
     if matches is None:
-        matches = match_vulns(candidates, load_database(Path(db), wanted))
+        matches = match_vulns(candidates, load_database(Path(db), wanted), per_channel=True)
     cpe_keys = wanted.cpe_keys
 
     by_cve: Dict[str, Set[str]] = {}       # CVE id -> channels that found it

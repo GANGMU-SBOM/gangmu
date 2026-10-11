@@ -99,12 +99,13 @@ def to_csaf(matches: Sequence[Match], bom: Optional[dict] = None,
         notes = []
         if sample.summary:
             notes.append({"category": "description", "text": sample.summary[:1000]})
-        if sample.severity:
-            # OSV records carry the CVSS vector string here, NVD a level name.
-            vector = sample.severity.startswith("CVSS:")
-            notes.append({"category": "other",
-                          "title": "CVSS vector" if vector else "Severity",
-                          "text": f"{sample.severity}"
+        if sample.vector:
+            notes.append({"category": "other", "title": "CVSS vector",
+                          "text": sample.vector
+                                  + (f" (CVSS {sample.cvss})" if sample.cvss is not None else "")})
+        elif sample.severity:
+            notes.append({"category": "other", "title": "Severity",
+                          "text": sample.severity
                                   + (f" (CVSS {sample.cvss})" if sample.cvss is not None else "")})
         for key, match in per.items():
             text = evidence_text(match)
