@@ -3,6 +3,8 @@
 import json
 import random
 
+import pytest
+
 from gangmu.eval import binary as ev
 
 # A library of 40 functions per release; release n adds 6 functions and keeps the rest, so
@@ -97,3 +99,42 @@ def test_the_corpus_loader_reads_the_manifest_and_caches_features(tmp_path, monk
     assert corpus.releases == {"lib": ["v1", "v2"]} and len(calls) == 4
     ev.load_corpus(tmp_path)
     assert len(calls) == 4                                     # second load came from the cache
+
+
+def test_the_feature_cache_is_json_and_a_pickle_left_behind_is_never_loaded(tmp_path, monkeypatch):
+    # A corpus can come from someone else; unpickling its cache would run their code.
+    import pickle
+
+    import gangmu.fprint as fp
+    calls = []
+    monkeypatch.setattr(fp, "image_features",
+                        lambda data, *a, **k: (calls.append(data) or [{3, 1, 2}], "thumb"))
+    d = tmp_path / "lib" / "v1"
+    d.mkdir(parents=True)
+    (d / "Os.elf").write_bytes(b"ref")
+    (d / "Os.strip.elf").write_bytes(b"img")
+    (tmp_path / "corpus.json").write_text(json.dumps({"lib": [{"tag": "v1", "opts": ["Os"]}]}))
+
+    class Boom:
+        def __reduce__(self):
+            return (pytest.fail, ("the pickle cache was unpickled",))
+    (tmp_path / ".features.pickle").write_bytes(pickle.dumps(Boom()))
+
+    first = ev.load_corpus(tmp_path)
+    cache = json.loads((tmp_path / ev.FEATURES_CACHE).read_text(encoding="utf-8"))
+    assert cache["lib/v1/Os.elf"][2] == [[1, 2, 3]]
+    second = ev.load_corpus(tmp_path)
+    assert len(calls) == 2                                     # the second load hit the cache
+    assert second.builds["lib"]["v1"]["Os"].ref == first.builds["lib"]["v1"]["Os"].ref == [{1, 2, 3}]
+
+
+def test_a_corrupt_feature_cache_is_a_miss(tmp_path, monkeypatch):
+    import gangmu.fprint as fp
+    monkeypatch.setattr(fp, "image_features", lambda data, *a, **k: ([{1}], "thumb"))
+    d = tmp_path / "lib" / "v1"
+    d.mkdir(parents=True)
+    (d / "Os.elf").write_bytes(b"ref")
+    (d / "Os.strip.elf").write_bytes(b"img")
+    (tmp_path / "corpus.json").write_text(json.dumps({"lib": [{"tag": "v1", "opts": ["Os"]}]}))
+    (tmp_path / ev.FEATURES_CACHE).write_text('{"lib/v1/Os.elf": [1]}')
+    assert ev.load_corpus(tmp_path).builds["lib"]["v1"]["Os"].ref == [{1}]
