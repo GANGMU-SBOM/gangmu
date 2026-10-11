@@ -31,6 +31,7 @@ from typing import Any, Dict, FrozenSet, List, Optional, Sequence, Set, Tuple
 from .match import Candidate, match as match_vulns, wanted_for
 from .model import Advisory, Match
 from .sources import FEED_SUFFIXES, _looks_like_feed, iter_feed_items, load_database
+from ..core.cpe import split_cpe
 
 DEFAULT_CUTOFF = "2026-04-15"
 _CVE = re.compile(r"^CVE-\d{4}-\d{4,}$")
@@ -49,7 +50,7 @@ def nvd_meta(item: dict) -> Tuple[Optional[str], Optional[str], Optional[str], F
     for config in cve.get("configurations", []) or []:
         for node in config.get("nodes", []) or []:
             for m in node.get("cpeMatch", []) or []:
-                parts = (m.get("criteria") or "").split(":")
+                parts = split_cpe(m.get("criteria") or "")
                 if m.get("vulnerable", True) and len(parts) > 4:
                     keys.add(":".join(parts[2:5]).lower())
     return cve_id, published, cve.get("vulnStatus"), frozenset(keys)

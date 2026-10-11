@@ -22,6 +22,8 @@ from typing import Optional
 
 import yaml
 
+from .core.cpe import join_cpe, split_cpe
+
 import re
 
 MANIFEST_NAMES = ("sbom.yml", "sbom.yaml", "idf_component.yml", "idf_component.yaml")
@@ -89,12 +91,12 @@ def read_zephyr_module(directory: Path) -> Optional[ManifestFacts]:
     for ref in refs:
         ref = str(ref).strip()
         if ref.startswith("cpe:2.3:") and cpe is None:
-            parts = ref.split(":")
+            parts = split_cpe(ref)
             if len(parts) == 13:
                 if parts[5] not in ("*", "-", ""):
                     version = version or parts[5]
                 parts[5] = "*"
-                cpe = ":".join(parts)
+                cpe = join_cpe(parts)
         elif ref.startswith("pkg:") and purl is None:
             base, _, ver = ref.split("?", 1)[0].partition("@")
             purl = base

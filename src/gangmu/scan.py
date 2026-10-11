@@ -21,6 +21,7 @@ from .rules.loader import RuleBase
 from .rules.resolve import resolve
 from .rules.schema import Rule
 from .support import stamp as stamp_support
+from .core.cpe import escape_value, join_cpe, split_cpe
 
 DECLARED_CONFIDENCE = 0.90
 POSSIBLE_BELOW = 0.60       # the engine's "weak" band starts here
@@ -452,10 +453,10 @@ def _declared_finding(rel: str, decl: Declaration, rulebase: RuleBase,
 def _spliced(cpe: Optional[str], version: Optional[str]) -> Optional[str]:
     if not cpe:
         return None
-    parts = cpe.split(":")
+    parts = split_cpe(cpe)
     if version and "~" not in version and len(parts) > 5:
-        parts[5] = version
-    return ":".join(parts)
+        parts[5] = escape_value(version)
+    return join_cpe(parts)
 
 
 def _declaration_summary(decl: Declaration) -> str:
