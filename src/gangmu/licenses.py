@@ -22,10 +22,12 @@ from collections import Counter
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
+from .core.walk import NOT_CONTENT_DIRS
+
 SOURCE_SUFFIXES = (".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".s", ".S",
                    ".asm", ".ld", ".py", ".rs", ".go", ".ts", ".js", ".cmake")
 LICENSE_NAMES = re.compile(r"^(licen[sc]e|copying|copyright|unlicense)([-_.].*)?$", re.I)
-SKIP_DIRS = {".git", "node_modules", "__pycache__", "build", "out", ".github"}
+SKIP_DIRS = NOT_CONTENT_DIRS | {"build", "out", ".github"}
 HEAD_BYTES = 1024
 MAX_FILES = 250                 # per component: bounds the cost on a huge SDK
 MAX_LICENSE_BYTES = 64 * 1024

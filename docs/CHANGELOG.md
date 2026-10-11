@@ -11,6 +11,10 @@
 * **修正：`vuln-fetch --product ... --since` 早于 120 天时不再被悄悄截成最近 119 天**，按 API 允许的窗口分段拉取。
 * **修正：读不出的 NVD 年度分片不再导致整年记录丢失。** 以前当作空分片，一次增量拉取就用本次的几条记录覆盖它。现在移到 `*.unreadable` 并警告，同时清除增量水位，下一次（不带 `--since`）重新全量下载。
 * **可复现输出：设置 `SOURCE_DATE_EPOCH` 时，同样的输入生成逐字节相同的文档。** 时间取该值，文档编号（CycloneDX `serialNumber`、SPDX 命名空间、OpenVEX `@id`）由内容生成（uuid5），适用于 SBOM、VEX、CBOM、AIBOM 和证据包清单；不设置时行为不变。
+* **修正：`gangmu binary-eval` 的特征缓存改用 JSON（`.features.json`）。** 以前从语料目录读取并反序列化 `.features.pickle`，语料来自他人时等于执行对方的代码；旧的 pickle 文件不再读取。
+* **修正：带转义冒号的 CPE（如 `acme\:labs`）。** 以前有六处按每个冒号拆分，厂商、产品、版本整体错位：匹配用的产品键、公告 CPE 的固定版本、规则校验（会拒绝合法名称）、覆盖率统计、`sbom.yml` 读取和版本拼接。现在统一按规范拆分，拼入的版本会转义。
+* **各个目录遍历共用一组“永不是固件内容”的目录**（`.git`、`node_modules`、`__pycache__`、`.venv`、`venv`），各自只追加与用途相关的目录；许可证和声明的遍历现在也跳过 Python 虚拟环境。指纹计算（dirprint）不变，以免规则库失效。
+* **内部：`cli.py` 按命令组拆到 `gangmu/commands/`，行为不变。** 移走的名字仍可从 `gangmu.cli` 导入，插件不用改；新增测试逐个生成 35 个子命令的 `--help`。
 * **CI：** gangmu-rules 固定到具体提交（v2026.10.11）；新增 `ruff check src tests`（只查未用和未定义的名字），并清理了已有的问题。
 
 ## 0.9.0

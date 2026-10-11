@@ -31,11 +31,12 @@ from typing import List, Optional, Sequence, Set
 from . import disasm
 from .elf import ElfInfo, parse_elf
 from .core.unpack import IMAGE_SUFFIXES as UNPACK_SUFFIXES, Layer, expand
+from .core.walk import NOT_CONTENT_DIRS
 
 IMAGE_SUFFIXES = {".elf", ".axf", ".bin"} | UNPACK_SUFFIXES   # linked products, not link inputs:
 #                                      a link map has nothing to say about them
 BLOB_SUFFIXES = {".a", ".lib", ".so"} | IMAGE_SUFFIXES
-SKIP_DIRS = {".git", "node_modules", "__pycache__", "venv", ".venv"}
+SKIP_DIRS = set(NOT_CONTENT_DIRS)
 # Directories that hold test inputs, not shipped products. A ``.bin`` or ``.elf`` in one of
 # them (lwIP's fuzz inputs are ``.bin`` packets) is fixture data, so it is not inventoried as
 # a firmware image. Libraries (``.a``, ``.lib``, ``.so``) are still listed wherever they are.

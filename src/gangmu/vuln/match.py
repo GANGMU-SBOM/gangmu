@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from .model import Advisory, Match, VexState
 from .version import in_event_ranges, in_range, in_tag_set, is_orderable
+from ..core.cpe import split_cpe
 
 if TYPE_CHECKING:
     from .sources import Wanted
@@ -36,7 +37,7 @@ _CPE_PARTS = 13
 
 
 def cpe_product_key(cpe: str) -> Optional[str]:
-    parts = cpe.split(":")
+    parts = split_cpe(cpe)
     if len(parts) < 6 or parts[0] != "cpe" or parts[1] != "2.3":
         return None
     return ":".join(parts[2:5]).lower()        # part:vendor:product
@@ -312,7 +313,7 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                         end_including=rng.get("end_including"),
                         end_excluding=rng.get("end_excluding"))
                     if verdict is None:
-                        pinned = rng["cpe"].split(":")[5]
+                        pinned = split_cpe(rng["cpe"])[5]
                         if pinned not in ("*", "-"):
                             from .version import compare
                             cmp = compare(candidate.version, pinned)

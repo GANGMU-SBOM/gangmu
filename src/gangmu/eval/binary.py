@@ -23,7 +23,6 @@ good as the corpus is varied.
 from __future__ import annotations
 
 import json
-import pickle
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
@@ -94,7 +93,9 @@ class Report:
 
 # ----------------------------------------------------------------------- corpus
 
-FEATURES_CACHE = ".features.pickle"
+# JSON, not pickle: a corpus directory can come from someone else, and unpickling
+# its cache would run whatever code they put in it.
+FEATURES_CACHE = ".features.json"
 
 
 def load_corpus(directory: Path, use_cache: bool = True) -> Corpus:
@@ -106,9 +107,11 @@ def load_corpus(directory: Path, use_cache: bool = True) -> Corpus:
     cache: Dict[str, Tuple[int, int, List[Set[int]], str]] = {}
     if use_cache and cache_path.exists():
         try:
-            cache = pickle.loads(cache_path.read_bytes())
-        except Exception:                                  # noqa: BLE001 - a bad cache is a miss
-            cache = {}
+            raw = json.loads(cache_path.read_text(encoding="utf-8"))
+            cache = {str(k): (int(v[0]), int(v[1]), [set(map(int, f)) for f in v[2]], str(v[3]))
+                     for k, v in raw.items()}
+        except (OSError, ValueError, TypeError, IndexError, AttributeError):
+            cache = {}                                     # a bad cache is a miss
 
     arches: List[str] = []
 
@@ -138,7 +141,9 @@ def load_corpus(directory: Path, use_cache: bool = True) -> Corpus:
     corpus.arch = max(set(arches), key=arches.count) if arches else ""
     if use_cache:
         try:
-            cache_path.write_bytes(pickle.dumps(cache))
+            cache_path.write_text(json.dumps(
+                {k: [v[0], v[1], [sorted(f) for f in v[2]], v[3]] for k, v in cache.items()},
+                separators=(",", ":")), encoding="utf-8")
         except OSError:
             pass
     return corpus
