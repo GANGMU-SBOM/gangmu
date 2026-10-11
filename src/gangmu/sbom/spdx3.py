@@ -12,15 +12,14 @@ The document is validated against the published 3.0.1 JSON schema in the tests.
 
 from __future__ import annotations
 
-import datetime as _dt
 import re
-import uuid
 from typing import Any, Dict, List, Optional
 
 from .. import __version__
 from ..licenses import differs, observed_ids, spdx_license_declared
 from ..model import Finding, ScanResult
 from ..support import UNKNOWN, describe as describe_support
+from ..core import repro
 
 CONTEXT = "https://spdx.org/rdf/3.0.1/spdx-context.jsonld"
 SPEC_VERSION = "3.0.1"
@@ -38,7 +37,7 @@ _SUPPORT_LEVEL = {
 
 
 def _now() -> str:
-    return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return repro.timestamp()
 
 
 class _Doc:
@@ -150,7 +149,7 @@ def to_spdx3(result: ScanResult, app_name: str = "firmware",
              timestamp: Optional[str] = None,
              namespace: Optional[str] = None) -> Dict[str, Any]:
     created = timestamp or _now()
-    doc = _Doc(namespace or f"https://gangmu.dev/spdx/{uuid.uuid4()}", created)
+    doc = _Doc(namespace or f"https://gangmu.dev/spdx/{repro.ID_PLACEHOLDER}", created)
 
     tool = doc.add({"type": "Tool", "spdxId": doc.iri("tool", "gangmu-sbom"),
                     "name": f"gangmu-sbom-{__version__}"})
@@ -210,4 +209,5 @@ def to_spdx3(result: ScanResult, app_name: str = "firmware",
     doc.add(document)
     document["element"] = [e["spdxId"] for e in doc.elements
                            if e["spdxId"] != document["spdxId"]]
-    return {"@context": CONTEXT, "@graph": [creation_info] + doc.elements}
+    return repro.fill_document_id({"@context": CONTEXT,
+                                   "@graph": [creation_info] + doc.elements})

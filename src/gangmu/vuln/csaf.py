@@ -19,13 +19,13 @@ The document is ``draft`` until a person publishes it.
 
 from __future__ import annotations
 
-import datetime as _dt
 import re
 from typing import Any, Dict, List, Optional, Sequence
 
 from .. import __version__
 from .model import Match, VexState
 from .openvex import JUSTIFICATION, RANK as _RANK, evidence_text, product_index
+from ..core import repro
 
 _CVE = re.compile(r"^CVE-[0-9]{4}-[0-9]{4,}$")
 _CPE23 = re.compile(r"^cpe:2\.3:[aho\*\-](:(((\?*|\*?)([a-zA-Z0-9\-\._]|(\\[\\\*\?!\"#$$%&'\(\)\+,/:;<=>@\[\]\^`\{\|\}~]))+(\?*|\*?))|[\*\-])){5}(:(([a-zA-Z]{2,3}(-([a-zA-Z]{2}|[0-9]{3}))?)|[\*\-]))(:(((\?*|\*?)([a-zA-Z0-9\-\._]|(\\[\\\*\?!\"#$$%&'\(\)\+,/:;<=>@\[\]\^`\{\|\}~]))+(\?*|\*?))|[\*\-])){4}$")
@@ -38,7 +38,7 @@ _FLAG = {
 
 
 def _now() -> str:
-    return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return repro.timestamp()
 
 
 def to_csaf(matches: Sequence[Match], bom: Optional[dict] = None,

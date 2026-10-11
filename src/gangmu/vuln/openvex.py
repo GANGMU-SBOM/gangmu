@@ -13,12 +13,11 @@ mandatory that CycloneDX does not, and what is done about each:
 
 from __future__ import annotations
 
-import datetime as _dt
-import uuid
 from typing import Any, Dict, List, Optional, Sequence
 
 from .. import __version__
 from .model import Match, VexState
+from ..core import repro
 
 CONTEXT = "https://openvex.dev/ns/v0.2.0"
 
@@ -51,7 +50,7 @@ def dedupe(matches: Sequence[Match]) -> List[Match]:
 
 
 def _now() -> str:
-    return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return repro.timestamp()
 
 
 def product_index(bom: Optional[dict]) -> Dict[str, Dict[str, str]]:
@@ -179,13 +178,13 @@ def to_openvex(matches: Sequence[Match], bom: Optional[dict] = None,
     if supplier:
         for s in statements:
             s["supplier"] = supplier
-    return {
+    return repro.fill_document_id({
         "@context": CONTEXT,
-        "@id": doc_id or f"https://gangmu.dev/openvex/{uuid.uuid4()}",
+        "@id": doc_id or f"https://gangmu.dev/openvex/{repro.ID_PLACEHOLDER}",
         "author": author,
         "role": "Document Creator",
         "timestamp": now,
         "version": 1,
         "tooling": f"gangmu-sbom {__version__}",
         "statements": statements,
-    }
+    })

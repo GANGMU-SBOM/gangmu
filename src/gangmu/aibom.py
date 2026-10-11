@@ -16,12 +16,10 @@ person supplies it in a declaration file (:mod:`gangmu.aibom_decl`); that is mar
 This module stands on ``gangmu.core`` and the shared directory lists; it does not import the
 SBOM or CBOM engines.
 """
-import datetime as _dt
 import hashlib
 import os
 import re
 import struct
-import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
@@ -30,6 +28,7 @@ from . import __version__
 from .aibom_decl import Declarations, ModelDeclaration, license_entry
 from .binaries import FIXTURE_DIRS, SKIP_DIRS
 from .core.packs import RuleRoot, check_manifest, default_roots, read_manifest
+from .core import repro
 
 SPEC_VERSION = "1.6"
 
@@ -461,7 +460,7 @@ def scan_aibom(root: Path, include_tests: bool = False,
 
 
 def _now() -> str:
-    return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return repro.timestamp()
 
 
 def _model_component(m: ModelFile) -> Dict[str, Any]:
@@ -606,10 +605,10 @@ def to_aibom(result: AibomResult, app_name: str = "firmware",
              + [_embedded_component(e) for e in result.embedded]
              + [_declared_only_component(d) for d in result.declared_only]
              + [_runtime_component(h) for h in result.runtimes])
-    return {
+    return repro.fill_document_id({
         "bomFormat": "CycloneDX",
         "specVersion": SPEC_VERSION,
-        "serialNumber": f"urn:uuid:{uuid.uuid4()}",
+        "serialNumber": f"urn:uuid:{repro.ID_PLACEHOLDER}",
         "version": 1,
         "metadata": {
             "timestamp": _now(),
@@ -620,7 +619,7 @@ def to_aibom(result: AibomResult, app_name: str = "firmware",
         },
         "components": comps,
         "dependencies": [{"ref": "firmware", "dependsOn": [c["bom-ref"] for c in comps]}],
-    }
+    })
 
 
 def aibom_table(result: AibomResult) -> str:

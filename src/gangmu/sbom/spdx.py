@@ -8,15 +8,14 @@ loses the hedging is the failure mode this project exists to avoid.
 
 from __future__ import annotations
 
-import datetime as _dt
 import re
-import uuid
 from typing import Any, Dict, List, Optional
 
 from .. import __version__
 from ..licenses import differs, observed_ids, spdx_license_declared
 from ..model import Finding, ScanResult
 from ..support import describe as describe_support
+from ..core import repro
 
 _SAFE = re.compile(r"[^A-Za-z0-9.\-]+")
 
@@ -26,7 +25,7 @@ def _spdx_id(prefix: str, value: str) -> str:
 
 
 def _now() -> str:
-    return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return repro.timestamp()
 
 
 def _package(finding: Finding) -> Dict[str, Any]:
@@ -154,16 +153,16 @@ def to_spdx(result: ScanResult, app_name: str = "firmware",
                         "relatedSpdxElement": target,
                     })
 
-    return {
+    return repro.fill_document_id({
         "spdxVersion": "SPDX-2.3",
         "dataLicense": "CC0-1.0",
         "SPDXID": "SPDXRef-DOCUMENT",
         "name": f"{app_name}-sbom",
-        "documentNamespace": namespace or f"https://gangmu.dev/spdx/{uuid.uuid4()}",
+        "documentNamespace": namespace or f"https://gangmu.dev/spdx/{repro.ID_PLACEHOLDER}",
         "creationInfo": {
             "created": timestamp or _now(),
             "creators": [f"Tool: gangmu-sbom-{__version__}"],
         },
         "packages": packages,
         "relationships": relationships,
-    }
+    })
