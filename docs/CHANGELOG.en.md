@@ -11,6 +11,10 @@ What each release added and what was measured at the time, newest first. For the
 * **Fixed: `vuln-fetch --product ... --since` older than 120 days is no longer cut to the last 119 days without a word**; the span is fetched in windows the API accepts.
 * **Fixed: an unreadable NVD year shard no longer loses the year.** It was treated as empty and one incremental run overwrote it with that run's records. It is now moved to `*.unreadable` with a warning and the watermark is dropped, so the next run (without `--since`) is a full download.
 * **Reproducible output: with `SOURCE_DATE_EPOCH` set, the same input gives byte-identical documents.** The time is that moment and the document id (CycloneDX `serialNumber`, SPDX namespace, OpenVEX `@id`) is a uuid5 of the content, for SBOM, VEX, CBOM, AIBOM and the evidence manifest; without it nothing changes.
+* **Fixed: `gangmu binary-eval` caches features as JSON (`.features.json`).** It unpickled `.features.pickle` from the corpus directory, which runs whatever a corpus from someone else puts there; an old pickle is no longer read.
+* **Fixed: CPEs with an escaped colon (`acme\:labs`).** Six places split on every colon, shifting vendor, product and version: the match key, an advisory CPE's pinned version, the rule validator (which rejected a well-formed name), coverage, the `sbom.yml` reader and version splicing. They now split as the specification binds the name, and a spliced version is quoted.
+* **Tree walkers share one set of never-content directories** (`.git`, `node_modules`, `__pycache__`, `.venv`, `venv`) and add only what is out of scope for their purpose; licence and declaration walks now skip Python environments too. Fingerprinting (dirprint) is unchanged so the rule base stays valid.
+* **Internal: `cli.py` is split by command group into `gangmu/commands/`; behaviour unchanged.** Moved names are still importable from `gangmu.cli`, so plug-ins need no change; a new test builds `--help` for each of the 35 subcommands.
 * **CI:** gangmu-rules is pinned to a commit (v2026.10.11); `ruff check src tests` (unused and undefined names only) runs, and the existing findings are fixed.
 
 ## 0.9.0
