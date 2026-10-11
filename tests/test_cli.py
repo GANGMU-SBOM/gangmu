@@ -136,3 +136,33 @@ def test_esp_idf_managed_components_are_scanned(project_dir, rules_dir, tmp_path
     assert main(args) == 0
     bom = json.loads((tmp_path / "bom.json").read_text())
     assert any(c["name"] == "tinynet" for c in bom["components"])
+
+
+def _subcommand_paths(parser, prefix=()):
+    import argparse
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            for name, sub in action.choices.items():
+                yield prefix + (name,)
+                yield from _subcommand_paths(sub, prefix + (name,))
+
+
+def test_every_subcommand_builds_its_help_and_has_a_handler(capsys):
+    # cli.py was split into gangmu/commands/; a handler that lost an import
+    # would only fail when that command runs.
+    from gangmu.cli import build_parser
+    parser = build_parser()
+    paths = list(_subcommand_paths(parser))
+    assert len(paths) > 30
+    for path in paths:
+        with pytest.raises(SystemExit) as done:
+            parser.parse_args([*path, "--help"])
+        assert done.value.code == 0, path
+
+
+def test_moved_helpers_are_still_importable_from_gangmu_cli():
+    # Plug-ins (gangmu.commands entry point) may import these from gangmu.cli.
+    from gangmu import cli
+    for name in ("_load_rulebase", "_write", "_table", "_rule_roots", "_resolve_jobs",
+                 "cmd_vuln", "cmd_cbom", "cmd_eval", "cmd_rules_lint", "build_parser"):
+        assert callable(getattr(cli, name)), name

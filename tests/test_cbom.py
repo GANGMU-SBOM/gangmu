@@ -353,7 +353,7 @@ def test_a_library_rule_naming_an_unknown_algorithm_is_refused(tmp_path):
 
 
 def test_cli_libraries_flag_uses_the_identified_components(tmp_path, monkeypatch, capsys):
-    import gangmu.cli as cli
+    import gangmu.commands.boms as cli
     (tmp_path / "fw").mkdir()
     (tmp_path / "fw" / "a.c").write_text("int x;\n")
     pack = _lib_pack(tmp_path / "p")
