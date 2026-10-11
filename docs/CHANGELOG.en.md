@@ -2,6 +2,17 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
+## Unreleased
+
+* **Fixed: ESP-IDF's `managed_components/` is no longer skipped.** The component manager puts every registry dependency there and it is compiled into the firmware; discovery skipped the directory by name, so those components were missing from the SBOM even when the compile database showed them built.
+* **Fixed: CVSS ratings from OSV records.** Real OSV records carry a vector string in `severity[].score`; it was copied into the CycloneDX rating's `severity` (which allows only level names), so the VEX failed the bom-1.6 schema, the score was empty (sorting as 0), and the MIIT and CRA reports showed a vector as the severity. A v3 vector is now scored with the specification's formula; a v4 vector is kept as is with GHSA's `database_specific.severity` as the level; vector and method go in their own rating fields. NVD records scored only in `cvssMetricV40` now get a score and level.
+* **Fixed: one vulnerability is counted once.** An NVD CVE and the GHSA record aliasing it, or one record reaching a component through both CPE and PURL, were two findings, counted twice by `--fail-on`, CycloneDX and CSAF. There is now one per vulnerability and component, the more serious state winning, with the other record's id in `aliases`. `vuln coverage` still counts per channel.
+* **Fixed: a `git describe` version is no longer called not affected.** `0.2-265-gad902ca` was compared with the hash's digits as a version number and came out not affected by a fix in 0.2.1; 265 commits past 0.2 may or may not carry it. It is now ordered only where its tag decides, and goes to triage otherwise.
+* **Fixed: `vuln-fetch --product ... --since` older than 120 days is no longer cut to the last 119 days without a word**; the span is fetched in windows the API accepts.
+* **Fixed: an unreadable NVD year shard no longer loses the year.** It was treated as empty and one incremental run overwrote it with that run's records. It is now moved to `*.unreadable` with a warning and the watermark is dropped, so the next run (without `--since`) is a full download.
+* **Reproducible output: with `SOURCE_DATE_EPOCH` set, the same input gives byte-identical documents.** The time is that moment and the document id (CycloneDX `serialNumber`, SPDX namespace, OpenVEX `@id`) is a uuid5 of the content, for SBOM, VEX, CBOM, AIBOM and the evidence manifest; without it nothing changes.
+* **CI:** gangmu-rules is pinned to a commit (v2026.10.11); `ruff check src tests` (unused and undefined names only) runs, and the existing findings are fixed.
+
 ## 0.9.0
 
 * **New command `gangmu policy check`: read a CBOM or AIBOM against policies written as data, with a status and a date per check.** Policies live in `policies/*.yaml` of a rule pack of kind `policy`: they select CBOM assets by algorithm key or quantum status, or AIBOM models with a missing licence or training data, and carry `deprecated-after` / `disallowed-after` dates. A check ends `ok`, `due`, `deprecated` or `fail` as of `--as-of`; `--fail-on` is the CI gate; output is a table, Markdown or JSON. It gives no legal conclusion and does not inspect key sizes. See the [policy guide](guides/policy.md) (Chinese).

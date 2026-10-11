@@ -13,12 +13,12 @@ with no justification is a liability.
 
 from __future__ import annotations
 
-import datetime as _dt
-import uuid
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, Optional, Sequence
 
 from .. import __version__
+from .cvss import level, method_for
 from .model import Match, VexState
+from ..core import repro
 
 _SOURCE_URL = {
     "nvd": "https://nvd.nist.gov/vuln/detail/",
@@ -27,7 +27,7 @@ _SOURCE_URL = {
 
 
 def _now() -> str:
-    return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return repro.timestamp()
 
 
 def _ref_for(match: Match, bom: Optional[dict]) -> str:
@@ -56,14 +56,18 @@ def _vulnerability(match: Match, bom: Optional[dict]) -> Dict[str, Any]:
         entry["analysis"]["justification"] = match.justification
     if advisory.summary:
         entry["description"] = advisory.summary[:1000]
-    ratings = []
+    rating: Dict[str, Any] = {}
     if advisory.cvss is not None:
-        ratings.append({"score": advisory.cvss, "method": "CVSSv31",
-                        "severity": advisory.severity or "unknown"})
-    elif advisory.severity:
-        ratings.append({"severity": advisory.severity, "method": "other"})
-    if ratings:
-        entry["ratings"] = ratings
+        rating["score"] = advisory.cvss
+    # The schema allows only its own level names here; a vector goes in "vector".
+    word = level(advisory.severity)
+    if word or rating:
+        rating["severity"] = word or "unknown"
+    if advisory.vector:
+        rating["vector"] = advisory.vector
+    if rating:
+        rating["method"] = advisory.cvss_method or method_for(advisory.vector)
+        entry["ratings"] = [rating]
     if advisory.references:
         entry["advisories"] = [{"url": u} for u in advisory.references[:10]]
     properties = [
@@ -115,7 +119,7 @@ def to_vex(matches: Sequence[Match], bom: Optional[dict] = None,
     doc: Dict[str, Any] = dict(bom) if bom else {
         "bomFormat": "CycloneDX",
         "specVersion": "1.6",
-        "serialNumber": serial or f"urn:uuid:{uuid.uuid4()}",
+        "serialNumber": serial or f"urn:uuid:{repro.ID_PLACEHOLDER}",
         "version": 1,
         "metadata": {
             "timestamp": timestamp or _now(),
@@ -145,7 +149,7 @@ def to_vex(matches: Sequence[Match], bom: Optional[dict] = None,
                       "advisory database could be queried for them. Absence of "
                       "findings here is absence of evidence."),
         })
-    return doc
+    return repro.fill_document_id(doc)
 
 
 def summary(matches: Sequence[Match]) -> Dict[str, int]:

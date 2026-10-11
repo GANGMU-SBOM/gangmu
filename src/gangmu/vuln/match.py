@@ -23,11 +23,14 @@ from __future__ import annotations
 
 import re
 from urllib.parse import unquote
-from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Sequence
+from dataclasses import dataclass, replace
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from .model import Advisory, Match, VexState
 from .version import in_event_ranges, in_range, in_tag_set, is_orderable
+
+if TYPE_CHECKING:
+    from .sources import Wanted
 
 _CPE_PARTS = 13
 
@@ -209,6 +212,36 @@ def _index_by_purl(advisories: Sequence[Advisory]) -> Dict[str, List[tuple]]:
     return index
 
 
+_CVE_ID = re.compile(r"^CVE-\d{4}-\d{4,}$", re.I)
+
+
+def vulnerability_key(advisory: Advisory) -> str:
+    """One name for a vulnerability whichever database filed it: its CVE id if the
+    record is one or aliases one, else the record's own id."""
+    for name in [advisory.id, *advisory.aliases]:
+        if _CVE_ID.match(str(name)):
+            return str(name).upper()
+    return advisory.id.upper()
+
+
+def _merged(kept: Advisory, other: Advisory) -> Advisory:
+    """*kept* with the other record's ids as aliases and its rating where *kept* has none.
+
+    A copy: the advisory objects are shared by every component they match.
+    """
+    aliases = list(kept.aliases)
+    for name in [other.id, *other.aliases]:
+        if name != kept.id and name not in aliases:
+            aliases.append(name)
+    changes: Dict[str, Any] = {"aliases": aliases}
+    if kept.cvss is None and other.cvss is not None:
+        changes.update(cvss=other.cvss, vector=other.vector, cvss_method=other.cvss_method,
+                       severity=other.severity)
+    elif kept.severity is None and other.severity is not None:
+        changes["severity"] = other.severity
+    return replace(kept, **changes)
+
+
 def _state_for(candidate: Candidate, verdict: Optional[bool],
                commit_only: bool = False) -> tuple:
     """(state, detail) for one candidate/range pair."""
@@ -235,19 +268,36 @@ def _state_for(candidate: Candidate, verdict: Optional[bool],
 
 
 def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
-          include_not_affected: bool = False) -> List[Match]:
+          include_not_affected: bool = False, per_channel: bool = False) -> List[Match]:
+    """Matches of *candidates* against *advisories*, one per vulnerability and component.
+
+    *per_channel* keeps one per advisory record, component and channel instead, for
+    measuring what each channel reaches on its own (``vuln coverage``).
+    """
     by_cpe = _index_by_cpe(advisories)
     by_purl = _index_by_purl(advisories)
-    # One match per (advisory, component, channel). An advisory can reach a component
-    # through several ranges or listed versions; the one that says "affected" must win
-    # over an earlier one that says "not affected" or "cannot tell", not be hidden by it.
+    # One match per (vulnerability, component). A vulnerability can reach a component
+    # through several ranges, both channels, or two records (an NVD CVE and the GHSA
+    # that aliases it); the one that says "affected" must win over one that says "not
+    # affected" or "cannot tell", and the vulnerability must be counted once.
     found: Dict[tuple, Match] = {}
     severity = {VexState.EXPLOITABLE: 0, VexState.IN_TRIAGE: 1, VexState.NOT_AFFECTED: 2}
 
+    def rank(m: Match, canonical: str) -> tuple:
+        # Most serious state first; then the record filed under the CVE id itself.
+        return (severity.get(m.state, 3), m.advisory.id.upper() != canonical)
+
     def keep(token: tuple, new: Match) -> None:
+        if per_channel:
+            token = (new.advisory.id.upper(), token[1], new.channel)
         old = found.get(token)
-        if old is None or severity.get(new.state, 3) < severity.get(old.state, 3):
+        if old is None:
             found[token] = new
+            return
+        best, other = (new, old) if rank(new, token[0]) < rank(old, token[0]) else (old, new)
+        if best.advisory is not other.advisory:
+            best.advisory = _merged(best.advisory, other.advisory)
+        found[token] = best
 
     for candidate in candidates:
         for cpe in candidate.cpes:
@@ -270,7 +320,7 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                 state, detail = _state_for(candidate, verdict)
                 if state is VexState.NOT_AFFECTED and not include_not_affected:
                     continue
-                keep((advisory.id, candidate.directory, "cpe"),
+                keep((vulnerability_key(advisory), candidate.directory),
                      Match(advisory=advisory, component=candidate.name,
                            directory=candidate.directory,
                            version=candidate.version, channel="cpe",
@@ -297,7 +347,7 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                                  and not rng.get("extracted")))
                 if state is VexState.NOT_AFFECTED and not include_not_affected:
                     continue
-                keep((advisory.id, candidate.directory, "purl"),
+                keep((vulnerability_key(advisory), candidate.directory),
                      Match(advisory=advisory, component=candidate.name,
                            directory=candidate.directory,
                            version=candidate.version, channel="purl",

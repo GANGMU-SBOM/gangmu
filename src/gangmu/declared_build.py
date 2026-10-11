@@ -53,7 +53,7 @@ from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Set, Tuple
 
 from .declared import Declaration
-from .declared_linux import _known, _literal
+from .declared_linux import _known
 
 ECOSYSTEM_YOCTO = "yocto"
 ECOSYSTEM_PLATFORMIO = "platformio"

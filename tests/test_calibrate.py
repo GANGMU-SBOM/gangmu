@@ -74,7 +74,6 @@ def test_unrelated_firmware_as_a_negative_control_passes(two_releases, tmp_path)
 
 def _old_sidecar(prints, fmt):
     """The layout before the architecture and string counts were recorded."""
-    import struct
     out = bytearray(b"GMFP" + bytes([fmt]) + struct.pack("<H", len(prints.versions)))
     for v in prints.versions:
         out += struct.pack("<H", len(v)) + v.encode()

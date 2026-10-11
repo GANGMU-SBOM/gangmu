@@ -4,7 +4,6 @@
 """
 
 import pytest
-import yaml
 
 from gangmu.config import Config
 from gangmu.cn import CONFLICT_NOTICE, check_dual_regime, draft_miit_report

@@ -22,10 +22,8 @@ another name, and it says nothing about key sizes, key storage or protocol use.
 from __future__ import annotations
 
 import bisect
-import datetime as _dt
 import os
 import re
-import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
@@ -35,6 +33,7 @@ from .binaries import FIXTURE_DIRS, IMAGE_SUFFIXES, MAX_BANNER_BYTES, SKIP_DIRS
 from .build.facts import BuildFacts
 from .core.packs import RuleRoot, check_manifest, default_roots, read_manifest
 from .core.unpack import expand
+from .core import repro
 
 SPEC_VERSION = "1.6"
 
@@ -634,7 +633,7 @@ def add_library_assets(assets: Dict[Tuple[str, str], Asset], components: Iterabl
 # ------------------------------------------------------------------ output
 
 def _now() -> str:
-    return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return repro.timestamp()
 
 
 def _component(asset: Asset, images: int = 0) -> Dict[str, Any]:
@@ -689,10 +688,10 @@ def to_cbom(result: CbomResult, app_name: str = "firmware",
     app: Dict[str, Any] = {"type": "firmware", "name": app_name, "bom-ref": "firmware"}
     if app_version:
         app["version"] = app_version
-    return {
+    return repro.fill_document_id({
         "bomFormat": "CycloneDX",
         "specVersion": SPEC_VERSION,
-        "serialNumber": f"urn:uuid:{uuid.uuid4()}",
+        "serialNumber": f"urn:uuid:{repro.ID_PLACEHOLDER}",
         "version": 1,
         "metadata": {
             "timestamp": _now(),
@@ -707,7 +706,7 @@ def to_cbom(result: CbomResult, app_name: str = "firmware",
         },
         "components": [_component(a, result.images) for a in result.assets],
         "dependencies": [{"ref": "firmware", "dependsOn": [a.ref for a in result.counted()]}],
-    }
+    })
 
 
 QUANTUM_LABEL = {VULNERABLE: "quantum-vulnerable", SYMMETRIC: "symmetric", PQC: "post-quantum",

@@ -4,7 +4,6 @@ This is the part the research literature is about, so the tests are about the
 properties the papers claim rather than about implementation details.
 """
 
-import pytest
 
 from gangmu.fnsig import FunctionSignature, infer_version
 from gangmu.functions import extract_functions, function_hashes

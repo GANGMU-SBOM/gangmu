@@ -9,7 +9,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import yaml
 
@@ -23,15 +23,14 @@ from .cbom import (CbomRuleError, cbom_roots, cbom_table, failing, load_algo_roo
 from .build.kconfig import find_kconfig, read_kconfig
 from .config import CONFIG_NAMES, Config, load_config, write_template
 from .cra import REPORT_STAGES, build_evidence_bundle, check_cra, draft_report
-from .cn import MIIT_STAGES, check_dual_regime, draft_miit_report
+from .cn import check_dual_regime, draft_miit_report
 from .eval import CISA_2026, NTIA_2021, score_sbom
 from .build.projects import parse_project
 from .build.wrap import default_compilers, wrap_build
-from .dirprint import (DEFAULT_EXCLUDE, DEFAULT_INCLUDE, SketchCache,
-                       print_directory, sha256_file)
+from .dirprint import (DEFAULT_EXCLUDE, DEFAULT_INCLUDE, print_directory, sha256_file)
 from .fingerprint import ALGO
 from .model import ScanResult
-from .rules.loader import RuleBase, load_rule_roots, load_rules
+from .rules.loader import RuleBase, load_rule_roots
 from .rules.schema import RuleError
 from .core.plugins import register_commands
 from .core.packs import RulePackError, RuleRoot, default_roots
@@ -361,7 +360,7 @@ def cmd_rules_fingerprint(args: argparse.Namespace) -> int:
         f'    reference_version: "{args.version}"' if args.version else
         "    reference_version: null",
         f'    fileset_sha256: "{dp.fileset_sha256}"',
-        f"    values: >-",
+        "    values: >-",
         f"      {sig.to_hex()}",
     ]
     print("\n".join(lines))
@@ -432,7 +431,7 @@ def cmd_rules_functions(args: argparse.Namespace) -> int:
             print(f"error: cannot list tags of {args.url}: {exc}", file=sys.stderr)
             return 2
         if not found:
-            print(f"error: no tags matched. Pass --tag explicitly.", file=sys.stderr)
+            print("error: no tags matched. Pass --tag explicitly.", file=sys.stderr)
             return 2
         tags = pick_releases(found, args.limit)
     for entry in tags:

@@ -5,7 +5,6 @@ passed as a file, cross compilers the wrapper did not shim, empty build facts,
 and objects that ``--gc-sections`` left with nothing in the image.
 """
 
-import os
 import stat
 from pathlib import Path
 

@@ -355,8 +355,8 @@ class MatchEngine:
                 evidence.append(Evidence(
                     technique=Technique.HASH_COMPARISON,
                     confidence=0.98,
-                    summary=(f"every file matches the reference release "
-                             f"byte for byte"),
+                    summary=("every file matches the reference release "
+                             "byte for byte"),
                     locator=rel,
                 ))
 

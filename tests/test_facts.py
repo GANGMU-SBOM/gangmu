@@ -67,7 +67,7 @@ def test_command_string_is_parsed_when_output_is_absent(tmp_path):
     db.write_text(json.dumps([{
         "directory": str(tmp_path),
         "file": "a.c",
-        "command": f"gcc -c a.c -o build/a.c.o",
+        "command": "gcc -c a.c -o build/a.c.o",
     }]))
     facts = collect_build_facts(tmp_path, db, None)
     assert (tmp_path / "a.c").resolve() in facts.compiled

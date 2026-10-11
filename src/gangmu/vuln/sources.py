@@ -28,28 +28,59 @@ import re
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, FrozenSet, Iterable, Iterator, List, Optional
+from typing import Dict, FrozenSet, Iterator, List, Optional, Tuple
 
+from .cvss import base_score_v3, level, level_for_score, method_for
 from .match import cpe_product_key, purl_key, purl_from_package, purl_from_repo
 from .model import Advisory
 
 
-def _cvss_from_nvd(metrics: dict) -> Optional[float]:
-    for key in ("cvssMetricV31", "cvssMetricV30", "cvssMetricV2"):
-        for entry in metrics.get(key, []) or []:
-            data = entry.get("cvssData") or {}
-            if data.get("baseScore") is not None:
-                return float(data["baseScore"])
-    return None
+# Preference order: v3.1 is what most consumers sort on; a CVE that only a CNA
+# has scored often has nothing but v4.0.
+_NVD_METRICS = (("cvssMetricV31", "CVSSv31"), ("cvssMetricV30", "CVSSv3"),
+                ("cvssMetricV40", "CVSSv4"), ("cvssMetricV2", "CVSSv2"))
 
 
-def _severity_from_nvd(metrics: dict) -> Optional[str]:
-    for key in ("cvssMetricV31", "cvssMetricV30"):
+def _nvd_rating(metrics: dict) -> Tuple[Optional[float], Optional[str],
+                                        Optional[str], Optional[str]]:
+    """(score, level, vector, method) of the first CVSS version NVD scored."""
+    for key, method in _NVD_METRICS:
         for entry in metrics.get(key, []) or []:
             data = entry.get("cvssData") or {}
-            if data.get("baseSeverity"):
-                return str(data["baseSeverity"]).lower()
-    return None
+            if data.get("baseScore") is None:
+                continue
+            score = float(data["baseScore"])
+            # v2 keeps the level on the metric entry, not in cvssData.
+            word = level(data.get("baseSeverity") or entry.get("baseSeverity"))
+            return score, word or level_for_score(score), data.get("vectorString"), method
+    return None, None, None, None
+
+
+def _osv_rating(record: dict) -> Tuple[Optional[float], Optional[str],
+                                       Optional[str], Optional[str]]:
+    """(score, level, vector, method) of an OSV record.
+
+    ``severity[].score`` is a vector string in real records (``CVSS:3.1/AV:N/...``),
+    sometimes a bare number. A v3 vector is scored; a v4 vector is kept unscored, and
+    the level then comes from ``database_specific.severity`` (GHSA) if there is one.
+    """
+    entries = [s for s in record.get("severity", []) or []
+               if isinstance(s, dict) and str(s.get("type", "")).startswith("CVSS")]
+    methods = {"CVSS_V3": "CVSSv3", "CVSS_V4": "CVSSv4", "CVSS_V2": "CVSSv2"}
+    entries.sort(key=lambda s: list(methods).index(s["type"]) if s["type"] in methods else 3)
+    score = vector = method = None
+    for entry in entries:
+        raw = str(entry.get("score") or "").strip()
+        try:
+            score, method = float(raw), methods.get(entry["type"], "other")
+            break
+        except ValueError:
+            pass
+        if raw:
+            vector, method, score = raw, method_for(raw), base_score_v3(raw)
+            break
+    declared = level((record.get("database_specific") or {}).get("severity"))
+    return score, level_for_score(score) or declared, vector, method
 
 
 _ARRAY_KEYS = ("vulnerabilities", "CVE_Items", "cve_items")
@@ -166,10 +197,10 @@ def advisory_from_nvd(item: dict, wanted: Optional[Wanted] = None) -> Optional[A
         if desc.get("lang") == "en":
             summary = desc.get("value", "")
             break
-    metrics = cve.get("metrics") or {}
+    score, word, vector, method = _nvd_rating(cve.get("metrics") or {})
     return Advisory(
         id=cve_id, source="nvd", summary=summary,
-        severity=_severity_from_nvd(metrics), cvss=_cvss_from_nvd(metrics),
+        severity=word, cvss=score, vector=vector, cvss_method=method,
         references=[r.get("url") for r in cve.get("references", []) or []
                     if r.get("url")],
         cpe_ranges=ranges, vuln_status=cve.get("vulnStatus"))
@@ -269,14 +300,11 @@ def load_osv(path: Path, wanted: Optional[Wanted] = None) -> List[Advisory]:
                     break
                 ranges.append({"purl": purl, "type": "EXACT",
                                "introduced": version, "last_affected": version})
-        severity = None
-        for sev in record.get("severity", []) or []:
-            if sev.get("type", "").startswith("CVSS"):
-                severity = sev.get("score")
+        score, word, vector, method = _osv_rating(record)
         out.append(Advisory(
             id=record["id"], source="osv",
             summary=record.get("summary") or record.get("details", "")[:300],
-            severity=severity,
+            severity=word, cvss=score, vector=vector, cvss_method=method,
             references=[r.get("url") for r in record.get("references", []) or []
                         if r.get("url")],
             osv_ranges=ranges,

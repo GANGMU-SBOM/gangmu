@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from .. import __version__
 from ..config import Config
+from ..core import repro
 
 README = """\
 # CRA technical documentation — component evidence
@@ -78,7 +79,7 @@ class Bundle:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "tool": {"name": "gangmu-sbom", "version": __version__},
-            "created": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "created": repro.timestamp(),
             "files": [{"path": e.path, "sha256": e.sha256, "bytes": e.bytes,
                        "description": e.description} for e in self.entries],
             "notes": self.notes,

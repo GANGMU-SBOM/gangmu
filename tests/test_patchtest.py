@@ -9,7 +9,6 @@ fixed, backported, edited, pruned, reformatted and renamed.
 import json
 import shutil
 import subprocess
-from pathlib import Path
 
 import pytest
 

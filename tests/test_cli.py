@@ -114,3 +114,25 @@ def test_init_reports_an_unwritable_target_without_a_traceback(tmp_path, capsys)
     blocker.write_text("not a directory")
     assert main(["init", str(blocker / "project")]) == 1
     assert "cannot write" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("with_build", [False, True])
+def test_esp_idf_managed_components_are_scanned(project_dir, rules_dir, tmp_path, with_build):
+    # The ESP-IDF component manager downloads registry dependencies into
+    # managed_components/; that is shipped code, not a build output.
+    import shutil
+    tree = tmp_path / "proj"
+    shutil.copytree(project_dir, tree)
+    managed = tree / "managed_components" / "acme__tinynet"
+    managed.parent.mkdir()
+    shutil.move(str(tree / "components" / "net" / "tinynet"), str(managed))
+    args = ["scan", str(tree), "--rules", str(rules_dir), "--format", "cyclonedx",
+            "-o", str(tmp_path / "bom.json")]
+    if with_build:
+        db = [{"directory": str(tree), "file": str(p), "command": f"cc -c {p}"}
+              for p in sorted(tree.rglob("*.c"))]
+        (tmp_path / "cc.json").write_text(json.dumps(db))
+        args += ["--compile-db", str(tmp_path / "cc.json")]
+    assert main(args) == 0
+    bom = json.loads((tmp_path / "bom.json").read_text())
+    assert any(c["name"] == "tinynet" for c in bom["components"])

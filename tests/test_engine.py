@@ -1,6 +1,5 @@
 import shutil
 
-from gangmu.match.engine import MatchEngine
 from gangmu.rules.loader import load_rules
 from gangmu.scan import ScanOptions, scan
 
@@ -124,7 +123,6 @@ def test_a_shared_file_does_not_make_a_false_exact_match(upstream_dir, rules_dir
     """
     import shutil
 
-    from gangmu.dirprint import sha256_file
 
     other = tmp_path / "project" / "components" / "other"
     other.mkdir(parents=True)

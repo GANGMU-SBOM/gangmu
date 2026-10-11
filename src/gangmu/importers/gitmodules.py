@@ -31,11 +31,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
-import yaml
 
 from ..dirprint import DEFAULT_EXCLUDE, DEFAULT_INCLUDE, print_directory
-from .common import (ProjectImport, VendoredProject, clone_metadata, dump_rule,
-                     fetch_at, git as _git_run, make_rule)
+from .common import (ProjectImport, VendoredProject, clone_metadata, fetch_at, git as _git_run, make_rule)
 
 _SECTION = re.compile(r'^\[submodule "(?P<name>[^"]+)"\]\s*$')
 _KEYVAL = re.compile(r"^\s*(?P<key>[A-Za-z0-9_.-]+)\s*=\s*(?P<val>.*?)\s*$")

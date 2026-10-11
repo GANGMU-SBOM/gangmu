@@ -60,3 +60,11 @@ gangmu = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py39"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# Pyflakes and syntax errors: unused or undefined names, not style.
+select = ["F", "E9"]

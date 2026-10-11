@@ -30,7 +30,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass, field
+import warnings
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Dict, Iterable, Iterator, List, Optional, Sequence
@@ -96,14 +96,18 @@ def _shard_path(dest: Path, year: str) -> Path:
     return dest / f"nvd-{year}.json.xz"
 
 
+class _UnreadableShard(Exception):
+    pass
+
+
 def _read_shard(path: Path) -> Dict[str, dict]:
     if not path.exists():
         return {}
     try:
         with lzma.open(path, "rt", encoding="utf-8") as fh:
             items = json.load(fh).get("vulnerabilities", [])
-    except (OSError, EOFError, lzma.LZMAError, ValueError):
-        return {}        # unreadable: rebuilt from what is fetched now
+    except (OSError, EOFError, lzma.LZMAError, ValueError) as exc:
+        raise _UnreadableShard(str(exc)) from exc
     return {(i.get("cve") or {}).get("id"): i for i in items
             if (i.get("cve") or {}).get("id")}
 
@@ -117,9 +121,15 @@ def _write_shard(path: Path, records: Dict[str, dict]) -> None:
     os.replace(tmp, path)
 
 
-def merge_nvd(dest: Path, items: Iterable[dict]) -> int:
+def merge_nvd(dest: Path, items: Iterable[dict],
+              damaged: Optional[List[Path]] = None) -> int:
     """Merge records into the per-year shards; returns how many were new or
-    changed."""
+    changed.
+
+    An unreadable shard is not trusted and not silently emptied either: it is moved
+    aside to ``*.unreadable``, rebuilt from what is fetched now, and listed in
+    *damaged*. Its other records are gone from the mirror until a full download.
+    """
     by_year: Dict[str, List[dict]] = {}
     for item in items:
         cve_id = (item.get("cve") or {}).get("id")
@@ -128,7 +138,17 @@ def merge_nvd(dest: Path, items: Iterable[dict]) -> int:
     changed = 0
     for year, batch in by_year.items():
         path = _shard_path(dest, year)
-        records = _read_shard(path)
+        try:
+            records = _read_shard(path)
+        except _UnreadableShard as exc:
+            aside = path.with_name(path.name + ".unreadable")
+            os.replace(path, aside)
+            warnings.warn(f"{path}: unreadable ({exc}); moved to {aside.name}. Its "
+                          f"records are missing until a full download (vuln-fetch --all "
+                          f"with no --since).", stacklevel=2)
+            if damaged is not None:
+                damaged.append(path)
+            records = {}
         for item in batch:
             cve_id = item["cve"]["id"]
             if records.get(cve_id) != item:
@@ -185,14 +205,24 @@ def fetch_nvd(dest: Path, get: JsonGetter = None, products: Sequence[str] = (),
     now = now or datetime.now(timezone.utc)
     state = _load_state(dest)
     total = 0
+    damaged: List[Path] = []
 
     def run(params: Dict[str, str]) -> int:
         n = 0
         for items in iter_nvd(params, get, api_key, base_url, sleep=sleep):
-            n += merge_nvd(dest, items)
+            n += merge_nvd(dest, items, damaged)
             log(f"  {len(items)} record(s) fetched")
         return n
 
+    def run_windows(params: Dict[str, str], start: datetime) -> int:
+        n = 0
+        for window in _windows(start, now):
+            log(f"  modified {window['lastModStartDate'][:10]} .. "
+                f"{window['lastModEndDate'][:10]}")
+            n += run(dict(params, **window))
+        return n
+
+    full = False
     if products:
         for key in products:
             parts = key.split(":")
@@ -201,32 +231,36 @@ def fetch_nvd(dest: Path, get: JsonGetter = None, products: Sequence[str] = (),
             match = f"cpe:2.3:{parts[0]}:{parts[1]}:{parts[2]}"
             log(f"NVD: {key}")
             params = {"virtualMatchString": match}
-            if since is not None:
-                params.update(_window(since, now))
-            total += run(params)
-        return total
-
-    start = since or _parse_time(state.get("nvd_watermark"))
-    if start is None:
-        log("NVD: full download")
-        total = run({})
+            total += run_windows(params, since) if since is not None else run(params)
     else:
-        window_start = start
-        while window_start < now:
-            window_end = min(window_start + _MAX_WINDOW, now)
-            log(f"NVD: modified {window_start:%Y-%m-%d} .. {window_end:%Y-%m-%d}")
-            total += run({"lastModStartDate": _nvd_time(window_start),
-                          "lastModEndDate": _nvd_time(window_end)})
-            window_start = window_end
-    state["nvd_watermark"] = now.astimezone(timezone.utc).isoformat()
-    _save_state(dest, state)
+        start = since or _parse_time(state.get("nvd_watermark"))
+        if start is None:
+            log("NVD: full download")
+            total = run({})
+            full = True
+        else:
+            log("NVD: incremental")
+            total = run_windows({}, start)
+        state["nvd_watermark"] = now.astimezone(timezone.utc).isoformat()
+
+    if damaged and not full:
+        # What the damaged shards held is not in this run; an incremental run from
+        # the old watermark would never bring it back.
+        state.pop("nvd_watermark", None)
+        log(f"NVD: {len(damaged)} unreadable shard(s) set aside; the next run without "
+            f"--since downloads everything again")
+    if not products or damaged:
+        _save_state(dest, state)
     return total
 
 
-def _window(since: datetime, now: datetime) -> Dict[str, str]:
-    if now - since > _MAX_WINDOW:
-        since = now - _MAX_WINDOW
-    return {"lastModStartDate": _nvd_time(since), "lastModEndDate": _nvd_time(now)}
+def _windows(since: datetime, now: datetime) -> Iterator[Dict[str, str]]:
+    """``lastMod`` parameters covering *since* .. *now* in windows the API accepts."""
+    start = since
+    while start < now:
+        end = min(start + _MAX_WINDOW, now)
+        yield {"lastModStartDate": _nvd_time(start), "lastModEndDate": _nvd_time(end)}
+        start = end
 
 
 # ------------------------------------------------------------------- OSV

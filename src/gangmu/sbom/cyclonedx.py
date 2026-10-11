@@ -16,21 +16,20 @@ primary format rather than an afterthought:
 
 from __future__ import annotations
 
-import datetime as _dt
-import uuid
 from typing import Any, Dict, List, Optional
 
 from .. import __version__
 from ..licenses import cyclonedx_licenses, differs, observed_ids
 from ..support import support_properties
 from ..model import Finding, ScanResult
+from ..core import repro
 
 SPEC_VERSION = "1.6"
 _IDENTITY_FIELD_FOR = {"purl": "purl", "cpe": "cpe"}
 
 
 def _now() -> str:
-    return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return repro.timestamp()
 
 
 def _identity_entries(finding: Finding) -> List[Dict[str, Any]]:
@@ -235,7 +234,7 @@ def to_cyclonedx(result: ScanResult, app_name: str = "firmware",
     bom: Dict[str, Any] = {
         "bomFormat": "CycloneDX",
         "specVersion": SPEC_VERSION,
-        "serialNumber": serial or f"urn:uuid:{uuid.uuid4()}",
+        "serialNumber": serial or f"urn:uuid:{repro.ID_PLACEHOLDER}",
         "version": 1,
         "metadata": {
             "timestamp": timestamp or _now(),
@@ -271,7 +270,7 @@ def to_cyclonedx(result: ScanResult, app_name: str = "firmware",
         "components": components,
         "dependencies": dependencies,
     }
-    return bom
+    return repro.fill_document_id(bom)
 
 
 def _dependency_graph(findings, components) -> List[Dict[str, Any]]:

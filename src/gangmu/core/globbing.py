@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import re
 from functools import lru_cache
-from typing import Iterable, Optional, Pattern, Sequence, Tuple
+from typing import Optional, Pattern, Sequence, Tuple
 
 
 @lru_cache(maxsize=4096)

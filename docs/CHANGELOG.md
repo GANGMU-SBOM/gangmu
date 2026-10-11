@@ -2,6 +2,17 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
+## 未发布
+
+* **修正：ESP-IDF 的 `managed_components/` 不再被跳过。** 组件管理器从注册表下载的依赖都放在这里，也都编进固件；以前发现阶段按目录名跳过它，即使编译数据库表明编译了，SBOM 里也没有这些组件。
+* **修正：OSV 记录的 CVSS 评级。** 真实 OSV 记录的 `severity[].score` 是向量字符串，以前原样写进 CycloneDX 评级的 `severity`（只允许等级名），VEX 不符合 bom-1.6 schema，分数为空（按 0 分排序），MIIT 和 CRA 报告里的“危害程度”显示成向量。现在 v3 向量按规范公式算出基础分；v4 向量保留原文、等级取 GHSA 的 `database_specific.severity`；向量和方法写进评级各自的字段。NVD 只有 `cvssMetricV40` 时也读出分数和等级。
+* **修正：同一漏洞不再重复计数。** NVD 的 CVE 和以它为别名的 GHSA 记录，或同一记录经 CPE 和 PURL 两个通道命中同一组件，以前是两条结果，`--fail-on`、CycloneDX 和 CSAF 都算两次。现在每个漏洞和组件只留一条，取更严重的状态，另一条记录的编号进 `aliases`。`vuln coverage` 仍按通道统计。
+* **修正：`git describe` 形式的版本不再被判为“不受影响”。** `0.2-265-gad902ca` 以前把哈希里的数字当成版本号，对“0.2.1 修复”得出不受影响；在 0.2 之后 265 个提交，不一定包含 0.2.1 的修复。现在只在它的标签能决定时排序，否则交人工判断（in_triage）。
+* **修正：`vuln-fetch --product ... --since` 早于 120 天时不再被悄悄截成最近 119 天**，按 API 允许的窗口分段拉取。
+* **修正：读不出的 NVD 年度分片不再导致整年记录丢失。** 以前当作空分片，一次增量拉取就用本次的几条记录覆盖它。现在移到 `*.unreadable` 并警告，同时清除增量水位，下一次（不带 `--since`）重新全量下载。
+* **可复现输出：设置 `SOURCE_DATE_EPOCH` 时，同样的输入生成逐字节相同的文档。** 时间取该值，文档编号（CycloneDX `serialNumber`、SPDX 命名空间、OpenVEX `@id`）由内容生成（uuid5），适用于 SBOM、VEX、CBOM、AIBOM 和证据包清单；不设置时行为不变。
+* **CI：** gangmu-rules 固定到具体提交（v2026.10.11）；新增 `ruff check src tests`（只查未用和未定义的名字），并清理了已有的问题。
+
 ## 0.9.0
 
 * **新命令 `gangmu policy check`：把 CBOM、AIBOM 对照写成数据的策略，给出每条检查的状态和期限。** 策略放在 `kind` 为 `policy` 的规则包的 `policies/*.yaml`：按算法 key 或量子状态选 CBOM 资产，按缺许可证或训练数据选 AIBOM 模型，带 `deprecated-after` / `disallowed-after` 日期；结果为 `ok`、`due`、`deprecated`、`fail`，可按 `--as-of` 判断，`--fail-on` 作 CI 闸门，输出表格、Markdown 或 JSON。不下法律结论，也不看密钥长度。见 [策略检查指南](guides/policy.md)。
