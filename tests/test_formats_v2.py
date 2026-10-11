@@ -300,7 +300,6 @@ def test_no_evidence_means_no_evidence_text():
 
 def test_every_evidence_kind_reaches_all_three_formats():
     from gangmu.vuln import apply_linkage, to_vex
-    from gangmu.vuln.model import Match
     cand = _lwip()
     cand.linked, cand.subsystem_advisories = False, True
     found = _with_evidence(match([cand], load_database(DB)))

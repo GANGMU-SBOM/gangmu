@@ -8,7 +8,6 @@ what ``gangmu cn-db-check`` is for.
 """
 
 import shutil
-import warnings
 from pathlib import Path
 
 import pytest

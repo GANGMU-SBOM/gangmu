@@ -8,7 +8,6 @@ import pytest
 import yaml
 
 from gangmu import disasm, fprint
-from gangmu.binaries import collect_binaries
 from gangmu.rules.loader import load_rules
 from gangmu.scan import ScanOptions, scan
 

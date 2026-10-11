@@ -6,7 +6,6 @@ import subprocess
 import pytest
 import yaml
 
-from gangmu.binaries import collect_binaries
 from gangmu.binsig import image_strings, match_image, source_literals, tree_strings
 from gangmu.fnsig import FunctionSignature
 from gangmu.rules.loader import load_rules

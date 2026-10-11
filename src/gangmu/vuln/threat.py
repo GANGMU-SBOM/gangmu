@@ -25,7 +25,7 @@ import lzma
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, Optional, Sequence, Tuple
+from typing import Callable, Dict, Sequence, Tuple
 
 KEV_URL = ("https://www.cisa.gov/sites/default/files/feeds/"
            "known_exploited_vulnerabilities.json")

@@ -24,10 +24,13 @@ from __future__ import annotations
 import re
 from urllib.parse import unquote
 from dataclasses import dataclass, replace
-from typing import Any, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from .model import Advisory, Match, VexState
 from .version import in_event_ranges, in_range, in_tag_set, is_orderable
+
+if TYPE_CHECKING:
+    from .sources import Wanted
 
 _CPE_PARTS = 13
 

@@ -31,7 +31,6 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import warnings
-from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Dict, Iterable, Iterator, List, Optional, Sequence

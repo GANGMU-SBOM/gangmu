@@ -23,10 +23,9 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from .build.facts import BuildFacts
-from .dirprint import DEFAULT_INCLUDE
 from .core.globbing import matches_suffix
 from .manifest import MANIFEST_NAMES, ZEPHYR_MODULE
 from .rules.loader import RuleBase

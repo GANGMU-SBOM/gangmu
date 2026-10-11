@@ -191,7 +191,7 @@ def test_an_unknown_stage_is_refused():
 def test_the_bundle_hashes_everything_it_contains(tmp_path):
     sbom = tmp_path / "sbom.json"
     sbom.write_text(json.dumps(GOOD_BOM))
-    bundle = build_evidence_bundle(tmp_path / "out", _config(), sbom=sbom)
+    build_evidence_bundle(tmp_path / "out", _config(), sbom=sbom)
     manifest = json.loads((tmp_path / "out" / "manifest.json").read_text())
     assert manifest["files"]
     assert all(len(f["sha256"]) == 64 for f in manifest["files"])

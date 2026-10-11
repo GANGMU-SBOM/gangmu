@@ -13,7 +13,7 @@ with no justification is a liability.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, Optional, Sequence
 
 from .. import __version__
 from .cvss import level, method_for

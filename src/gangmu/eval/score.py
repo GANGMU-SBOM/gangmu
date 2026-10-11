@@ -22,7 +22,7 @@ field-presence check while telling a reader nothing.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Sequence
 
 PLACEHOLDERS = {"", "noassertion", "none", "unknown", "n/a", "na", "-", "null"}
 

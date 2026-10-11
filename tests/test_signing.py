@@ -49,7 +49,7 @@ def test_a_different_key_is_valid_but_untrusted(tmp_path):
 
 def test_a_swapped_embedded_key_cannot_forge(tmp_path):
     priv, pub, doc = _setup(tmp_path)
-    sig = sign_file(doc, priv)
+    sign_file(doc, priv)
     attacker, _ = generate_keypair(tmp_path / "attacker")
     forged = sign_file(doc, attacker, out=tmp_path / "forged.sig")
     assert not verify_file(doc, forged, trusted_key=pub).trusted     # attacker's key

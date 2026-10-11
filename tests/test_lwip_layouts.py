@@ -7,7 +7,6 @@ copy of the same sidecar. Code segmentation must treat those as one signature,
 not as code shared between components.
 """
 
-from pathlib import Path
 
 from gangmu.match import MatchEngine
 from gangmu.rules.loader import load_rules

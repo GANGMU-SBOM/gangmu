@@ -1,6 +1,5 @@
 import gzip
 import json
-import lzma
 
 import pytest
 

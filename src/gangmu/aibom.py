@@ -22,7 +22,7 @@ import re
 import struct
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from . import __version__
 from .aibom_decl import Declarations, ModelDeclaration, license_entry

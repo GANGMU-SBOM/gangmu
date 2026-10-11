@@ -5,7 +5,6 @@ test database of real CVE records would risk stating something untrue about a
 real advisory, and the matcher's logic does not care whose data it is.
 """
 
-import json
 from pathlib import Path
 
 import pytest

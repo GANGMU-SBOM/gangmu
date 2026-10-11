@@ -10,7 +10,6 @@ honest output.
 from __future__ import annotations
 
 import re
-from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set

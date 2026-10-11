@@ -6,7 +6,7 @@ quietly changes the answer is exactly the bug worth catching.
 """
 
 import random
-from typing import List, Sequence, Set
+from typing import Sequence, Set
 
 from gangmu.dirprint import SketchCache, print_directory
 from gangmu.fingerprint import (DEFAULT_SKETCH, kgram_hashes, signature_from_fingerprints,
