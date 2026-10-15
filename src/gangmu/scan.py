@@ -523,6 +523,9 @@ def _declaration_summary(decl: Declaration) -> str:
     if decl.ecosystem in ("conan", "bazel", "cmake", "vcpkg", "meson", "cargo"):
         return (decl.description if decl.description and not decl.version
                 else f"{decl.ecosystem} dependency {what} declared in {decl.source}")
+    if decl.ecosystem in ("stm32cube", "cmsis-pack"):
+        return (decl.description if decl.description and not decl.version
+                else f"{decl.supplier} package {what} states its own release in {decl.source}")
     if decl.ecosystem == "platformio":
         return (decl.description if decl.manifest_only and decl.description
                 else f"PlatformIO library {what} installed per {decl.source}")
