@@ -189,26 +189,26 @@ def cmd_eval(args: argparse.Namespace) -> int:
         path, truth = args.mutate.rsplit("=", 1)
         import tempfile
         with tempfile.TemporaryDirectory(prefix="gangmu-eval-") as tmp:
-            results = run_mutation_eval(signature, Path(path), truth, Path(tmp),
+            mutation_results = run_mutation_eval(signature, Path(path), truth, Path(tmp),
                                         mutations, include, jobs=jobs)
         print(f"\n{'mutation':56s} {'exact':>7s} {'abstract':>9s} "
               f"{'used':>7s} {'ident':>6s}  version")
-        for r in results:
-            print(f"{r.label:56s} {r.exact_containment:7.3f} "
-                  f"{r.abstract_containment:9.3f} {r.containment:7.3f} "
-                  f"{str(r.identified):>6s}  {r.version}")
-        kept = sum(r.identified for r in results)
-        vok = sum(r.version_ok for r in results)
-        print(f"\nidentified under {kept}/{len(results)} mutations; "
-              f"version correct {vok}/{len(results)}")
+        for m in mutation_results:
+            print(f"{m.label:56s} {m.exact_containment:7.3f} "
+                  f"{m.abstract_containment:9.3f} {m.containment:7.3f} "
+                  f"{str(m.identified):>6s}  {m.version}")
+        kept = sum(m.identified for m in mutation_results)
+        vok = sum(m.version_ok for m in mutation_results)
+        print(f"\nidentified under {kept}/{len(mutation_results)} mutations; "
+              f"version correct {vok}/{len(mutation_results)}")
         out["mutations"] = [
-            {"label": r.label, "identified": r.identified,
-             "containment": round(r.containment, 4),
-             "exactContainment": round(r.exact_containment, 4),
-             "abstractContainment": round(r.abstract_containment, 4),
-             "usedAbstraction": r.used_abstraction,
-             "version": r.version, "versionOk": r.version_ok,
-             "stats": r.stats} for r in results]
+            {"label": m.label, "identified": m.identified,
+             "containment": round(m.containment, 4),
+             "exactContainment": round(m.exact_containment, 4),
+             "abstractContainment": round(m.abstract_containment, 4),
+             "usedAbstraction": m.used_abstraction,
+             "version": m.version, "versionOk": m.version_ok,
+             "stats": m.stats} for m in mutation_results]
 
     if args.output:
         Path(args.output).write_text(json.dumps(out, indent=2, ensure_ascii=False),
@@ -227,6 +227,7 @@ def cmd_perf(args: argparse.Namespace) -> int:
     jobs = args.jobs if args.jobs > 0 else 1
 
     with tempfile.TemporaryDirectory(prefix="gangmu-perf-") as tmp:
+        tree: Dict[str, Any]
         if args.root:
             root = Path(args.root)
             tree = {"root": str(root)}

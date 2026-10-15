@@ -271,8 +271,8 @@ def cmd_diff(args: argparse.Namespace) -> int:
     print(f"only on the right  : {len(only_b)}" + (f"  {only_b}" if only_b else ""))
     if version_mismatch:
         print("\nversion disagreements:")
-        for name, va, vb in version_mismatch:
-            print(f"  {name}: left={va} right={vb}")
+        for name, left_versions, right_versions in version_mismatch:
+            print(f"  {name}: left={left_versions} right={right_versions}")
     recall = len(both) / len(names_b) if names_b else 1.0
     print(f"\nrecall against right: {recall:.2%}")
     if args.fail_under is not None and recall < args.fail_under:
@@ -348,16 +348,16 @@ def cmd_cra_check(args: argparse.Namespace) -> int:
 def cmd_report(args: argparse.Namespace) -> int:
     config = _config(args)
     if args.regime == "cn-miit":
-        draft = draft_miit_report(
+        miit = draft_miit_report(
             config, args.advisory, vex=_load_json(args.vex, "VEX"),
             found_at=args.aware_at, impact=args.summary or "",
             scope=args.scope or "", measures=args.corrective_measure or "",
             stage="report" if args.stage == "early-warning" else "update")
-        _write(json.dumps(draft.to_dict(), indent=2, ensure_ascii=False)
-               if args.format == "json" else draft.to_markdown(), args.output)
-        if draft.missing:
-            print(f"{len(draft.missing)} 个必填字段尚未填写："
-                  + "、".join(f.label for f in draft.missing), file=sys.stderr)
+        _write(json.dumps(miit.to_dict(), indent=2, ensure_ascii=False)
+               if args.format == "json" else miit.to_markdown(), args.output)
+        if miit.missing:
+            print(f"{len(miit.missing)} 个必填字段尚未填写："
+                  + "、".join(f.label for f in miit.missing), file=sys.stderr)
             return 1
         return 0
 

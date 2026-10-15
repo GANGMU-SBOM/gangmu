@@ -7,6 +7,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import List, Tuple
 
 from ..core.packs import default_roots
 from ..vuln.model import VexState
@@ -114,11 +115,11 @@ def cmd_vuln(args: argparse.Namespace) -> int:
           file=sys.stderr)
 
     if args.format == "table":
-        rows = [("STATE", "ID", "SEV", "COMPONENT", "VERSION", "VIA", "WHY")]
+        rows: List[Tuple[str, ...]] = [("STATE", "ID", "SEV", "COMPONENT", "VERSION", "VIA", "WHY")]
         if threat:
             rows[0] = rows[0][:3] + ("KEV", "EPSS") + rows[0][3:]
         for m in matches:
-            row = (m.state.value, m.advisory.id[:20],
+            row: Tuple[str, ...] = (m.state.value, m.advisory.id[:20],
                    (m.advisory.severity or "-")[:8], m.component[:18],
                    (m.version or "-")[:14], m.channel, m.detail[:58])
             if threat:

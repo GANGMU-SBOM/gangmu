@@ -181,7 +181,7 @@ def candidates_from_cyclonedx(bom: dict) -> List[Candidate]:
             fork_note=pedigree.get("notes", ""),
             confidence=confidence,
             subsystem_advisories=props.get("gangmu:advisoryScope") == "subsystem",
-            linked={"true": True, "false": False}.get(linked)))
+            linked={"true": True, "false": False}.get(linked or "")))
     return out
 
 

@@ -89,7 +89,7 @@ def merge_boms(documents: Sequence[Tuple[str, dict]],
     components: List[dict] = []
     by_key: Dict[Tuple[str, ...], dict] = {}
     used_refs: Dict[str, dict] = {}
-    if root_ref:
+    if root_ref and root is not None:
         used_refs[root_ref] = root
     remaps: List[Dict[str, str]] = []
 

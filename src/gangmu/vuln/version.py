@@ -90,11 +90,12 @@ def _describe_base(version: str) -> Optional[str]:
     return found.group(1) if found else None
 
 
-def _parts(version: str) -> Tuple[List[int], int, int]:
+def _parts(version: str) -> Tuple[List[int], float, int]:
     text = version.strip()
     text = (_describe_base(text) or text).lstrip("vV")
     pre = _PRERELEASE.search(text)
-    rank, pre_num = 4, 0          # 4 = a final release, higher than any pre-release
+    rank: float = 4
+    pre_num = 0                   # rank 4 = a final release, higher than any pre-release
     if pre:
         word = pre.group(1) or pre.group(2)
         if word:
@@ -125,7 +126,7 @@ def compare(left: str, right: str) -> Optional[int]:
     if lbase or rbase:
         if lbase and rbase:
             return 0 if left.strip().lower() == right.strip().lower() else None
-        base, other, sign = (lbase, right, 1) if lbase else (rbase, left, -1)
+        base, other, sign = (lbase, right, 1) if lbase else (rbase or "", left, -1)
         order = compare(base, other)
         return sign if order is not None and order >= 0 else None
     ln, lr, lp = _parts(left)

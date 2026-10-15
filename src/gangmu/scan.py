@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from .build.facts import BuildFacts
 from .licenses import observe
@@ -56,7 +56,7 @@ def scan(root: Path, rulebase: RuleBase,
     return result
 
 
-def _store_params(rulebase: RuleBase):
+def _store_params(rulebase: RuleBase) -> Tuple[int, int]:
     """The (k, window) most rules use; any rule using others falls back to its
     own directory prints, which is correct and merely slower."""
     counts: Dict[tuple, int] = {}
@@ -82,7 +82,8 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
     # package declares only the wrapper's tag, and the rule base is what says
     # which upstream release is inside it.
     extra = {d.directory for d in declarations
-             if d.present and not d.manifest_only and d.directory != root and root in d.directory.parents
+             if d.directory is not None and not d.manifest_only and d.directory != root
+             and root in d.directory.parents
              and not (build_facts and build_facts.compiled
                       and not build_facts.sources_under(d.directory))}
     roots = sorted(set(roots) | extra)
@@ -141,11 +142,12 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
     findings.sort(key=lambda f: (-f.confidence, f.directory))
     binaries = []
     if options.binaries:
-        facts_map = build_facts is not None and build_facts.have_link_map
+        facts_map = build_facts if build_facts is not None and build_facts.have_link_map \
+            else None
         binaries = collect_binaries(
-            root, build_facts.linked_archives if facts_map else None,
+            root, facts_map.linked_archives if facts_map else None,
             _string_signatures(rulebase), _function_prints(rulebase),
-            build_facts.link_map_stem if facts_map else "")
+            facts_map.link_map_stem if facts_map else "")
         findings.extend(_binary_findings(binaries, rulebase))
         unlinked = sum(1 for b in binaries if b.linked is False and b.container is None)
         if unlinked:
@@ -172,7 +174,7 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
     stamp_support({r.id: r for r in rulebase}, options.support or [],
                             findings, possible, not_built)
     if options.support is not None and findings:
-        gaps = sum(1 for f in findings if f.support.status == "unknown")
+        gaps = sum(1 for f in findings if f.support is not None and f.support.status == "unknown")
         if gaps:
             notes.append(f"{gaps} of {len(findings)} component(s) have no support "
                          "status in the rules or the --support file; the SBOM says "
@@ -370,7 +372,7 @@ def _apply_declarations(root: Path, findings: List[Finding], rulebase: RuleBase,
     by_dir = {f.directory: f for f in findings}
     out = list(findings)
     for decl in declarations:
-        if not decl.present:
+        if decl.directory is None:
             notes.append(f"{decl.ecosystem}: package {decl.name}"
                          + (f" {decl.version}" if decl.version else "")
                          + f" is selected in {decl.source} but not downloaded; "

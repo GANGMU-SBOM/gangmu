@@ -104,7 +104,7 @@ def cmd_aibom(args: argparse.Namespace) -> int:
         _write(json.dumps(to_aibom(result, args.app_name, args.app_version),
                           indent=2, ensure_ascii=False), args.output)
     for entry in result.declared_only:
-        print(f"warning: {declarations.source}: {entry.label} matches no model in the tree; "
+        print(f"warning: {declarations.source if declarations else '-'}: {entry.label} matches no model in the tree; "
               "kept as a declared-only component", file=sys.stderr)
     if args.require_declarations:
         gaps = result.gaps()

@@ -36,7 +36,7 @@ import hashlib
 import json
 import struct
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple, cast
 
 from . import disasm, xtensa
 from .binsig import MIN_LEN, _wanted
@@ -171,6 +171,7 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
     if arch == "xtensa":
         xtensa.features(code, address, mem.read, emit)
         return out
+    assert spec is not None     # only xtensa has none, and it returned above
     md = disasm.capstone.Cs(spec.cs_arch, spec.cs_mode)
     md.detail = True
     md.skipdata = True
@@ -300,7 +301,7 @@ def image_features(data: bytes, arch: Optional[str] = None, base: Optional[int] 
         mem = Memory([(start, data)] if start is not None else [])
     if rec is None or not rec.functions or not mem.regions:
         return [], None
-    found = []
+    found: List[Set[int]] = []
     for f in rec.functions:
         feats = function_features(mem, rec.arch, f.address, f.size)
         if len(feats) >= (MIN_FEATURES if min_features is None else min_features):
@@ -450,7 +451,7 @@ class FunctionPrints:
         matched: Set[int] = set()
         for feats in image:
             if by_string:
-                feats = getattr(feats, "strings", None) or ()
+                feats = cast(Set[int], getattr(feats, "strings", None) or set())
                 if len(feats) < floor:
                     continue
             votes: Dict[int, int] = {}

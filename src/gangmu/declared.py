@@ -277,7 +277,9 @@ def _read_bundle(path: Path) -> Optional[dict]:
     subsystem = _field(component, "subsystem")
     if not name or not subsystem:
         return None
-    deps = component.get("deps") if isinstance(component.get("deps"), dict) else {}
+    deps = component.get("deps")
+    if not isinstance(deps, dict):
+        deps = {}
     depends_on: List[str] = []
     for key in ("components", "third_party"):
         for dep in deps.get(key) or []:

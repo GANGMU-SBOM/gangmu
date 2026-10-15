@@ -371,7 +371,7 @@ def load_cn_report(directory: Path, keep=None) -> CnLoadReport:
         name = path.name.lower()
         hint = ("cnvd" if "cnvd" in name else
                 "nvdb" if "nvdb" in name or "cstis" in name else "cnnvd")
-        seen = set()
+        seen: set = set()
         try:
             for raw_record in records:
                 if not isinstance(raw_record, dict):

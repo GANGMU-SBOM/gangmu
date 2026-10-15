@@ -142,6 +142,7 @@ def cmd_rules_import(args: argparse.Namespace) -> int:
             skipped += result.status == "no-source"
             failed += result.status == "error"
             continue
+        assert result.rule is not None      # status "ok" carries the rule
         rule = dict(result.rule)
         rule["review"]["added"] = args.date or _dt.date.today().isoformat()
         text = dump_rule(rule)

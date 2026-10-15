@@ -50,7 +50,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 from .declared import Declaration
 from .declared_linux import _known
@@ -446,7 +446,7 @@ def _starlark_calls(path: Path):
         return
     for node in ast.walk(tree):
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-            kwargs = {}
+            kwargs: Dict[str, Any] = {}
             for kw in node.keywords:
                 if kw.arg is None:
                     continue
@@ -488,7 +488,7 @@ def read_bazel(root: Path) -> List[Declaration]:
             if fname not in files:
                 continue
             source = (here / fname).relative_to(root).as_posix()
-            overrides: Dict[str, dict] = {}
+            overrides: Dict[str, tuple] = {}
             calls = list(_starlark_calls(here / fname) or [])
             for func, kw in calls:
                 if func in ("single_version_override", "git_override") and kw.get("module_name"):

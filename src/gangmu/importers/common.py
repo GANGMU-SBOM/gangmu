@@ -108,7 +108,7 @@ def make_rule(project: VendoredProject, rule_id: str, checkout: Path, dp,
         # A component with no release still has an identity: the commit the SDK
         # pins. "UNKNOWN" in an SBOM is worse than useless -- it reads like a
         # version and matches nothing -- whereas a commit is a real locator.
-        version = f"git-{project.sha[:12]}"
+        version = f"git-{(project.sha or '')[:12]}"
     cpe = project.declared_cpe or (manifest.cpe.replace("{}", "*")
                                    if manifest and manifest.cpe else None)
     parts = project.url.rstrip("/").split("/")

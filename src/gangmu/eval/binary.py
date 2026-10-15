@@ -25,7 +25,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 GRID = [(k, t) for k in (2, 3) for t in (0.95, 0.9, 0.85, 0.8)]
 OUTCOMES = ("exact", "range", "wrong", "none")
@@ -166,7 +166,7 @@ def _classify(hit, tags: Sequence[str], truth: str) -> Tuple[str, str]:
     return ("range" if truth in span else "wrong"), tied
 
 
-def _prints_for(corpus: Corpus, lib: str, ref_opt: str, k: int):
+def _prints_for(corpus: Corpus, lib: str, ref_opt: str, k: int) -> Tuple[Any, List[str]]:
     from ..fprint import FunctionPrints
     tags = [t for t in corpus.releases[lib] if ref_opt in corpus.builds[lib][t]]
     if len(tags) < 2:
@@ -183,7 +183,7 @@ def evaluate(corpus: Corpus, min_features: int = 2, tie_share: float = 0.85,
     is how a rule author's references meet firmware for a different CPU."""
     report = Report(min_features, tie_share)
     target = images or corpus
-    prints: Dict[Tuple[str, str], object] = {}
+    prints: Dict[Tuple[str, str], Tuple[Any, List[str]]] = {}
     for lib in corpus.builds:
         if lib not in target.builds:
             continue
