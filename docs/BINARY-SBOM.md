@@ -116,7 +116,7 @@
 | `EasyModbus.dll` 5.6.0 | 名字、版本；PDB 路径 `W:\Projekte\...\obj\Debug\EasyModbus.pdb` | 说明发布的是 Debug 构建，还带出了开发者的目录 |
 | `NModbus.dll` 3.0.83、`S7.Net.dll`（S7netplus 0.20.0） | 名字、版本、CI 构建机上的 PDB 路径 | |
 | `Opc.Ua.Core.dll` 2.0.1（OPC Foundation 官方 OPC UA 栈） | 名字、版本、已签名、10 到 13 个第三方程序集引用 | 每个引用只有程序集版本，没有包版本 |
-| `libplctag.NativeImport.dll` 1.0.41（Allen-Bradley PLC 通信库的 .NET 包装） | 名字、版本；**切出了里面嵌的 10 个原生库**（4 个 Linux ELF、2 个 macOS Mach-O、4 个 Windows PE，见下一节），各自的架构、工具链、导出符号 | **仍然没认出里面的原生库是 libplctag**：纲目的识别表里没有它，需要规则库条目 |
+| `libplctag.NativeImport.dll` 1.0.41（Allen-Bradley PLC 通信库的 .NET 包装） | 名字、版本；**切出了里面嵌的 10 个原生库**（4 个 Linux ELF、2 个 macOS Mach-O、4 个 Windows PE，见下一节），各自的架构、工具链、导出符号 | 切出的 10 个原生库**都认出是 libplctag**（按 `plc_tag_*` 导出符号，不给版本；ELF、Mach-O 的 SONAME 写明 2.6 系列）；外层 .NET 包装本身不会被报成含有它 |
 
 这组结果的结论要诚实地读：**.NET 库（自带元数据）识别得很好；静态链接的 C/C++ 库（snap7、SOEM）一个都没认出来**，
 和上面“没有任何横幅的静态 C/C++ 程序仍然认不出”一致。要认出它们，得往规则库里加条目（Snap7 的导出 API 名单、SOEM 的字符串或函数指纹），
@@ -150,7 +150,7 @@
 ## 没做的，和没验证的
 
 - **切分的范围：** 只认 ELF、PE 和小端 Mach-O；胖 Mach-O 不认（它的魔数同时是 Java 类文件的魔数）；被压缩或加密的内嵌载荷不展开（`.NET` 资源里存的若是 gzip，要解压才看得到里面的库）；最多往里两层。
-- **切出来了，但认不出是哪个库。** 子二进制走和别的文件同一套识别：横幅、导出符号、版本资源、字符串和函数指纹。`libplctag` 的原生库有 `plc_tag_*` 导出（ELF 里 385 个符号，PE 里 52 个）、SONAME `libplctag.so.2.6` 和字符串 `2.6.0`，可以写成规则，但现在规则库里没有，所以不会被命名。
+- **认出来靠导出符号，不靠字符串。** 子二进制走和别的文件同一套识别。`libplctag` 的原生库按 34 个 `plc_tag_*` 导出符号识别（至少 24 个，在 10 个切出的库里全部命中），ELF 和 Mach-O 的 SONAME（`libplctag.so.2.6`）写进证据说明里，但它只是 2.6 系列，不当作版本；字符串 `2.6.0` 没有可靠的旁证，也不用。**.NET 程序集不参与导出符号匹配**：它的元数据里有同样的 `plc_tag_*` 名字，那是 P/Invoke 声明，表示它要调用库，不表示库在里面。只在这一个版本（1.0.41 里的 2.6.0）上验证过，别的 libplctag 版本没有样本，没有验证。
 - **Rust 在 Windows 上的 `.dep-v0`**：段名在 PE 里的读取只用合成文件测过。我没能构建真实的 Windows Rust 程序
   （本机没有 MinGW 链接器，`rust-lld` 的 gnu 风格需要 nightly），ELF 上是真实验证过的。
 - **Go 1.18 以前的旧布局**、被混淆（garble 等）或剥掉构建信息的 Go 程序：读不出，也不会猜。
