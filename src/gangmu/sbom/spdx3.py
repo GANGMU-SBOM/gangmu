@@ -173,17 +173,24 @@ def to_spdx3(result: ScanResult, app_name: str = "firmware",
         members.append(pkg_id)
         if finding.component_name:
             by_name.setdefault(finding.component_name, []).append(pkg_id)
+    inside: List[Any] = []
     for blob in result.binaries:
         comment = describe_binary(blob)
-        members.append(doc.add({
+        added = doc.add({
             "type": "software_Package", "spdxId": doc.iri("binary", blob.path),
             "name": blob.path, "software_packageVersion": "NOASSERTION",
             "software_primaryPurpose": "file",
             "verifiedUsing": [{"type": "Hash", "algorithm": "sha256",
                                "hashValue": blob.sha256}],
-            "comment": comment}))
+            "comment": comment})
+        if blob.container:                  # contained by the file it was found in
+            inside.append((doc.iri("binary", blob.container), added))
+        else:
+            members.append(added)
     if members:
         doc.relate(root, "contains", members)
+    for outer, inner in inside:
+        doc.relate(outer, "contains", [inner])
     for finding, pkg_id in zip(result.findings, ids):
         for name in finding.depends_on:
             targets = [t for t in by_name.get(name, []) if t != pkg_id]

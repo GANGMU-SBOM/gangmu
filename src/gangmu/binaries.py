@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import List, Optional, Sequence, Set
 
 from . import disasm
+from .carve import carve, mask
 from .binmeta import CARGO_SECTION, GoBuildInfo, cargo_auditable, go_buildinfo
 from .dotnet import is_framework, parse_dotnet, read_deps_json
 from .elf import ElfInfo, parse_elf
@@ -51,6 +52,9 @@ SKIP_DIRS = set(NOT_CONTENT_DIRS)
 # a firmware image. Libraries (``.a``, ``.lib``, ``.so``) are still listed wherever they are.
 FIXTURE_DIRS = {"test", "tests", "testdata", "test_data", "fuzz", "fixtures"}
 MAX_BANNER_BYTES = 64 * 1024 * 1024
+MAX_EMBED_DEPTH = 2          # a binary inside a binary inside a binary, and no further
+# An archive of object files: its members are ELF objects, not libraries that were shipped.
+NO_CARVE_SUFFIXES = {".a", ".lib"}
 
 # (name, display name, banner pattern). The version is group 1. Each pattern is a
 # string the upstream project itself compiles in, not a guess from a file name.
@@ -152,6 +156,9 @@ class Binary:
     signed: Optional[bool] = None       # PE only: an Authenticode signature is attached
     runtime: Optional[str] = None       # "go go1.24.7", "rust", "dotnet"
     imports: Optional[List[str]] = None # PE only: libraries the file imports
+    container: Optional[str] = None     # path of the file this binary was found inside
+    offset: Optional[int] = None        # where in that file it starts
+    embedded_binaries: int = 0          # how many binaries were found inside this one
 
     def to_dict(self):
         return {
@@ -163,6 +170,8 @@ class Binary:
             "function_source": self.function_source, "function_note": self.function_note,
             "product": self.product, "pdb": self.pdb, "signed": self.signed,
             "runtime": self.runtime, "imports": self.imports,
+            "container": self.container, "offset": self.offset,
+            "embedded_binaries": self.embedded_binaries,
         }
 
 
@@ -215,6 +224,11 @@ def describe_binary(blob: Binary) -> str:
             text += f"; {label} {_shown(items, versions)}"
     if blob.runtime:
         text += f"; built with {blob.runtime}"
+    if blob.embedded_binaries:
+        text += f"; contains {blob.embedded_binaries} embedded binar" + (
+            "y" if blob.embedded_binaries == 1 else "ies")
+    if blob.container:
+        text += f"; found inside {blob.container}"
     return text
 
 
@@ -249,7 +263,7 @@ def collect_binaries(root: Path, linked_archives: Optional[Set[str]] = None,
             if in_fixtures and path.suffix.lower() in PRODUCT_SUFFIXES:
                 continue
             try:
-                out.append(_inspect(path, root, linked_archives, string_signatures,
+                out.extend(_inspect(path, root, linked_archives, string_signatures,
                                     function_prints, product_stem))
             except OSError:
                 continue
@@ -258,7 +272,8 @@ def collect_binaries(root: Path, linked_archives: Optional[Set[str]] = None,
 
 def _inspect(path: Path, root: Path, linked_archives: Optional[Set[str]],
              string_signatures: Sequence = (), function_prints: Sequence = (),
-             product_stem: str = "") -> Binary:
+             product_stem: str = "") -> List[Binary]:
+    """The file, followed by every binary found inside it."""
     data = path.read_bytes() if path.stat().st_size <= MAX_BANNER_BYTES else b""
     digest = hashlib.sha256(data if data else path.read_bytes()).hexdigest()
     rel = path.relative_to(root).as_posix()
@@ -274,46 +289,83 @@ def _inspect(path: Path, root: Path, linked_archives: Optional[Set[str]],
             Path(a.replace("\\", "/")).name == path.name
             and parent in Path(a.replace("\\", "/")).parts
             for a in linked_archives)
+    out = [blob]
     if data:
-        layers = (expand(data, path.suffix) if path.suffix.lower() in IMAGE_SUFFIXES
-                  else [Layer("", data)])
-        blob.layers = len(layers)
-        for layer in layers:
-            elf = parse_elf(layer.data) if not layer.label else None
-            pe = (parse_pe(layer.data)
-                  if not layer.label and path.suffix.lower() in PE_SUFFIXES else None)
-            found = _banners(layer.data, elf)
-            if not layer.label:
-                found += _toolchain_lists(blob, layer.data, pe, elf)
-            if pe is not None:
-                found += _pe_evidence(blob, pe, found + blob.embedded, layer.data)
-                found += _sidecar_packages(path, found + blob.embedded)
-            if string_signatures:
-                found += _by_strings(layer.data, found + blob.embedded, string_signatures)
-            if (function_prints and not layer.label and disasm.available()
-                    and path.suffix.lower() in IMAGE_SUFFIXES):
-                found += _by_functions(layer.data, found + blob.embedded, function_prints)
-            for emb in found:
-                if any((e.name, e.version) == (emb.name, emb.version) for e in blob.embedded):
-                    continue
-                if layer.label:
-                    emb.banner += f"  [inside {layer.label}]"
-                blob.embedded.append(emb)
-            tool = _TOOLCHAIN.search(layer.data)
-            if tool and not blob.toolchain:
-                blob.toolchain = (f"{tool.group(1).decode('ascii', 'replace')} "
-                                  f"{tool.group(2).decode('ascii')}")
-            if not layer.label and disasm.available() and path.suffix.lower() in IMAGE_SUFFIXES:
-                _recover_functions(blob, layer.data, elf, path.suffix.lower() == ".bin")
-            if elf:
-                blob.stripped, blob.symbols = elf.stripped, len(elf.defined)
-                if not blob.toolchain:
-                    blob.toolchain = next((c for c in elf.comments if c.startswith("GCC")), None)
-            # The linker version is only worth showing when nothing better is known: the Go and
-            # .NET toolchains write their own numbers there (3.0, 48.0), and ``runtime`` says more.
-            if pe is not None and not blob.toolchain and not blob.runtime and pe.linker != "0.0":
-                blob.toolchain = f"linker {pe.linker}"
-    return blob
+        _analyze(blob, data, path.suffix.lower(), path, string_signatures, function_prints,
+                 0, out)
+    return out
+
+
+def _analyze(blob: Binary, data: bytes, suffix: str, sidecar: Optional[Path],
+             string_signatures: Sequence, function_prints: Sequence, depth: int,
+             out: List[Binary]) -> None:
+    """Read banners, structure and dependency lists from *data* into *blob*.
+
+    Binaries found inside *data* (see ``carve``) are blanked out of what *blob* itself is read
+    from, so a banner or a toolchain string is credited to the binary it is in; each is then
+    analysed the same way and appended to *out* as an entry of its own."""
+    carved = ([] if depth >= MAX_EMBED_DEPTH or suffix in NO_CARVE_SUFFIXES
+              else carve(data))
+    original = data
+    data = mask(data, carved)
+    layers = expand(data, suffix) if suffix in IMAGE_SUFFIXES else [Layer("", data)]
+    blob.layers = len(layers)
+    for layer in layers:
+        elf = parse_elf(layer.data) if not layer.label else None
+        pe = parse_pe(layer.data) if not layer.label and suffix in PE_SUFFIXES else None
+        found = _banners(layer.data, elf)
+        if not layer.label:
+            found += _toolchain_lists(blob, layer.data, pe, elf)
+        if pe is not None:
+            found += _pe_evidence(blob, pe, found + blob.embedded, layer.data)
+            if sidecar is not None:
+                found += _sidecar_packages(sidecar, found + blob.embedded)
+        if string_signatures:
+            found += _by_strings(layer.data, found + blob.embedded, string_signatures)
+        if (function_prints and not layer.label and disasm.available()
+                and suffix in IMAGE_SUFFIXES):
+            found += _by_functions(layer.data, found + blob.embedded, function_prints)
+        for emb in found:
+            if any((e.name, e.version) == (emb.name, emb.version) for e in blob.embedded):
+                continue
+            if layer.label:
+                emb.banner += f"  [inside {layer.label}]"
+            blob.embedded.append(emb)
+        tool = _TOOLCHAIN.search(layer.data)
+        if tool and not blob.toolchain:
+            blob.toolchain = (f"{tool.group(1).decode('ascii', 'replace')} "
+                              f"{tool.group(2).decode('ascii')}")
+        if not layer.label and disasm.available() and suffix in IMAGE_SUFFIXES:
+            _recover_functions(blob, layer.data, elf, suffix == ".bin")
+        if elf:
+            blob.stripped, blob.symbols = elf.stripped, len(elf.defined)
+            if not blob.toolchain:
+                blob.toolchain = next((c for c in elf.comments if c.startswith("GCC")), None)
+        # The linker version is only worth showing when nothing better is known: the Go and
+        # .NET toolchains write their own numbers there (3.0, 48.0), and ``runtime`` says more.
+        if pe is not None and not blob.toolchain and not blob.runtime and pe.linker != "0.0":
+            blob.toolchain = f"linker {pe.linker}"
+    blob.embedded_binaries = len(carved)
+    names = _resource_names(original) if carved else {}
+    for item in carved:
+        sub = original[item.offset:item.offset + item.size]
+        label = names.get(item.offset)
+        child = Binary(
+            path=f"{blob.path}!{label}" if label else f"{blob.path}#{item.offset:#x}",
+            sha256=hashlib.sha256(sub).hexdigest(), size=item.size,
+            kind=f"embedded-{item.kind}", linked=blob.linked, container=blob.path,
+            offset=item.offset, arch=item.arch)
+        out.append(child)
+        _analyze(child, sub, item.suffix, None, string_signatures, function_prints,
+                 depth + 1, out)
+
+
+def _resource_names(data: bytes) -> dict:
+    """Offset -> name of each managed resource, so a binary carved out of a .NET assembly can be
+    called by the name its author gave it."""
+    from .dotnet import managed_resources
+    pe = parse_pe(data) if data[:2] == b"MZ" else None
+    return managed_resources(data, pe) if pe is not None and pe.is_dotnet else {}
 
 
 def _banners(data: bytes, elf: Optional[ElfInfo] = None) -> List[Embedded]:

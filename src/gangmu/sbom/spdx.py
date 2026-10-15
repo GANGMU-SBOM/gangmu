@@ -138,9 +138,11 @@ def to_spdx(result: ScanResult, app_name: str = "firmware",
             "comment": describe_binary(blob),
         }
         packages.append(pkg)
-        relationships.append({"spdxElementId": root_id,
-                              "relationshipType": "CONTAINS",
-                              "relatedSpdxElement": pkg["SPDXID"]})
+        # A binary found inside another file is contained by that file, not by the product.
+        relationships.append({
+            "spdxElementId": _spdx_id("Binary", blob.container) if blob.container else root_id,
+            "relationshipType": "CONTAINS",
+            "relatedSpdxElement": pkg["SPDXID"]})
     # Declared dependencies (OpenHarmony bundle.json), where both ends were found.
     for finding, pkg in zip(result.findings, packages[1:]):
         for name in finding.depends_on:

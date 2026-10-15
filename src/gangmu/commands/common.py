@@ -93,10 +93,13 @@ def _table(result: ScanResult) -> str:
              for row in rows]
     lines.insert(1, "  ".join("-" * w for w in widths))
     if result.binaries:
+        top = [b for b in result.binaries if b.container is None]
+        inside = len(result.binaries) - len(top)
         named = sum(1 for b in result.binaries if b.embedded)
         lines.append("")
-        lines.append(f"{len(result.binaries)} prebuilt binar(ies) with no source "
-                     f"({named} with a version banner); listed in the SBOM, "
+        lines.append(f"{len(top)} prebuilt binar(ies) with no source "
+                     + (f"(plus {inside} found inside them) " if inside else "")
+                     + f"({named} with a version banner); listed in the SBOM, "
                      "not analysable here")
     if result.possible:
         lines.append("")

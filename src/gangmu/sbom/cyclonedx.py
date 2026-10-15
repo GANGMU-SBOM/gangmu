@@ -215,6 +215,13 @@ def _binary_component(blob) -> Dict[str, Any]:
             props.append({"name": ("gangmu:vendorComponent" if emb.vendor_component
                                    else "gangmu:embeddedLibrary"),
                           "value": f"{emb.display_name} {emb.version}".strip()})
+    if blob.container:
+        props.append({"name": "gangmu:containedIn", "value": blob.container})
+        props.append({"name": "gangmu:offsetInContainer", "value": str(blob.offset)})
+    if blob.embedded_binaries:
+        props.append({"name": "gangmu:embeddedBinaries", "value": str(blob.embedded_binaries)})
+    if blob.arch and blob.container:
+        props.append({"name": "gangmu:architecture", "value": blob.arch})
     if blob.runtime:
         props.append({"name": "gangmu:runtime", "value": blob.runtime})
     if blob.product:
