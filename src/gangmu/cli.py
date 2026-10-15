@@ -209,6 +209,34 @@ def cmd_merge(args: argparse.Namespace) -> int:
         report.disagreements or report.state_conflicts) else 0
 
 
+def cmd_license_check(args: argparse.Namespace) -> int:
+    """Triage the licences in a CycloneDX SBOM: copyleft, possible incompatibilities, gaps."""
+    from .licensecheck import check_licenses, render
+    try:
+        bom = json.loads(Path(args.sbom).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        print(f"error: {args.sbom}: {exc}", file=sys.stderr)
+        return 2
+    if not isinstance(bom, dict) or bom.get("bomFormat") != "CycloneDX":
+        print(f"error: {args.sbom}: not a CycloneDX JSON document", file=sys.stderr)
+        return 2
+    report = check_licenses(bom)
+    if args.format == "json":
+        print(json.dumps({
+            "counts": report.counts, "copyleft": report.copyleft, "network": report.network,
+            "possibleConflicts": [{"a": a, "b": b, "why": w}
+                                  for a, b, w in report.possible_conflicts],
+            "noLicence": report.unlicensed,
+            "prebuiltBinariesWithoutLicence": report.unlicensed_files},
+            indent=2, ensure_ascii=False))
+    else:
+        print(render(report))
+    failing = {"copyleft": bool(report.copyleft or report.network),
+               "incompatible": bool(report.possible_conflicts),
+               "unlicensed": bool(report.unlicensed or report.unlicensed_files)}
+    return 1 if any(failing[k] for k in args.fail_on) else 0
+
+
 def cmd_diff(args: argparse.Namespace) -> int:
     """Compare two CycloneDX files, e.g. ours against the vendor's own SBOM."""
     def load(path: str) -> dict:
@@ -1014,6 +1042,15 @@ def build_parser() -> argparse.ArgumentParser:
                     help="exit 1 when documents give one component different versions or "
                          "one vulnerability different states")
     mg.set_defaults(func=cmd_merge)
+
+    lc = sub.add_parser("license-check", help="triage the licences in a CycloneDX SBOM "
+                                              "(copyleft, possible incompatibilities, gaps)")
+    lc.add_argument("sbom", help="CycloneDX JSON document")
+    lc.add_argument("--format", choices=["text", "json"], default="text")
+    lc.add_argument("--fail-on", action="append", default=[],
+                    choices=["copyleft", "incompatible", "unlicensed"],
+                    help="exit 1 when this is found (repeatable)")
+    lc.set_defaults(func=cmd_license_check)
 
     register_commands(sub)
     return p

@@ -383,6 +383,8 @@ ONEKEY、Finite State、Cybellum、NetRise 面向大型企业做固件二进制�
 | `gangmu cbom ROOT [--compile-db F] [--link-map F] [--rules DIR] [--libraries]` | 密码物料清单：列出源码、配置、预编译库和固件镜像里的密码算法，输出 CycloneDX 1.6 CBOM（`--format cyclonedx`）或后量子迁移摘要（`--format readiness`）；`--rules` 加载 CBOM 规则包，`--libraries` 按认出的库版本补算法；有构建事实时只统计真正编进固件的，没有时每项标 `unverified`；每个算法标量子风险（RSA、ECDSA、ECDH、SM2 等会被破解），`--fail-on quantum-vulnerable` 可在 CI 里卡住。按名字识别，见 [CBOM 指南](docs/guides/cbom-post-quantum.md) |
 | `gangmu aibom ROOT [--format cyclonedx]` | AI 物料清单（最小版）：列出目录里的机器学习模型（TFLite、GGUF、ONNX、safetensors、PyTorch 等，带 SHA-256；编进 C 数组的 TFLite 模型也认）和推理运行时（TFLite Micro、CMSIS-NN、Edge Impulse、llama.cpp 等），输出 CycloneDX 1.6。训练数据和许可证读声明文件，见 [AIBOM 指南](docs/guides/aibom.md) |
 | `gangmu policy check ROOT [--policy DIR] [--as-of DATE] [--fail-on fail]` | 把 CBOM、AIBOM 对照策略包里的法规或内部要求，每条检查给出 `ok` / `due` / `deprecated` / `fail` 和下一个期限；输出表格、Markdown、JSON，见 [策略检查指南](docs/guides/policy.md) |
+| `gangmu merge FILE... [-o OUT] [--fail-on-disagreement]` | 合并多份 CycloneDX（本工具的扫描、供应商的、Yocto 或 Conan 的）：purl 或名称加版本相同的算同一个，第一份优先，版本分歧与 VEX 状态冲突会报出来 |
+| `gangmu license-check SBOM [--fail-on copyleft\|incompatible\|unlicensed]` | 对 CycloneDX 里的许可证做分诊：GPL/LGPL/AGPL 等 copyleft、按 FSF 许可证列表可能不兼容的组合（如 Apache-2.0 与 GPL-2.0-only）、没有许可证的组件和预编译二进制；只是提示，不是法律结论 |
 | `gangmu sbom-score` / `eval` / `bench` / `diff` | 质量评分、评测基准、性能、召回率对比 |
 
 ## 仓库
