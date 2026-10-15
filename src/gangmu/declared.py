@@ -92,7 +92,8 @@ class Declaration:
             base = f"pkg:{self.ecosystem}/{_purl_name(self.name)}"
         elif self.supplier == OPENHARMONY_SUPPLIER:
             base = f"pkg:generic/openharmony/{_purl_name(self.name)}"
-        elif self.cpe or self.ecosystem in ("buildroot", "openwrt", "kbuild", "yocto"):
+        elif self.cpe or self.ecosystem in ("buildroot", "openwrt", "kbuild", "yocto",
+                                            "dpkg", "opkg", "apk"):
             base = f"pkg:generic/{_purl_name(self.name)}"
         else:
             github = _github_purl(self.upstream_url)

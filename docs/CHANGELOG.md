@@ -4,6 +4,8 @@
 
 ## 未发布
 
+* **新增：读取已解开的根文件系统里的包数据库。** `var/lib/dpkg/status`（只算已安装的）、opkg 的 `var/lib/opkg/status` 或 `usr/lib/opkg/status`（Yocto 的 `-r0` 修订号去掉得到上游版本，git 快照不给版本）、Alpine 的 `lib/apk/db/installed`。已对照本构建容器自己的 dpkg 数据库验证：读出 827 个包，与 `dpkg-query` 的数目一致。dpkg 和 apk 的版本带发行版自己的修订号并回移修复，所以按原样报告，不当上游版本，也不套上游 CPE。不解镜像，需要指向已解开的目录。模块：`declared_rootfs.py`。
+
 * **新增：`gangmu merge` 合并多份 CycloneDX 文档。** 一个产品的 SBOM 常来自多个工具（Yocto 构建、供应商、Conan、本工具的源码扫描）。purl 相同、否则名称加版本相同的算同一个组件；第一份文档已有的字段保留，后面的只补空缺（并加 `gangmu:alsoIn` 属性）；同一组件版本不同时两条都保留并报告为分歧；`bom-ref` 冲突自动改名，依赖图跟着改；漏洞（VEX）按 id 合并，分析状态不一致时取更谨慎的；`--fail-on-disagreement` 在出现任一类冲突时返回 1。合并结果通过 CycloneDX 1.6 schema 校验。只支持 CycloneDX JSON，不读 SPDX，组件内嵌的子组件原样带过去但不去重。
 
 * **新增：读取 STM32Cube 包和 CMSIS-Pack 自己声明的版本。** CMSIS 设备头里的 `__STM32xx_CMSIS_VERSION_*` 宏（没有就取旁边 `Release_Notes.html` 的最新一条）、ST HAL 驱动 `Release_Notes.html` 的最新一条（现行 HAL 头文件不带版本宏）、CMSIS-Pack `*.pdsc` 的 vendor、name 和最新 `<release>`。已对照 ST 官方仓库的 F1、F4、G0、H7 的 HAL 与 CMSIS 设备树验证；不声称 CPE。模块：`declared_packs.py`。

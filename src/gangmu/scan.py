@@ -517,6 +517,9 @@ def _declaration_summary(decl: Declaration) -> str:
     if decl.ecosystem in ("buildroot", "openwrt"):
         return (f"{decl.ecosystem} package {what} is selected in {decl.source}; "
                 "the recipe pins this upstream version")
+    if decl.ecosystem in ("dpkg", "opkg", "apk"):
+        return (decl.description if decl.description and not decl.version_is_upstream
+                else f"{decl.ecosystem} package {what} is installed per {decl.source}")
     if decl.ecosystem == "yocto":
         return (f"Yocto: {decl.source} lists {what}"
                 + (f" ({decl.description})" if decl.description else ""))
