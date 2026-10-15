@@ -178,6 +178,37 @@ def cmd_scan(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_merge(args: argparse.Namespace) -> int:
+    """Join CycloneDX documents (ours, the vendor's, a Yocto or Conan SBOM) into one."""
+    from .sbom.merge import MergeError, merge_boms
+    documents = []
+    for path in args.files:
+        try:
+            documents.append((Path(path).name,
+                              json.loads(Path(path).read_text(encoding="utf-8"))))
+        except (OSError, ValueError) as exc:
+            print(f"error: {path}: {exc}", file=sys.stderr)
+            return 2
+    try:
+        merged, report = merge_boms(documents)
+    except MergeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    _write(json.dumps(merged, indent=2, ensure_ascii=False), args.output)
+    print(f"merged {report.inputs} documents: {report.components_in} components in, "
+          f"{report.components_out} out ({report.duplicates} duplicates joined), "
+          f"{report.vulnerabilities_out} vulnerabilities", file=sys.stderr)
+    for name, versions in report.disagreements:
+        print(f"  disagreement: {name} is {' and '.join(versions)}", file=sys.stderr)
+    for text in report.state_conflicts:
+        print(f"  vulnerability state: {text} (kept the more cautious)", file=sys.stderr)
+    if report.dangling_dependencies:
+        print(f"  {report.dangling_dependencies} dependency references pointed at "
+              "components no document lists and were dropped", file=sys.stderr)
+    return 1 if args.fail_on_disagreement and (
+        report.disagreements or report.state_conflicts) else 0
+
+
 def cmd_diff(args: argparse.Namespace) -> int:
     """Compare two CycloneDX files, e.g. ours against the vendor's own SBOM."""
     def load(path: str) -> dict:
@@ -973,6 +1004,16 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("right")
     d.add_argument("--fail-under", type=float)
     d.set_defaults(func=cmd_diff)
+
+    mg = sub.add_parser("merge", help="join CycloneDX documents (ours, the vendor's, "
+                                      "a Yocto or Conan SBOM) into one")
+    mg.add_argument("files", nargs="+", metavar="FILE",
+                    help="CycloneDX JSON documents; the first wins on every field it has")
+    mg.add_argument("--output", "-o", help="write the merged document here (default stdout)")
+    mg.add_argument("--fail-on-disagreement", action="store_true",
+                    help="exit 1 when documents give one component different versions or "
+                         "one vulnerability different states")
+    mg.set_defaults(func=cmd_merge)
 
     register_commands(sub)
     return p
