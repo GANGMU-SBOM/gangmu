@@ -238,6 +238,9 @@ def _apply_kconfig(findings: List[Finding], rulebase: RuleBase,
 BINARY_IDENTITY = 0.70      # a banner proves the library is inside, not that it is unmodified
 BINARY_VERSION = 0.60
 BINARY_SYMBOLS_IDENTITY = 0.65   # an exported API names the library, but every release exports it
+BINARY_METADATA = 0.90      # the toolchain recorded the dependency list on purpose (Go, Rust)
+BINARY_IMPORT_IDENTITY = 0.50    # an import is a run-time dependency, not code inside the file
+METADATA_METHODS = ("go-buildinfo", "cargo-auditable")
 
 
 def _string_signatures(rulebase: RuleBase):
@@ -251,6 +254,20 @@ def _function_prints(rulebase: RuleBase):
 
 
 def _binary_summary(emb, version: Optional[str]) -> str:
+    if emb.method in METADATA_METHODS:
+        return (f"{emb.banner}: the toolchain recorded this dependency list in the binary, so it "
+                "is the version the build resolved" + (
+                    "; a replace directive means the code compiled in is not that release"
+                    if emb.modified else
+                    "; a patch applied after resolution would not show here"))
+    if emb.method == "version-info":
+        return (f"the Windows version resource of this binary states {emb.banner}; its author "
+                "wrote that text, so it names the library but can be stale or copied by a "
+                "wrapper, and it is not proof of an unmodified copy")
+    if emb.method == "imports":
+        return (f"{emb.banner}: this binary needs the library at run time, but the library "
+                "is a separate file and not part of this one, and a DLL name never says "
+                "which release is installed")
     if emb.method == "functions":
         return (f"{emb.banner} were matched by the strings and constants they use; the "
                 "library is inside this binary, but a modified function can keep both, so "
@@ -274,14 +291,23 @@ def _binary_findings(binaries, rulebase: RuleBase) -> List[Finding]:
         for emb in blob.embedded:
             if emb.vendor_component:
                 continue                      # a vendor's own component: no upstream to name
-            rule = _rule_by_name(rulebase, emb.display_name)
+            exact = emb.method in METADATA_METHODS
+            rule = None if emb.purl else _rule_by_name(rulebase, emb.display_name)
             known = KNOWN.get(emb.name)
             version = emb.version or None         # "": found by API symbols, no release
-            purl = (rule.purl_with_version(version) if rule
-                    else f"pkg:generic/{emb.name}"
-                    + (f"@{version}" if version and "~" not in version else ""))
-            cpe = (rule.cpe_with_version(version) if rule
-                   else _spliced(known[1], version) if known else None)
+            purl = emb.purl or (rule.purl_with_version(version) if rule
+                                else f"pkg:generic/{emb.name}"
+                                + (f"@{version}" if version and "~" not in version else ""))
+            cpe = emb.cpe or (rule.cpe_with_version(version) if rule
+                              else _spliced(known[1], version) if known else None)
+            if exact and version:
+                identity = version_conf = BINARY_METADATA
+            elif emb.method == "imports":
+                identity, version_conf = BINARY_IMPORT_IDENTITY, 0.0
+            elif version:
+                identity, version_conf = BINARY_IDENTITY, BINARY_VERSION
+            else:
+                identity, version_conf = BINARY_SYMBOLS_IDENTITY, 0.0
             out.append(Finding(
                 directory=blob.path,
                 rule_id=f"binary/{emb.name}",
@@ -290,13 +316,17 @@ def _binary_findings(binaries, rulebase: RuleBase) -> List[Finding]:
                 homepage=rule.homepage if rule else None,
                 declared_license=rule.license if rule else None,
                 version=version,
-                version_source="binary-string" if version else "unknown",
-                identity_confidence=BINARY_IDENTITY if version else BINARY_SYMBOLS_IDENTITY,
-                version_confidence=BINARY_VERSION if version else 0.0,
+                version_source=("binary-metadata" if exact else
+                                "binary-version-info" if emb.method == "version-info" else
+                                "binary-string" if version else "unknown"),
+                identity_confidence=identity,
+                version_confidence=version_conf,
+                vendor_patched=emb.modified,
+                patch_hint="go.mod replace directive" if emb.modified else None,
                 supplier=rule.supplier if rule else None,
                 evidence=[Evidence(
                     technique=Technique.OTHER,
-                    confidence=BINARY_IDENTITY if version else BINARY_SYMBOLS_IDENTITY,
+                    confidence=identity,
                     summary=_binary_summary(emb, version),
                     locator=blob.path)],
                 content_hash=blob.sha256,

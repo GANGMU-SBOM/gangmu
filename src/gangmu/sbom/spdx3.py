@@ -19,6 +19,7 @@ from .. import __version__
 from ..licenses import differs, observed_ids, spdx_license_declared
 from ..model import Finding, ScanResult
 from ..support import UNKNOWN, describe as describe_support
+from ..binaries import describe_binary
 from ..core import repro
 
 CONTEXT = "https://spdx.org/rdf/3.0.1/spdx-context.jsonld"
@@ -173,9 +174,7 @@ def to_spdx3(result: ScanResult, app_name: str = "firmware",
         if finding.component_name:
             by_name.setdefault(finding.component_name, []).append(pkg_id)
     for blob in result.binaries:
-        comment = ("prebuilt " + blob.kind + ", no source available"
-                   + (f"; embeds {', '.join((e.display_name + ' ' + e.version).strip() for e in blob.embedded)}"
-                      if blob.embedded else ""))
+        comment = describe_binary(blob)
         members.append(doc.add({
             "type": "software_Package", "spdxId": doc.iri("binary", blob.path),
             "name": blob.path, "software_packageVersion": "NOASSERTION",

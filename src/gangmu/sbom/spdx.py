@@ -15,6 +15,7 @@ from .. import __version__
 from ..licenses import differs, observed_ids, spdx_license_declared
 from ..model import Finding, ScanResult
 from ..support import describe as describe_support
+from ..binaries import describe_binary
 from ..core import repro
 
 _SAFE = re.compile(r"[^A-Za-z0-9.\-]+")
@@ -134,9 +135,7 @@ def to_spdx(result: ScanResult, app_name: str = "firmware",
             "licenseDeclared": "NOASSERTION",
             "copyrightText": "NOASSERTION",
             "checksums": [{"algorithm": "SHA256", "checksumValue": blob.sha256}],
-            "comment": ("prebuilt " + blob.kind + ", no source available"
-                        + (f"; embeds {', '.join((e.display_name + ' ' + e.version).strip() for e in blob.embedded)}"
-                           if blob.embedded else "")),
+            "comment": describe_binary(blob),
         }
         packages.append(pkg)
         relationships.append({"spdxElementId": root_id,
