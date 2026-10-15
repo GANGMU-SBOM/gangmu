@@ -85,7 +85,7 @@ CNNVD/CNVD data has to be exported from those platforms yourself.
 
 ## What does it not do?
 
-No deep binary analysis (banners and exported symbols only), no security testing, no legal conclusions, no submission to
+No deep binary analysis (banners, exported symbols and the dependency lists toolchains write on purpose), no security testing, no legal conclusions, no submission to
 official platforms, and no guessed CPEs (35 of 92 rules carry one, new ones citing
 the NVD records that prove it; the other 57 say why not; PURL and OSV are first-class channels).
 
@@ -178,7 +178,7 @@ run the process long term. See [EDITIONS.md](EDITIONS.md).
    "name": "What does it not do?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "No deep binary analysis (banners and exported symbols only), no security testing, no legal conclusions, no submission to official platforms, and no guessed CPEs (35 of 92 rules carry one, new ones citing the NVD records that prove it; the other 57 say why not; PURL and OSV are first-class channels)."
+    "text": "No deep binary analysis (banners, exported symbols and the dependency lists toolchains write on purpose), no security testing, no legal conclusions, no submission to official platforms, and no guessed CPEs (35 of 92 rules carry one, new ones citing the NVD records that prove it; the other 57 say why not; PURL and OSV are first-class channels)."
    }
   },
   {

@@ -227,7 +227,7 @@ repository because no vendor's brand terms were checked. See
 
 Listed plainly, because the gaps are the roadmap. The main ones:
 
-- **No deep binary analysis:** without source or a build, only an inventory, version banners and function boundaries, as lower-confidence supporting evidence.
+- **No deep binary analysis:** without source or a build, only an inventory, version banners and function boundaries, as lower-confidence supporting evidence. For `.exe`/`.dll` it also reads the PE structure, the dependency lists the Go and Rust toolchains write into the file, .NET metadata and `deps.json`; what each kind of evidence proves, and how it was checked, is in [docs/BINARY-SBOM.md](docs/BINARY-SBOM.md).
 - **Small evaluation and rule base:** the method is right, the scale is not yet; contributions welcome.
 - **`gangmu vuln` never touches the network:** the online step is the separate `gangmu vuln-fetch`, so it works inside an air-gapped network.
 - **The compiler wrapper only intercepts compilers found by name.**
