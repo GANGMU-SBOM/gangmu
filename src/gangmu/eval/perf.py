@@ -94,7 +94,7 @@ def synthetic_tree(dest: Path, seed: int = 0, components: int = 48,
             write_component(path / "third_party" / f"lib_{c:03d}",
                             max(4, files_per_component // 2))
         made.append(path)
-    for i, source in enumerate(embed):
+    for _i, source in enumerate(embed):
         shutil.copytree(source, dest / "vendor" / Path(source).name)
         stats["components"] += 1
     return stats

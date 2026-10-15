@@ -67,4 +67,4 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 # Pyflakes and syntax errors: unused or undefined names, not style.
-select = ["F", "E9"]
+select = ["F", "E9", "B904", "B007"]

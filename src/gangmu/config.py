@@ -138,7 +138,7 @@ def load_config(path: Optional[Path] = None) -> Config:
         except ModuleNotFoundError:          # Python 3.9 / 3.10
             raise RuntimeError(
                 f"{found.name} needs Python 3.11 or newer to read TOML; "
-                f"rename it to gangmu.yaml or upgrade Python")
+                f"rename it to gangmu.yaml or upgrade Python") from None
         return Config(path=found, raw=tomllib.loads(text))
     return Config(path=found, raw=yaml.safe_load(text) or {})
 

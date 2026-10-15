@@ -146,7 +146,7 @@ def build_graph(root: Path) -> Graph:
                 todo.extend(macros[ref])
         return seen & names
 
-    for rel, items in bodies.items():
+    for _rel, items in bodies.items():
         for name, refs in items:
             graph.edges.setdefault(name, set()).update(expand(refs) - {name})
     for rel, loose in scope_tokens.items():
@@ -185,7 +185,7 @@ def _reached(graph: Graph, directory: str) -> Tuple[Dict[str, Optional[str]], Se
     for name, files in graph.defined.items():
         if any(not _inside(f, prefix) for f in files) or _ENTRY_NAME.match(name):
             seed(name)
-    for rel, names in graph.file_scope.items():
+    for _rel, names in graph.file_scope.items():
         for name in names:
             seed(name)                # an address taken in a table: assume used
     outside = set(parent)

@@ -54,7 +54,7 @@ def _load_rulebase(arg) -> RuleBase:
     try:
         return load_rule_roots(_rule_roots(arg), strict=False)
     except RulePackError as exc:
-        raise SystemExit(f"error: {exc}")
+        raise SystemExit(f"error: {exc}") from exc
 
 
 def _roots_text(rulebase: RuleBase) -> str:
