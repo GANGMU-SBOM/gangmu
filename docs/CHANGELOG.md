@@ -4,6 +4,8 @@
 
 ## 未发布
 
+* **新增：读取 STM32Cube 包和 CMSIS-Pack 自己声明的版本。** CMSIS 设备头里的 `__STM32xx_CMSIS_VERSION_*` 宏（没有就取旁边 `Release_Notes.html` 的最新一条）、ST HAL 驱动 `Release_Notes.html` 的最新一条（现行 HAL 头文件不带版本宏）、CMSIS-Pack `*.pdsc` 的 vendor、name 和最新 `<release>`。已对照 ST 官方仓库的 F1、F4、G0、H7 的 HAL 与 CMSIS 设备树验证；不声称 CPE。模块：`declared_packs.py`。
+
 * **新增：读取 CMake、vcpkg、Meson、Cargo 里声明的依赖。** `FetchContent_Declare`、`ExternalProject_Add` 和 CPM 的 `CPMAddPackage`（发布 tag 或带版本号的压缩包名算版本；分支、提交哈希、`${变量}` 只报名称不报版本）；`vcpkg.json`（`overrides` 钉住的才算版本，`version>=` 是下限不当版本报，`host` 依赖不算）；`subprojects/*.wrap`；`Cargo.lock` 里的 `*-sys` crate（绑定或内含 C 库的那些，crate 版本不冒充 C 库版本）。不联网。模块：`declared_deps.py`。
 
 ## 0.10.0

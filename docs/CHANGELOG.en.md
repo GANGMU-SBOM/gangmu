@@ -4,6 +4,8 @@ What each release added and what was measured at the time, newest first. For the
 
 ## Unreleased
 
+* **New: STM32Cube packages and CMSIS-Packs state their own release and are read.** The CMSIS device header's `__STM32xx_CMSIS_VERSION_*` macros (else the newest entry of the `Release_Notes.html` beside it), the newest entry of an ST HAL driver's `Release_Notes.html` (current HAL headers carry no version macro), and the vendor, name and newest `<release>` of a CMSIS-Pack `*.pdsc`. Checked against the real ST repositories (F1, F4, G0 and H7 HAL and CMSIS device trees); no CPE is claimed. Module: `declared_packs.py`.
+
 * **New: dependencies declared in CMake, vcpkg, Meson and Cargo files are read.** `FetchContent_Declare`, `ExternalProject_Add` and CPM's `CPMAddPackage` (a release tag or a versioned archive name is a version; a branch, a commit or a `${VARIABLE}` is reported without one), `vcpkg.json` (`overrides` pin a version, `version>=` is a minimum and is not reported as one, `host` dependencies are left out), `subprojects/*.wrap` and the `*-sys` crates of `Cargo.lock` (the ones that bind or bundle a C library; the crate version is not claimed as the library's). Nothing is fetched. Module: `declared_deps.py`.
 
 ## 0.10.0
