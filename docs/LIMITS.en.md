@@ -1,6 +1,6 @@
 # Limits
 
-No deep binary analysis: prebuilt libraries and firmware images (`.a`, `.lib`, `.so`, `.elf`, `.axf`, `.bin`) are only inventoried and read for version banners and exported symbols. Benchmarks now span a dozen-odd component families (about a hundred real upstream trees and several dozen copies inside Chinese vendor SDKs, see docs/BENCHMARK.md), not a corpus of thousands.
+No deep binary analysis: prebuilt libraries and firmware images (`.a`, `.lib`, `.so`, `.elf`, `.axf`, `.bin`, `.exe`, `.dll`) are only inventoried and read for version banners and exported symbols. Windows `.exe` and `.dll` files are also read for the PE import and export tables and version resource, the dependency lists the Go and Rust (`cargo auditable`) toolchains write into the file, .NET assembly references and the `*.deps.json` beside a program; see [BINARY-SBOM.md](BINARY-SBOM.md) for what each proves, what is not done and how it was checked. A statically linked C/C++ program with no banner is still not recognised. Benchmarks now span a dozen-odd component families (about a hundred real upstream trees and several dozen copies inside Chinese vendor SDKs, see docs/BENCHMARK.md), not a corpus of thousands.
 Rule coverage is still small; Allwinner Tina Linux SDKs (the RTOS SDKs are covered) are not
 in Zephyr and need their own import. Recursive import
 (`gangmu rules import --recursive`) covers `.gitmodules` SDKs and west manifests; for west it

@@ -203,7 +203,7 @@ def _binary_component(blob) -> Dict[str, Any]:
     if blob.toolchain:
         props.append({"name": "gangmu:toolchain", "value": blob.toolchain})
     for emb in blob.embedded:
-        if emb.method == "imports":
+        if emb.method in ("imports", "dotnet-reference"):
             props.append({"name": "gangmu:importedLibrary", "value": emb.display_name})
             continue
         props.append({"name": ("gangmu:vendorComponent" if emb.vendor_component

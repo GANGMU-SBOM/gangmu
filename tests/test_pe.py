@@ -204,7 +204,10 @@ def test_pe_facts_are_kept_on_the_inventory_entry(tmp_path):
                                          version={"ProductName": "App", "FileVersion": "2.0"})})
     blob = collect_binaries(tmp_path)[0]
     assert (blob.pdb, blob.signed, blob.runtime) == (r"D:\b\app.pdb", True, "dotnet")
-    assert blob.toolchain == "linker 14.38"
+    assert blob.toolchain is None                       # a runtime is known: no linker number
+    plain = build_pe()
+    (tmp_path / "app.exe").write_bytes(plain)
+    assert collect_binaries(tmp_path)[0].toolchain == "linker 14.38"
     assert blob.to_dict()["product"]["ProductName"] == "App"
 
 

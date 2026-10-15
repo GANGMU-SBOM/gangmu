@@ -4,6 +4,7 @@
 
 ## 未发布
 
+* **新增：从 Windows 的 `.exe`、`.dll` 里提取 SBOM。** 读 PE 的导入表、导出表、版本资源和 PDB 路径；Go（`debug/buildinfo`）和 Rust（`cargo auditable`）写进文件的依赖清单按精确版本进 SBOM，purl 为 `pkg:golang`、`pkg:cargo`，Go 的 `replace` 标为已修改；.NET 读程序集引用，并读旁边的 `*.deps.json` 得到 NuGet 包的精确版本。各类证据的可信度不同：工具链清单 0.90、`deps.json` 0.85、版本资源 0.70、导入表和 .NET 引用 0.50（进“可能”一栏）。**导入只说明运行时依赖，不再被写成“内嵌”**（SBOM 里是 `gangmu:importedLibrary`）。不为程序自己的程序集生成 NuGet purl。在真实 Go、Rust、MSVC 和 NuGet 样本上验证过，Go 与 `go version -m` 逐项一致；加壳、安装包、静态链接且无横幅的程序仍然认不出。证据、研究依据和没做的部分见 [BINARY-SBOM.md](BINARY-SBOM.md)。
 * **修正：ESP-IDF 的 `managed_components/` 不再被跳过。** 组件管理器从注册表下载的依赖都放在这里，也都编进固件；以前发现阶段按目录名跳过它，即使编译数据库表明编译了，SBOM 里也没有这些组件。
 * **修正：OSV 记录的 CVSS 评级。** 真实 OSV 记录的 `severity[].score` 是向量字符串，以前原样写进 CycloneDX 评级的 `severity`（只允许等级名），VEX 不符合 bom-1.6 schema，分数为空（按 0 分排序），MIIT 和 CRA 报告里的“危害程度”显示成向量。现在 v3 向量按规范公式算出基础分；v4 向量保留原文、等级取 GHSA 的 `database_specific.severity`；向量和方法写进评级各自的字段。NVD 只有 `cvssMetricV40` 时也读出分数和等级。
 * **修正：同一漏洞不再重复计数。** NVD 的 CVE 和以它为别名的 GHSA 记录，或同一记录经 CPE 和 PURL 两个通道命中同一组件，以前是两条结果，`--fail-on`、CycloneDX 和 CSAF 都算两次。现在每个漏洞和组件只留一条，取更严重的状态，另一条记录的编号进 `aliases`。`vuln coverage` 仍按通道统计。

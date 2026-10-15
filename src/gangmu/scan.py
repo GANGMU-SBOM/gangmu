@@ -11,7 +11,7 @@ from .licenses import observe
 from .core.globbing import matches_suffix
 from .build.kconfig import KconfigValues, disabled_by
 from .declared import Declaration, collect_declarations
-from .binaries import collect_binaries
+from .binaries import DEPENDENCY_METHODS, collect_binaries
 from .discover import discover_roots, empty_submodules
 from .analysis import AnalysisStore
 from .fingerprint import DEFAULT_K, DEFAULT_WINDOW
@@ -240,6 +240,8 @@ BINARY_VERSION = 0.60
 BINARY_SYMBOLS_IDENTITY = 0.65   # an exported API names the library, but every release exports it
 BINARY_METADATA = 0.90      # the toolchain recorded the dependency list on purpose (Go, Rust)
 BINARY_IMPORT_IDENTITY = 0.50    # an import is a run-time dependency, not code inside the file
+BINARY_SIDECAR = 0.85       # a .deps.json is exact but a separate file, so it can be stale
+BINARY_ASSEMBLY = 0.50      # a .NET assembly named like a NuGet package; nobody confirmed it
 METADATA_METHODS = ("go-buildinfo", "cargo-auditable")
 
 
@@ -260,6 +262,18 @@ def _binary_summary(emb, version: Optional[str]) -> str:
                     "; a replace directive means the code compiled in is not that release"
                     if emb.modified else
                     "; a patch applied after resolution would not show here"))
+    if emb.method == "deps-json":
+        return (f"{emb.banner}: listed in the program's .deps.json, which the .NET SDK writes at "
+                "build time with the package versions it restored; it is a separate file, so it "
+                "can differ from the DLLs actually shipped")
+    if emb.method == "dotnet-reference":
+        return (f"{emb.banner}: this assembly refers to it, so it is needed at run time, but "
+                "the package and release cannot be named from a reference, because an assembly "
+                "version often stays the same across package releases")
+    if emb.method == "dotnet-assembly":
+        return (f"{emb.banner}; the name and version are the author's own text and nothing here "
+                "shows the file was published as that NuGet package, so a reviewer should "
+                "confirm before treating it as one")
     if emb.method == "version-info":
         return (f"the Windows version resource of this binary states {emb.banner}; its author "
                 "wrote that text, so it names the library but can be stale or copied by a "
@@ -302,8 +316,12 @@ def _binary_findings(binaries, rulebase: RuleBase) -> List[Finding]:
                               else _spliced(known[1], version) if known else None)
             if exact and version:
                 identity = version_conf = BINARY_METADATA
-            elif emb.method == "imports":
+            elif emb.method in DEPENDENCY_METHODS:
                 identity, version_conf = BINARY_IMPORT_IDENTITY, 0.0
+            elif emb.method == "deps-json":
+                identity = version_conf = BINARY_SIDECAR
+            elif emb.method == "dotnet-assembly":
+                identity = version_conf = BINARY_ASSEMBLY
             elif version:
                 identity, version_conf = BINARY_IDENTITY, BINARY_VERSION
             else:
@@ -317,6 +335,7 @@ def _binary_findings(binaries, rulebase: RuleBase) -> List[Finding]:
                 declared_license=rule.license if rule else None,
                 version=version,
                 version_source=("binary-metadata" if exact else
+                                "binary-sidecar" if emb.method == "deps-json" else
                                 "binary-version-info" if emb.method == "version-info" else
                                 "binary-string" if version else "unknown"),
                 identity_confidence=identity,

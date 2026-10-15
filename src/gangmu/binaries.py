@@ -30,6 +30,7 @@ from typing import List, Optional, Sequence, Set
 
 from . import disasm
 from .binmeta import CARGO_SECTION, GoBuildInfo, cargo_auditable, go_buildinfo
+from .dotnet import is_framework, parse_dotnet, read_deps_json
 from .elf import ElfInfo, parse_elf
 from .pe import PeInfo, parse_pe
 from .core.unpack import IMAGE_SUFFIXES as UNPACK_SUFFIXES, Layer, expand
@@ -122,7 +123,8 @@ class Embedded:
     banner: str
     vendor_component: bool = False      # a vendor's own component, no upstream
     method: str = "banner"      # banner | symbols | strings | functions | go-buildinfo |
-    #                             cargo-auditable | version-info | imports
+    #                             cargo-auditable | deps-json | version-info | imports |
+    #                             dotnet-reference | dotnet-assembly
     # version "" means the library is there (API symbols) but no release can be named
     purl: Optional[str] = None          # set by readers of a dependency list (Go, Rust)
     cpe: Optional[str] = None
@@ -164,14 +166,19 @@ class Binary:
         }
 
 
+# Evidence that a binary needs a library, not that the library is inside it.
+DEPENDENCY_METHODS = ("imports", "dotnet-reference")
+
+
 def embedded_libraries(blob: Binary) -> List[Embedded]:
     """Libraries whose code or dependency record is inside the file (not merely imported)."""
-    return [e for e in blob.embedded if e.method != "imports"]
+    return [e for e in blob.embedded if e.method not in DEPENDENCY_METHODS]
 
 
 def imported_libraries(blob: Binary) -> List[Embedded]:
-    """Known libraries the file needs at run time by DLL name; the code is elsewhere."""
-    return [e for e in blob.embedded if e.method == "imports"]
+    """Libraries the file needs at run time (a DLL import, a .NET assembly reference); the
+    code is elsewhere."""
+    return [e for e in blob.embedded if e.method in DEPENDENCY_METHODS]
 
 
 def describe_binary(blob: Binary) -> str:
@@ -257,7 +264,8 @@ def _inspect(path: Path, root: Path, linked_archives: Optional[Set[str]],
             if not layer.label:
                 found += _toolchain_lists(blob, layer.data, pe, elf)
             if pe is not None:
-                found += _pe_evidence(blob, pe, found + blob.embedded)
+                found += _pe_evidence(blob, pe, found + blob.embedded, layer.data)
+                found += _sidecar_packages(path, found + blob.embedded)
             if string_signatures:
                 found += _by_strings(layer.data, found + blob.embedded, string_signatures)
             if (function_prints and not layer.label and disasm.available()
@@ -279,7 +287,9 @@ def _inspect(path: Path, root: Path, linked_archives: Optional[Set[str]],
                 blob.stripped, blob.symbols = elf.stripped, len(elf.defined)
                 if not blob.toolchain:
                     blob.toolchain = next((c for c in elf.comments if c.startswith("GCC")), None)
-            if pe is not None and not blob.toolchain and pe.linker != "0.0":
+            # The linker version is only worth showing when nothing better is known: the Go and
+            # .NET toolchains write their own numbers there (3.0, 48.0), and ``runtime`` says more.
+            if pe is not None and not blob.toolchain and not blob.runtime and pe.linker != "0.0":
                 blob.toolchain = f"linker {pe.linker}"
     return blob
 
@@ -459,7 +469,8 @@ def _numeric_version(text: str) -> str:
     return ".".join(parts[:3]) if len(parts) == 4 and parts[3] == "0" else text
 
 
-def _pe_evidence(blob: Binary, pe: PeInfo, known: Sequence[Embedded]) -> List[Embedded]:
+def _pe_evidence(blob: Binary, pe: PeInfo, known: Sequence[Embedded],
+                 data: bytes = b"") -> List[Embedded]:
     """What the PE structure itself says: product, imports, build tree, signature."""
     blob.arch = pe.machine
     blob.signed = pe.signed
@@ -487,6 +498,8 @@ def _pe_evidence(blob: Binary, pe: PeInfo, known: Sequence[Embedded]) -> List[Em
             name, display, version,
             f"ProductName={product!r} ProductVersion={shown!r}", method="version-info"))
         break
+    if pe.is_dotnet:
+        found += _dotnet_evidence(blob, pe, data)
     taken = {e.name for e in known} | {e.name for e in found}
     for dll in pe.imports:
         for name, display, pattern in _IMPORT_LIBS:
@@ -557,4 +570,56 @@ def _cargo_embedded(blob: Binary, crates: Sequence) -> List[Embedded]:
             f"cargo crate {crate.name} {crate.version}"
             + (f" ({crate.source})" if crate.source else ""),
             method="cargo-auditable", purl=f"pkg:cargo/{crate.name.lower()}@{crate.version}"))
+    return out
+
+
+_SEMVER = re.compile(r"^\d+\.\d+\.\d+(?:\.\d+)?(?:-[0-9A-Za-z.\-]+)?")
+
+
+def _dotnet_evidence(blob: Binary, pe: PeInfo, data: bytes) -> List[Embedded]:
+    """A managed assembly's identity, and the third-party assemblies it references.
+
+    An ``AssemblyRef`` carries the *assembly* version, which is not the NuGet package version
+    (Newtonsoft.Json 13.0.3 is assembly 13.0.0.0), so a reference names a dependency and never
+    a release. The version resource's ``ProductVersion`` usually is the package version, with
+    build metadata after a ``+``.
+    """
+    info = parse_dotnet(data, pe) if data else None
+    if info is None:
+        return []
+    product = dict(blob.product or {})
+    product["AssemblyName"], product["AssemblyVersion"] = info.name, info.version
+    blob.product = product
+    out: List[Embedded] = []
+    for ref in info.third_party_references():
+        out.append(Embedded(
+            ref.name, ref.name, "", f"references assembly {ref.name} {ref.version}",
+            method="dotnet-reference", purl=f"pkg:nuget/{ref.name}"))
+    informational = pe.version_info.get("ProductVersion", "").split("+", 1)[0]
+    m = _SEMVER.match(informational)
+    if pe.is_dll and info.name and not is_framework(info.name) and m:
+        out.append(Embedded(
+            info.name, info.name, m.group(0),
+            f"assembly {info.name} with ProductVersion {pe.version_info['ProductVersion']!r}",
+            method="dotnet-assembly", purl=f"pkg:nuget/{info.name}@{m.group(0)}"))
+    return out
+
+
+def _sidecar_packages(path: Path, known: Sequence[Embedded]) -> List[Embedded]:
+    """NuGet packages from the ``<name>.deps.json`` the .NET SDK writes beside a program.
+
+    An ``app.exe`` apphost and its ``app.dll`` share one ``app.deps.json``; it is attached to
+    the executable when there is one, so the packages are not listed twice."""
+    if path.suffix.lower() == ".dll" and path.with_suffix(".exe").exists():
+        return []
+    deps = path.with_name(path.stem + ".deps.json")
+    packages = read_deps_json(deps) if deps.is_file() else None
+    out: List[Embedded] = []
+    seen = {(e.name, e.version) for e in known}
+    for pkg in packages or ():
+        name = pkg.name[len("runtimepack."):] if pkg.kind == "runtimepack" else pkg.name
+        if (name, pkg.version) in seen:
+            continue
+        out.append(Embedded(name, name, pkg.version, f"{deps.name}: {pkg.name}/{pkg.version}",
+                            method="deps-json", purl=f"pkg:nuget/{name}@{pkg.version}"))
     return out

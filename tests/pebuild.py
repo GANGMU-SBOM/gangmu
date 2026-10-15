@@ -78,7 +78,7 @@ class _Section:
 def build_pe(*, machine: int = 0x8664, dll: bool = False, imports: Iterable[str] = (),
              delay_imports: Iterable[str] = (), exports: Optional[Tuple[str, List[str]]] = None,
              version: Optional[Dict[str, str]] = None, file_version=(1, 2, 3, 4),
-             pdb: Optional[str] = None, clr: bool = False, signed: bool = False,
+             pdb: Optional[str] = None, clr=False, signed: bool = False,
              extra: Sequence[Tuple[str, bytes]] = (), linker=(14, 38),
              text: bytes = b"") -> bytes:
     rdata = bytearray()
@@ -116,7 +116,10 @@ def build_pe(*, machine: int = 0x8664, dll: bool = False, imports: Iterable[str]
         entry = struct.pack("<IIHHIIII", 0, 0, 0, 0, 2, len(cv), cv_rva, cv_rva)
         dirs[6] = (alloc(entry), len(entry))
     if clr:
-        dirs[14] = (alloc(b"\x48\0\0\0" + b"\0" * 68), 72)
+        meta_rva = alloc(clr if isinstance(clr, bytes) else b"BSJB" + b"\0" * 60)
+        cor = struct.pack("<IHHIII", 0x48, 2, 5, meta_rva, len(clr) if isinstance(clr, bytes) else 64,
+                          1) + b"\0" * 48
+        dirs[14] = (alloc(cor), 72)
 
     sections: List[_Section] = [_Section(".text", text or b"\xc3"),
                                 _Section(".rdata", bytes(rdata) or b"\0")]
@@ -159,3 +162,56 @@ def build_pe(*, machine: int = 0x8664, dll: bool = False, imports: Iterable[str]
     header = b"MZ" + b"\0" * 58 + struct.pack("<I", 0x80)
     header += b"\0" * (0x80 - len(header)) + b"PE\0\0" + coff + opt + sec_table
     return header + b"\0" * (PAGE - len(header)) + body
+
+
+def dotnet_metadata(name: str, version=(1, 0, 0, 0), refs: Sequence[Tuple[str, tuple]] = (),
+                    extra_tables: Optional[Dict[int, Tuple[int, bytes]]] = None,
+                    wide_strings: bool = False) -> bytes:
+    """The metadata root of an assembly: Module, Assembly and AssemblyRef tables.
+
+    Written from ECMA-335 II.22 without calling the parser, so a width the parser gets wrong
+    is not repeated here. ``extra_tables`` maps a table number to ``(row count, raw bytes)``
+    that the caller worked out by hand; those tables sit before ``AssemblyRef`` and push it
+    along, which is how a wrong index width shows up. ``wide_strings`` makes the #Strings
+    heap larger than 64 KiB, so every string index is 4 bytes.
+    """
+    heap = b"\0"
+    seen: Dict[str, int] = {}
+
+    def add(text: str) -> int:
+        nonlocal heap
+        if text not in seen:
+            seen[text] = len(heap)
+            heap += text.encode() + b"\0"
+        return seen[text]
+
+    sw = 4 if wide_strings else 2                     # string index width; GUID/blob stay 2
+    ref_rows = [struct.pack("<HHHHI", *v, 0) + (0).to_bytes(2, "little")
+                + add(n).to_bytes(sw, "little") + (0).to_bytes(sw, "little")
+                + (0).to_bytes(2, "little") for n, v in refs]
+    module = (0).to_bytes(2, "little") + add("module.dll").to_bytes(sw, "little") + b"\0" * 6
+    assembly = (struct.pack("<IHHHHI", 0x8004, *version, 0) + (0).to_bytes(2, "little")
+                + add(name).to_bytes(sw, "little") + (0).to_bytes(sw, "little"))
+    if wide_strings:
+        heap += b"\0" * 70000
+    tables = {0x00: (1, module), 0x20: (1, assembly)}
+    tables.update(extra_tables or {})
+    if refs:
+        tables[0x23] = (len(refs), b"".join(ref_rows))
+    valid = sum(1 << t for t in tables)
+    body = b"".join(raw for _t, (_n, raw) in sorted(tables.items()))
+    stream = (struct.pack("<IBBBBQQ", 0, 2, 0, 1 if wide_strings else 0, 1, valid, 0)
+              + b"".join(struct.pack("<I", n) for _t, (n, _r) in sorted(tables.items())) + body)
+    streams = [("#~", stream), ("#Strings", heap)]
+    version_str = b"v4.0.30319\0\0"
+    head_len = 16 + len(version_str) + 4 + sum(8 + len(n) + 1 + (-(len(n) + 1) % 4)
+                                              for n, _ in streams)
+    directory, blobs, at = b"", b"", head_len
+    for n, data in streams:
+        data += b"\0" * (-len(data) % 4)
+        directory += struct.pack("<II", at, len(data)) + n.encode() + b"\0"
+        directory += b"\0" * (-(len(n) + 1) % 4)
+        blobs += data
+        at += len(data)
+    return (b"BSJB" + struct.pack("<HHII", 1, 1, 0, len(version_str)) + version_str
+            + struct.pack("<HH", 0, len(streams)) + directory + blobs)
