@@ -35,7 +35,7 @@ jobs:
           python-version: "3.13"
       # The optional extras are installed so their imports resolve; settings are in
       # pyproject.toml [tool.mypy]. Pinned like ruff, so a new mypy cannot redden CI.
-      - run: pip install -e ".[fast,disasm]" "mypy==2.4.0" "types-PyYAML==6.0.12.20260906"
+      - run: pip install -e ".[fast,disasm,sign]" "mypy==2.4.0" "types-PyYAML==6.0.12.20260906"
       - run: mypy
 
   tool:
