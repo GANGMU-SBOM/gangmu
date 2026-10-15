@@ -82,9 +82,10 @@ def _walk(root: Path, max_depth: int = _MAX_DEPTH,
 
 
 def read_build_ecosystems(root: Path) -> List[Declaration]:
+    from .declared_deps import read_dependency_files
     root = Path(root).resolve()
     return (read_yocto(root) + read_platformio(root) + read_conan(root)
-            + read_bazel(root))
+            + read_bazel(root) + read_dependency_files(root))
 
 
 # ------------------------------------------------------------------------ Yocto

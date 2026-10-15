@@ -88,7 +88,7 @@ class Declaration:
             # The package index is RT-Thread's own namespace; the version is the
             # package's, so it belongs with that namespace and nowhere else.
             base = f"pkg:generic/rt-thread/{_purl_name(self.name)}"
-        elif self.ecosystem in ("conan", "bazel"):
+        elif self.ecosystem in ("conan", "bazel", "cargo"):
             base = f"pkg:{self.ecosystem}/{_purl_name(self.name)}"
         elif self.supplier == OPENHARMONY_SUPPLIER:
             base = f"pkg:generic/openharmony/{_purl_name(self.name)}"

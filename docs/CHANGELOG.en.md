@@ -2,6 +2,10 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
+## Unreleased
+
+* **New: dependencies declared in CMake, vcpkg, Meson and Cargo files are read.** `FetchContent_Declare`, `ExternalProject_Add` and CPM's `CPMAddPackage` (a release tag or a versioned archive name is a version; a branch, a commit or a `${VARIABLE}` is reported without one), `vcpkg.json` (`overrides` pin a version, `version>=` is a minimum and is not reported as one, `host` dependencies are left out), `subprojects/*.wrap` and the `*-sys` crates of `Cargo.lock` (the ones that bind or bundle a C library; the crate version is not claimed as the library's). Nothing is fetched. Module: `declared_deps.py`.
+
 ## 0.10.0
 
 * **Fixed: the `performance` baseline is re-recorded on the CI machines.** One run on `main` failed with warm x1 at 1.61x the baseline, just past the 1.6x limit. It was not calibration jitter: the CI runners come in several speeds (calibration about 0.033, 0.045 or 0.060 s), and a scan has a fixed cost of about half a second that does not shrink with the CPU, so the same code reads 20 to 30% dearer in calibration units on the fast runners, and the old baseline, recorded on a laptop, sat outside that spread. The baseline is now the median of 11 CI runs (largest work counters); the worst of those 11 reads 1.32x against it, and 6 runs from earlier days that were not used to build it all pass. The old baseline's memory was also too loose (82 rules against 90 now, a 609.6 MB peak at x16 against about 224 MB on CI, so memory had to grow 2.7x before the check noticed); the 1.35x limit now actually bites. Re-record with `benchmarks/rebaseline.py`. The limits (1.6x, 1.35x) are unchanged. The entry above, the median of nine rounds measured before and after the scans, stays and makes the calibration steadier, but it did not fix this failure (I had put it down to the fastest of three rounds being lucky; that was wrong, since on a 0.045 s machine the new method measures 0.045 s too).

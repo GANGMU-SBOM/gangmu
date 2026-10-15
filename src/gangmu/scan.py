@@ -520,7 +520,7 @@ def _declaration_summary(decl: Declaration) -> str:
     if decl.ecosystem == "yocto":
         return (f"Yocto: {decl.source} lists {what}"
                 + (f" ({decl.description})" if decl.description else ""))
-    if decl.ecosystem in ("conan", "bazel"):
+    if decl.ecosystem in ("conan", "bazel", "cmake", "vcpkg", "meson", "cargo"):
         return (decl.description if decl.description and not decl.version
                 else f"{decl.ecosystem} dependency {what} declared in {decl.source}")
     if decl.ecosystem == "platformio":
