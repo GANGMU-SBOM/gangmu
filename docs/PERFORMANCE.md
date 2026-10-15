@@ -67,7 +67,9 @@ git clone --depth 1 --branch v5.4.2 --recurse-submodules --shallow-submodules \
 gangmu perf esp-idf --rules rules --jobs 4
 ```
 
-`gangmu perf` 的每次扫描都在单独的进程里运行，所以峰值内存只算这次扫描本身。输出里的 `units` 是扫描耗时除以一个固定的单核校准负载的耗时，因此笔记本和 CI 机器上测出的数字可以互相比较。校准取 9 轮的中位数，并在整套扫描之前和之后各测一次、取平均（两次的比值记在输出 JSON 的 `calibration_drift`）：取最快的一轮会选中一个侥幸的瞬间，而扫描要跑几秒，碰不上这种瞬间，用它去除只会把扫描算贵。CI 上曾有一次校准比相邻几次低 25%（0.045 s 对 0.06 s），扫描本身更快，单位却高了 21%，离 1.6 倍的上限只剩约 17%。
+`gangmu perf` 的每次扫描都在单独的进程里运行，所以峰值内存只算这次扫描本身。输出里的 `units` 是扫描耗时除以一个固定的单核校准负载的耗时，因此笔记本和 CI 机器上测出的数字可以互相比较。校准取 9 轮的中位数，并在整套扫描之前和之后各测一次、取平均（两次的比值记在输出 JSON 的 `calibration_drift`），这样一轮侥幸的快或慢不会定下单位。
+
+**但单位并不和机器无关。** CI 的 runner 不是同一种机器：校准耗时约 0.033、0.045、0.060 s 各有，而一次扫描里有约 0.5 到 0.6 秒的固定开销不随 CPU 变快，所以同样的代码在快的 runner 上以校准单位算要高 20% 到 30%。基线必须落在这个范围里。`benchmarks/perf-baseline.json` 因此是从多次 CI 运行的 `perf.json` 制品重录的（用 `benchmarks/rebaseline.py`）：耗时和内存取中位数，工作计数取最大值。当前这版取自 2026-10-15 的 11 次 CI 运行，其中最差一次（最快的 runner）是基线的 1.32 倍；此前基线是在开发机上录的，同一批运行里最差的是 1.61 倍，正好越过 1.6 倍，主线上那次失败就是它。规则库或合成树变了之后，要重录一次。
 
 ## CI 回归检查
 
@@ -107,5 +109,5 @@ The main changes:
 `gangmu perf` reproduces these numbers. In CI, `--check benchmarks/perf-baseline.json` fails a pull request in any of these cases:
 * its findings change;
 * its work counters grow;
-* its time grows past 1.6× the baseline, in calibration units (the calibration is the median of nine rounds, measured before and after the scans and averaged; the fastest round would pick a lucky moment that seconds-long scans never see, which on one CI run made every scan read 21% dearer than it was);
+* its time grows past 1.6× the baseline, in calibration units (the calibration is the median of nine rounds, measured before and after the scans and averaged). The units are not machine-independent, though: CI runners differ (calibration about 0.033, 0.045 or 0.060 s) and a scan has a fixed cost of about half a second that does not shrink with the CPU, so the same code reads 20 to 30% dearer on the fast runners. `benchmarks/perf-baseline.json` is therefore re-recorded from the `perf.json` artifacts of several CI runs (`benchmarks/rebaseline.py`: median time and memory, largest work counters); the current one is from 11 runs on 2026-10-15, the worst of which (the fastest runner) reads 1.32x. The previous baseline was recorded on a laptop, and the worst of the same runs read 1.61x, just past the limit, which is the failure seen on `main`. Re-record it when the rule base or the synthetic tree changes;
 * its peak memory grows past 1.35× the baseline.
