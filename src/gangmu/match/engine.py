@@ -484,8 +484,8 @@ class MatchEngine:
                        evidence: List[Evidence]) -> List[str]:
         """Every release whose recorded hash the first matching anchor file has."""
         for anchor in rule.anchors:
-            path = directory / anchor.path
-            if not path.is_file():
+            path = _locate(directory, anchor.path)
+            if path is None:
                 continue
             try:
                 digest = sha256_file(path)
@@ -696,8 +696,8 @@ class MatchEngine:
     def _probe_version(self, directory: Path, rule: Rule,
                        evidence: List[Evidence], rel: str) -> Optional[str]:
         for probe in rule.probes:
-            path = directory / probe.file
-            if not path.is_file():
+            path = _locate(directory, probe.file)
+            if path is None:
                 continue
             try:
                 text = path.read_text(encoding="utf-8", errors="replace")
@@ -713,6 +713,30 @@ class MatchEngine:
                 ))
                 return value
         return None
+
+
+NESTED_LOOKUP_DEPTH = 2
+
+
+def _locate(directory: Path, relpath: str) -> Optional[Path]:
+    """The file a rule names, at its path or else one nested level or two below.
+
+    A vendor that wraps a library in an extra directory (lwIP's ``core/`` in
+    BTstack's copy, so ``core/src/include/lwip/init.h``) moves every path a rule
+    records. The file is accepted from below only when exactly one candidate
+    exists; two are ambiguous, and nothing is guessed.
+    """
+    path = directory / relpath
+    if path.is_file():
+        return path
+    found = []
+    for depth in range(1, NESTED_LOOKUP_DEPTH + 1):
+        pattern = "/".join(["*"] * depth) + "/" + relpath
+        try:
+            found += [p for p in directory.glob(pattern) if p.is_file()]
+        except (OSError, ValueError):
+            return None
+    return found[0] if len(found) == 1 else None
 
 
 def _repeated(values) -> set:

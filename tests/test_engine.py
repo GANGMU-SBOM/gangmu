@@ -216,3 +216,28 @@ def test_an_anchor_shared_by_releases_does_not_pin_the_first_of_them(
     assert finding.version_source == "anchor-shared"
     assert 0 < finding.version_confidence < 0.98
     assert any("3 releases ship it unchanged" in e.summary for e in finding.evidence)
+
+
+def test_a_rule_file_one_directory_down_is_found(tmp_path):
+    """BTstack ships lwIP as ``lwip/core/src/include/lwip/init.h``: every path the
+    rule records is one directory deeper than the rule says."""
+    from gangmu.match.engine import _locate
+
+    f = tmp_path / "core" / "src" / "include" / "init.h"
+    f.parent.mkdir(parents=True)
+    f.write_text("x")
+    assert _locate(tmp_path, "src/include/init.h") == f
+    assert _locate(tmp_path, "src/include/missing.h") is None
+
+
+def test_two_candidates_for_a_rule_file_are_not_guessed_between(tmp_path):
+    from gangmu.match.engine import _locate
+
+    for name, text in (("a", "1"), ("b", "2")):
+        f = tmp_path / name / "include" / "version.h"
+        f.parent.mkdir(parents=True)
+        f.write_text(text)
+    assert _locate(tmp_path, "include/version.h") is None
+    (tmp_path / "include").mkdir()
+    (tmp_path / "include" / "version.h").write_text("0")
+    assert _locate(tmp_path, "include/version.h") == tmp_path / "include" / "version.h"
