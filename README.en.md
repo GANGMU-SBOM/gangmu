@@ -193,7 +193,7 @@ the maintained regulatory packs (NIST IR 8547 and others) are the commercial gan
 | --- | --- | --- |
 | General open-source components | lwIP, Mbed TLS, FreeRTOS, RT-Thread, LVGL, OpenSSL, littlefs, FatFs, libcoap, nghttp2 and more | Directory location plus function-level fingerprints; the version comes from which releases the matched functions belong to |
 | National-crypto libraries | GmSSL 2.x / 3.x, Tongsuo | Per-release anchors, multi-release function signatures and version probes; code is split against OpenSSL so neither is mistaken for the other |
-| Package-manager and ecosystem declarations | RT-Thread, OpenHarmony, Yocto, Buildroot / OpenWrt, PlatformIO, Conan, Bazel, Zephyr `module.yml` | Read directly; where a declaration and the code disagree, the code wins and the disagreement is recorded as evidence |
+| Package-manager and ecosystem declarations | RT-Thread, OpenHarmony, Yocto, Buildroot / OpenWrt, PlatformIO, Conan, Bazel, CMake (FetchContent / ExternalProject / CPM), vcpkg, Meson wraps, Cargo `*-sys`, Zephyr `module.yml` | Read directly; where a declaration and the code disagree, the code wins and the disagreement is recorded as evidence |
 | Zephyr and its HALs | Mbed TLS, hostap, MCUboot, nanopb, and the Bouffalo, WCH, SiFli, Telink, Realtek and GigaDevice HALs | Rules generated from Zephyr's pinned commits |
 | Kernels and libraries inside Chinese SDKs | FreeRTOS / RT-Thread / LiteOS / TencentOS-tiny / AliOS Things kernels, FreeType, Opus and others | Located by marker files, independent of directory names |
 

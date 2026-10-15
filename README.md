@@ -254,7 +254,7 @@ gangmu policy check firmware/ --format markdown --fail-on deprecated -o policy.m
 | --- | --- | --- |
 | 通用开源组件 | lwIP、Mbed TLS、FreeRTOS、RT-Thread、LVGL、OpenSSL、littlefs、FatFs、libcoap、nghttp2 等 | 目录定位 + 函数级指纹，版本来自「这些函数属于哪几个发布版」 |
 | 国密库 | GmSSL 2.x / 3.x、铜锁 Tongsuo | 逐版本锚点 + 多版本函数签名 + 版本探针；与 OpenSSL 互相做代码分割，不会互相误认 |
-| 包管理器与生态声明 | RT-Thread、OpenHarmony、Yocto、Buildroot / OpenWrt、PlatformIO、Conan、Bazel、Zephyr `module.yml` | 直接读声明，声明与代码不一致时以代码为准，并把分歧写进证据 |
+| 包管理器与生态声明 | RT-Thread、OpenHarmony、Yocto、Buildroot / OpenWrt、PlatformIO、Conan、Bazel、CMake（FetchContent / ExternalProject / CPM）、vcpkg、Meson wrap、Cargo `*-sys`、Zephyr `module.yml` | 直接读声明，声明与代码不一致时以代码为准，并把分歧写进证据 |
 | Zephyr 及其 HAL | Mbed TLS、hostap、MCUboot、nanopb，以及博流、沁恒、思澈、泰凌微、瑞昱、兆易的 HAL | 从 Zephyr 的锁定提交直接生成规则 |
 | 国产 SDK 里的内核与第三方库 | FreeRTOS / RT-Thread / LiteOS / TencentOS-tiny / AliOS Things 内核，FreeType、Opus 等 | 标志文件定位，不依赖目录名 |
 
