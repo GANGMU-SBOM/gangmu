@@ -2,7 +2,7 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
-## Unreleased
+## 0.10.0
 
 * **Fixed: the `performance` check's calibration is steadier.** It took the fastest of three rounds, so one lucky moment made every scan in that run read dear: on one CI run the calibration was 0.045 s against 0.06 s on its neighbours, the scan itself was faster (3.29 s against 3.5 to 3.65 s), yet cold x1 read 73.1 units instead of about 60, leaving about 17% to the 1.6x limit. It is now the median of nine rounds, measured before and after the scans and averaged, with the ratio of the two recorded as `calibration_drift`. The threshold and the baseline are unchanged.
 * **New: libplctag is recognised.** Its native libraries are identified by their `plc_tag_*` exported symbols (no version; the SONAME's 2.6 series is quoted in the evidence text), and all ten libraries carved from `libplctag.NativeImport.dll` are named. A .NET assembly takes no part in exported-symbol matching: the same names in its metadata are P/Invoke declarations, so it is never reported as containing libplctag.
