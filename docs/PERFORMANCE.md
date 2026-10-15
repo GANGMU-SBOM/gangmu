@@ -67,7 +67,7 @@ git clone --depth 1 --branch v5.4.2 --recurse-submodules --shallow-submodules \
 gangmu perf esp-idf --rules rules --jobs 4
 ```
 
-`gangmu perf` 的每次扫描都在单独的进程里运行，所以峰值内存只算这次扫描本身。输出里的 `units` 是扫描耗时除以一个固定的单核校准负载的耗时，因此笔记本和 CI 机器上测出的数字可以互相比较。
+`gangmu perf` 的每次扫描都在单独的进程里运行，所以峰值内存只算这次扫描本身。输出里的 `units` 是扫描耗时除以一个固定的单核校准负载的耗时，因此笔记本和 CI 机器上测出的数字可以互相比较。校准取 9 轮的中位数，并在整套扫描之前和之后各测一次、取平均（两次的比值记在输出 JSON 的 `calibration_drift`）：取最快的一轮会选中一个侥幸的瞬间，而扫描要跑几秒，碰不上这种瞬间，用它去除只会把扫描算贵。CI 上曾有一次校准比相邻几次低 25%（0.045 s 对 0.06 s），扫描本身更快，单位却高了 21%，离 1.6 倍的上限只剩约 17%。
 
 ## CI 回归检查
 
@@ -107,5 +107,5 @@ The main changes:
 `gangmu perf` reproduces these numbers. In CI, `--check benchmarks/perf-baseline.json` fails a pull request in any of these cases:
 * its findings change;
 * its work counters grow;
-* its time grows past 1.6× the baseline, in calibration units;
+* its time grows past 1.6× the baseline, in calibration units (the calibration is the median of nine rounds, measured before and after the scans and averaged; the fastest round would pick a lucky moment that seconds-long scans never see, which on one CI run made every scan read 21% dearer than it was);
 * its peak memory grows past 1.35× the baseline.
