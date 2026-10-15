@@ -92,3 +92,39 @@ def test_a_scan_reports_the_st_hal(tmp_path):
     result = scan(tmp_path, load_rules(Path(__file__).parent / "fixtures" / "rules"))
     assert ("declared/stm32cube/stm32f4xx_hal_driver", "1.8.5") in {
         (f.rule_id, f.version) for f in result.findings}
+
+
+# STM32WBxx HAL V1.3.0 (stm32wbxx_hal.c): the macros are in the source file.
+_WB_HAL_C = """#define __STM32WBxx_HAL_VERSION_MAIN   (0x01U) /*!< [31:24] main version */
+#define __STM32WBxx_HAL_VERSION_SUB1   (0x03U) /*!< [23:16] sub1 version */
+#define __STM32WBxx_HAL_VERSION_SUB2   (0x00U) /*!< [15:8]  sub2 version */
+#define __STM32WBxx_HAL_VERSION_RC     (0x00U) /*!< [7:0]  release candidate */
+"""
+
+
+def test_hal_version_comes_from_the_macros_in_its_source_file(tmp_path):
+    hal = tmp_path / "Drivers" / "STM32WBxx_HAL_Driver"
+    _w(hal / "Src" / "stm32wbxx_hal.c", _WB_HAL_C)
+    # Notes that disagree: the source file is what is compiled.
+    _w(hal / "Release_Notes.html",
+       _notes("STM32WBxx HAL Drivers", "V1.2.0 / 26-June-2019", "V1.1.0 / 05-April-2019"))
+    found = [d for d in read_stm32cube(tmp_path) if d.name == "stm32wbxx_hal_driver"]
+    assert [(d.version, d.source) for d in found] == [
+        ("1.3.0", "Drivers/STM32WBxx_HAL_Driver/Src/stm32wbxx_hal.c")]
+
+
+def test_a_release_candidate_macro_is_not_reported_as_the_release(tmp_path):
+    _w(tmp_path / "hal" / "Src" / "stm32wbxx_hal.c",
+       _WB_HAL_C.replace("VERSION_RC     (0x00U)", "VERSION_RC     (0x02U)"))
+    found = read_stm32cube(tmp_path)
+    assert [d.version for d in found] == ["1.3.0-rc2"]
+
+
+def test_a_lowercase_v_heading_is_read_and_the_highest_release_wins(tmp_path):
+    """The STM32WB HAL notes head their newest entry ``v1.3.0``; reading only a
+    capital V reported the entry below it, 1.2.0."""
+    _w(tmp_path / "hal" / "Release_Notes.html",
+       _notes("STM32WBxx HAL Drivers", "v1.3.0 / 11-September-2019",
+              "V1.2.0 / 26-June-2019"))
+    found = read_stm32cube(tmp_path)
+    assert [(d.name, d.version) for d in found] == [("stm32wbxx_hal_driver", "1.3.0")]
