@@ -241,3 +241,62 @@ def test_two_candidates_for_a_rule_file_are_not_guessed_between(tmp_path):
     (tmp_path / "include").mkdir()
     (tmp_path / "include" / "version.h").write_text("0")
     assert _locate(tmp_path, "include/version.h") == tmp_path / "include" / "version.h"
+
+
+def _weakly_alike(upstream_dir, tmp_path, monkeypatch, namespaced):
+    """tinynet copied with its core file altered (no anchor) and judged only
+    weakly similar; optionally with the version header moved under another
+    directory, as ESP-IDF puts FreeRTOS's under ``include/freertos/``."""
+    from gangmu.match.engine import MatchEngine
+
+    tree = tmp_path / "proj" / "components" / "tinynet"
+    tree.parent.mkdir(parents=True)
+    shutil.copytree(upstream_dir, tree)
+    (tree / "src" / "core.c").write_text("/* rewritten by the vendor */\nint f(void){return 1;}\n")
+    if namespaced:
+        moved = tree / "include" / "tinynet" / "ns"
+        moved.mkdir()
+        (tree / "include" / "tinynet" / "version.h").rename(moved / "version.h")
+    monkeypatch.setattr(MatchEngine, "_similarity",
+                        lambda self, directory, rule: (rule.thresholds["floor"] + 0.001, False))
+    return tmp_path / "proj"
+
+
+def test_a_weak_resemblance_that_defines_the_version_is_asserted(
+        upstream_dir, rules_dir, tmp_path, monkeypatch):
+    project = _weakly_alike(upstream_dir, tmp_path, monkeypatch, namespaced=False)
+    finding = next(f for f in _scan(project, rules_dir).findings
+                   if f.upstream_name == "tinynet")
+    assert finding.version == "1.4.2" and finding.version_source == "probe"
+    assert finding.identity_confidence >= 0.75
+
+
+def test_a_weak_resemblance_with_no_version_definition_stays_weak(
+        upstream_dir, rules_dir, tmp_path, monkeypatch):
+    project = _weakly_alike(upstream_dir, tmp_path, monkeypatch, namespaced=False)
+    (project / "components" / "tinynet" / "include" / "tinynet" / "version.h").unlink()
+    result = _scan(project, rules_dir)
+    assert not [f for f in result.findings if f.upstream_name == "tinynet"]
+    possible = next(f for f in result.possible if f.upstream_name == "tinynet")
+    assert possible.identity_confidence < 0.6
+
+
+def test_the_version_header_is_found_under_a_namespacing_directory(
+        upstream_dir, rules_dir, tmp_path, monkeypatch):
+    project = _weakly_alike(upstream_dir, tmp_path, monkeypatch, namespaced=True)
+    finding = next(f for f in _scan(project, rules_dir).findings
+                   if f.upstream_name == "tinynet")
+    assert finding.version == "1.4.2" and finding.version_source == "probe"
+
+
+def test_a_file_name_shared_by_two_nested_files_is_not_guessed(tmp_path):
+    from gangmu.match.engine import _locate
+
+    for d in ("a/inc", "b/inc"):
+        f = tmp_path / d / "version.h"
+        f.parent.mkdir(parents=True)
+        f.write_text("x")
+    assert _locate(tmp_path, "include/version.h", by_name=True) is None
+    (tmp_path / "b" / "inc" / "version.h").unlink()
+    assert _locate(tmp_path, "include/version.h", by_name=True) == tmp_path / "a/inc/version.h"
+    assert _locate(tmp_path, "include/version.h") is None      # anchors never match by name

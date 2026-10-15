@@ -54,6 +54,8 @@ VERSION_CONFIDENCE = {
 # A partial copy (``functions.subset``) is accepted when at least this many of its
 # functions are the component's and at least this share of its functions are.
 SUBSET_MIN_FUNCTIONS = 40
+# Identity given to a weak resemblance that also defines the component's version.
+PROBE_CORROBORATED = 0.75
 SUBSET_MIN_SHARE = 0.90
 SUBSET_IDENTITY = 0.75      # below a full copy: most of the component is not here
 # A modified derivative (``functions.derivative``): at least this many of the
@@ -375,10 +377,12 @@ class MatchEngine:
         # anchor can match a directory that is not this component at all. When
         # the two disagree the tree wins: a single shared header is much weaker
         # evidence than the shape of several hundred files.
+        demoted = False
         if anchor_hit and similarity is not None:
             if similarity < rule.thresholds["floor"]:
                 return None
             if similarity < rule.thresholds["weak"]:
+                demoted = True
                 identity = min(identity, 0.50)
                 version, version_source = None, None
                 evidence.append(Evidence(
@@ -396,6 +400,17 @@ class MatchEngine:
             probed = self._probe_version(directory, rule, evidence, rel)
             if probed and version_source != "anchor":
                 version, version_source = probed, "probe"
+            if probed and not demoted and 0.0 < identity < PROBE_CORROBORATED:
+                # What resembles the component only weakly (a vendor fork with most
+                # of its functions rewritten) and also defines the component's own
+                # version macro, which no other code does, is the component.
+                identity = PROBE_CORROBORATED
+                evidence.append(Evidence(
+                    technique=Technique.SOURCE_CODE_ANALYSIS,
+                    confidence=PROBE_CORROBORATED,
+                    summary=(f"a weak resemblance to {rule.upstream_name} is "
+                             f"corroborated by its version definition ({probed})"),
+                    locator=rel))
 
         if shared and version_source != "manifest":
             if version not in shared:
@@ -696,7 +711,7 @@ class MatchEngine:
     def _probe_version(self, directory: Path, rule: Rule,
                        evidence: List[Evidence], rel: str) -> Optional[str]:
         for probe in rule.probes:
-            path = _locate(directory, probe.file)
+            path = _locate(directory, probe.file, by_name=True)
             if path is None:
                 continue
             try:
@@ -716,9 +731,10 @@ class MatchEngine:
 
 
 NESTED_LOOKUP_DEPTH = 2
+NAMED_LOOKUP_DEPTH = 4
 
 
-def _locate(directory: Path, relpath: str) -> Optional[Path]:
+def _locate(directory: Path, relpath: str, by_name: bool = False) -> Optional[Path]:
     """The file a rule names, at its path or else one nested level or two below.
 
     A vendor that wraps a library in an extra directory (lwIP's ``core/`` in
@@ -729,13 +745,23 @@ def _locate(directory: Path, relpath: str) -> Optional[Path]:
     path = directory / relpath
     if path.is_file():
         return path
+    found = _unique_glob(directory, relpath, NESTED_LOOKUP_DEPTH)
+    if found is None and by_name:
+        found = _unique_glob(directory, Path(relpath).name, NAMED_LOOKUP_DEPTH, deep=True)
+    return found
+
+
+def _unique_glob(directory: Path, tail: str, depth: int, deep: bool = False) -> Optional[Path]:
+    """The one file ``<directory>/<up to depth levels>/<tail>``, else ``None``."""
     found = []
-    for depth in range(1, NESTED_LOOKUP_DEPTH + 1):
-        pattern = "/".join(["*"] * depth) + "/" + relpath
+    for level in range(1, depth + 1):
+        pattern = "/".join(["*"] * level) + "/" + tail
         try:
             found += [p for p in directory.glob(pattern) if p.is_file()]
         except (OSError, ValueError):
             return None
+        if found and not deep:
+            break
     return found[0] if len(found) == 1 else None
 
 
