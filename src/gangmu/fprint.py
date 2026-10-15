@@ -233,7 +233,7 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
                 building[ops[0].reg] = ((building[ops[0].reg] & ~(0xFFFF << shift))
                                         | (ops[1].imm & 0xFFFF) << shift)
                 continue
-            for reg, value in building.items():
+            for _reg, value in building.items():
                 emit(value)
             building.clear()
             if m == "adrp" and len(ops) == 2:

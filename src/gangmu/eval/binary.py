@@ -202,12 +202,12 @@ def evaluate(corpus: Corpus, min_features: int = 2, tie_share: float = 0.85,
                     outcome, reported = _classify(hit, tags, tag)
                     report.cells.append(Cell(lib, ref_opt, img_opt, tag, outcome, reported,
                                              hit[3] if hit else 0.0, hit[1] if hit else 0))
-    for (lib, ref_opt), (built, _) in prints.items():
+    for (lib, _ref_opt), (built, _) in prints.items():
         for other in target.builds:
             if other == lib:
                 continue
-            for tag, per_opt in target.builds[other].items():
-                for img_opt, build in per_opt.items():
+            for _tag, per_opt in target.builds[other].items():
+                for _img_opt, build in per_opt.items():
                     report.negative_total += 1
                     hit = built.match(_filter(build.img, min_features), min_features, tie_share,
                                       target.arch)
