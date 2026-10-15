@@ -78,7 +78,7 @@ class _Section:
 def build_pe(*, machine: int = 0x8664, dll: bool = False, imports: Iterable[str] = (),
              delay_imports: Iterable[str] = (), exports: Optional[Tuple[str, List[str]]] = None,
              version: Optional[Dict[str, str]] = None, file_version=(1, 2, 3, 4),
-             pdb: Optional[str] = None, clr=False, signed: bool = False,
+             pdb: Optional[str] = None, clr=False, clr_resources: bytes = b"", signed: bool = False,
              extra: Sequence[Tuple[str, bytes]] = (), linker=(14, 38),
              text: bytes = b"") -> bytes:
     rdata = bytearray()
@@ -117,8 +117,10 @@ def build_pe(*, machine: int = 0x8664, dll: bool = False, imports: Iterable[str]
         dirs[6] = (alloc(entry), len(entry))
     if clr:
         meta_rva = alloc(clr if isinstance(clr, bytes) else b"BSJB" + b"\0" * 60)
-        cor = struct.pack("<IHHIII", 0x48, 2, 5, meta_rva, len(clr) if isinstance(clr, bytes) else 64,
-                          1) + b"\0" * 48
+        res_rva = alloc(clr_resources) if clr_resources else 0
+        cor = struct.pack("<IHHIIIIII", 0x48, 2, 5, meta_rva,
+                          len(clr) if isinstance(clr, bytes) else 64, 1, 0, res_rva,
+                          len(clr_resources)) + b"\0" * 40
         dirs[14] = (alloc(cor), 72)
 
     sections: List[_Section] = [_Section(".text", text or b"\xc3"),
@@ -164,9 +166,20 @@ def build_pe(*, machine: int = 0x8664, dll: bool = False, imports: Iterable[str]
     return header + b"\0" * (PAGE - len(header)) + body
 
 
+def managed_resource_blob(items: Sequence[Tuple[str, bytes]]):
+    """The resources area of an assembly (each entry a 4-byte length then the data), and the
+    ``(name, offset of its length prefix)`` pairs that the ManifestResource table needs."""
+    blob, entries = b"", []
+    for name, data in items:
+        entries.append((name, len(blob)))
+        blob += struct.pack("<I", len(data)) + data
+    return blob, entries
+
+
 def dotnet_metadata(name: str, version=(1, 0, 0, 0), refs: Sequence[Tuple[str, tuple]] = (),
                     extra_tables: Optional[Dict[int, Tuple[int, bytes]]] = None,
-                    wide_strings: bool = False) -> bytes:
+                    wide_strings: bool = False,
+                    resources: Sequence[Tuple[str, int]] = ()) -> bytes:
     """The metadata root of an assembly: Module, Assembly and AssemblyRef tables.
 
     Written from ECMA-335 II.22 without calling the parser, so a width the parser gets wrong
@@ -198,6 +211,10 @@ def dotnet_metadata(name: str, version=(1, 0, 0, 0), refs: Sequence[Tuple[str, t
     tables.update(extra_tables or {})
     if refs:
         tables[0x23] = (len(refs), b"".join(ref_rows))
+    if resources:                    # ManifestResource: Offset, Flags, Name, Implementation (0)
+        tables[0x28] = (len(resources), b"".join(
+            struct.pack("<II", off, 1) + add(n).to_bytes(sw, "little") + (0).to_bytes(2, "little")
+            for n, off in resources))
     valid = sum(1 << t for t in tables)
     body = b"".join(raw for _t, (_n, raw) in sorted(tables.items()))
     stream = (struct.pack("<IBBBBQQ", 0, 2, 0, 1 if wide_strings else 0, 1, valid, 0)
@@ -215,3 +232,59 @@ def dotnet_metadata(name: str, version=(1, 0, 0, 0), refs: Sequence[Tuple[str, t
         at += len(data)
     return (b"BSJB" + struct.pack("<HHII", 1, 1, 0, len(version_str)) + version_str
             + struct.pack("<HH", 0, len(streams)) + directory + blobs)
+
+
+def elf_blob(machine: int = 62, etype: int = 3, payload: bytes = b"", sections: bool = True,
+             bits64: bool = True, big: bool = False) -> bytes:
+    """A small ELF whose size is fixed by its tables: ``sections`` puts the section header
+    table last (the usual layout); without it only a PT_LOAD program header says how long it is."""
+    payload = payload or b"\x90" * 3000
+    e = ">" if big else "<"
+    ident = b"\x7fELF" + bytes([2 if bits64 else 1, 2 if big else 1, 1]) + b"\0" * 9
+    ehsize = 64 if bits64 else 52
+    body_at = ehsize + (56 if bits64 else 32)         # one program header follows the header
+    names = b"\0.text\0.shstrtab\0"
+    total = body_at + len(payload)
+    if sections:
+        shoff = total + len(names)
+        shnum, shentsize = 3, (64 if bits64 else 40)
+        total = shoff + shnum * shentsize
+    else:
+        shoff, shnum, shentsize = 0, 0, (64 if bits64 else 40)
+    if bits64:
+        head = ident + struct.pack(e + "HHIQQQIHHHHHH", etype, machine, 1, 0, ehsize, shoff, 0,
+                                   ehsize, 56, 1, shentsize, shnum, 2)
+        phdr = struct.pack(e + "IIQQQQQQ", 1, 5, 0, 0, 0, total if not sections else body_at
+                           + len(payload), total, 0x1000)
+    else:
+        head = ident + struct.pack(e + "HHIIIIIHHHHHH", etype, machine, 1, 0, ehsize, shoff, 0,
+                                   ehsize, 32, 1, shentsize, shnum, 2)
+        phdr = struct.pack(e + "IIIIIIII", 1, 0, 0, 0, total if not sections else body_at
+                           + len(payload), total, 5, 0x1000)
+    out = head + phdr + payload
+    if sections:
+        out += names
+        if bits64:
+            row = lambda n, t, off, sz: struct.pack(e + "IIQQQQIIQQ", n, t, 0, 0, off, sz, 0, 0, 1, 0)
+        else:
+            row = lambda n, t, off, sz: struct.pack(e + "IIIIIIIIII", n, t, 0, 0, off, sz, 0, 0, 1, 0)
+        out += (row(0, 0, 0, 0) + row(1, 1, body_at, len(payload))
+                + row(7, 3, body_at + len(payload), len(names)))
+    assert len(out) == total or not sections
+    return out if sections else out + b"\0" * (total - len(out))
+
+
+def macho_blob(cputype: int = 0x0100000C, filetype: int = 6, text: int = 4096,
+               linkedit: int = 1024, signature: int = 0) -> bytes:
+    """A 64-bit little-endian Mach-O: __TEXT then __LINKEDIT, optionally a code signature."""
+    def segment(name: bytes, fileoff: int, size: int) -> bytes:
+        return struct.pack("<II16sQQQQiiII", 0x19, 72, name, fileoff, size, fileoff, size, 7, 5,
+                           0, 0)
+    cmds = segment(b"__TEXT", 0, text) + segment(b"__LINKEDIT", text, linkedit)
+    ncmds = 2
+    if signature:
+        cmds += struct.pack("<IIII", 0x1D, 16, text + linkedit, signature)
+        ncmds = 3
+    head = struct.pack("<IiiIIIII", 0xFEEDFACF, cputype, 3, filetype, ncmds, len(cmds), 0, 0)
+    out = head + cmds
+    return out + b"\0" * (text + linkedit + signature - len(out))

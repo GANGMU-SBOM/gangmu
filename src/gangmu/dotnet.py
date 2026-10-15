@@ -22,14 +22,15 @@ import json
 import struct
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from .pe import PeInfo
 
 MAX_REFS = 2048
 MAX_DEPS_JSON = 16 * 1024 * 1024
 MAX_PACKAGES = 20000
-ASSEMBLY, ASSEMBLY_REF = 0x20, 0x23
+ASSEMBLY, ASSEMBLY_REF, MANIFEST_RESOURCE = 0x20, 0x23, 0x28
+MAX_RESOURCES = 4096
 
 # Assemblies that ship with the runtime or SDK: referencing one says nothing about a
 # third-party dependency.
@@ -94,6 +95,11 @@ _TABLES = {
     0x21: (4,),
     0x22: (4, 4, 4),
     0x23: (2, 2, 2, 2, 4, "B", "S", "S", "B"),
+    0x24: (4, "T23"),
+    0x25: (4, 4, 4, "T23"),
+    0x26: (4, "S", "B"),
+    0x27: (4, 4, "S", "S", "Implementation"),
+    0x28: (4, 4, "S", "Implementation"),
 }
 
 
@@ -128,76 +134,112 @@ def parse_dotnet(data: bytes, pe: PeInfo) -> Optional[DotnetInfo]:
         return None
 
 
-def _parse(data: bytes, pe: PeInfo) -> Optional[DotnetInfo]:
-    cor = pe.rva_to_offset(pe.clr_rva)
-    if cor is None or cor + 16 > len(data):
-        return None
-    meta_rva, meta_size = struct.unpack_from("<II", data, cor + 8)
-    root = pe.rva_to_offset(meta_rva)
-    if root is None or root + 16 > len(data) or data[root:root + 4] != b"BSJB":
-        return None
-    vlen = struct.unpack_from("<I", data, root + 12)[0]
-    if vlen > 255:
-        return None
-    info = DotnetInfo(runtime=data[root + 16:root + 16 + vlen].split(b"\0")[0].decode("latin-1"))
-    at = root + 16 + vlen
-    nstreams = struct.unpack_from("<H", data, at + 2)[0]
-    at += 4
-    streams: Dict[str, Tuple[int, int]] = {}
-    for _ in range(min(nstreams, 16)):
-        off, size = struct.unpack_from("<II", data, at)
-        end = data.index(b"\0", at + 8)
-        streams[data[at + 8:end].decode("latin-1")] = (root + off, size)
-        at = (end + 4) & ~3
-    tables = streams.get("#~") or streams.get("#-")
-    strings = streams.get("#Strings")
-    if not tables or not strings:
-        return None
-    heap_start, heap_size = strings
+class _Metadata:
+    """An opened metadata root: where every table starts and how wide its columns are."""
 
-    def text(index: int) -> str:
-        if index >= heap_size:
-            return ""
-        end = data.find(b"\0", heap_start + index, heap_start + heap_size)
-        return data[heap_start + index:end if end >= 0 else heap_start + heap_size].decode(
-            "utf-8", "replace")
-
-    t = tables[0]
-    heap_sizes = data[t + 6]
-    valid = struct.unpack_from("<Q", data, t + 8)[0]
-    pos = t + 24
-    rows: Dict[int, int] = {}
-    for table in range(64):
-        if valid >> table & 1:
-            rows[table] = struct.unpack_from("<I", data, pos)[0]
+    def __init__(self, data: bytes, pe: PeInfo):
+        self.ok = False
+        self.runtime = ""
+        self.cor = pe.rva_to_offset(pe.clr_rva)
+        if self.cor is None or self.cor + 16 > len(data):
+            return
+        meta_rva = struct.unpack_from("<I", data, self.cor + 8)[0]
+        root = pe.rva_to_offset(meta_rva)
+        if root is None or root + 16 > len(data) or data[root:root + 4] != b"BSJB":
+            return
+        vlen = struct.unpack_from("<I", data, root + 12)[0]
+        if vlen > 255:
+            return
+        self.runtime = data[root + 16:root + 16 + vlen].split(b"\0")[0].decode("latin-1")
+        at = root + 16 + vlen
+        nstreams = struct.unpack_from("<H", data, at + 2)[0]
+        at += 4
+        streams: Dict[str, Tuple[int, int]] = {}
+        for _ in range(min(nstreams, 16)):
+            off, size = struct.unpack_from("<II", data, at)
+            end = data.index(b"\0", at + 8)
+            streams[data[at + 8:end].decode("latin-1")] = (root + off, size)
+            at = (end + 4) & ~3
+        tables = streams.get("#~") or streams.get("#-")
+        strings = streams.get("#Strings")
+        if not tables or not strings:
+            return
+        self.heap_start, self.heap_size = strings
+        t = tables[0]
+        heap_sizes = data[t + 6]
+        valid = struct.unpack_from("<Q", data, t + 8)[0]
+        pos = t + 24
+        self.rows: Dict[int, int] = {}
+        for table in range(64):
+            if valid >> table & 1:
+                self.rows[table] = struct.unpack_from("<I", data, pos)[0]
+                pos += 4
+        if heap_sizes & 0x40:
             pos += 4
-    if heap_sizes & 0x40:
-        pos += 4
-    widths = _column_widths(rows, heap_sizes)
-    for table in range(ASSEMBLY_REF + 1):
-        count = rows.get(table, 0)
-        if table not in _TABLES and count:
-            return None                            # a table we cannot size: do not guess
-        if table == ASSEMBLY and count:
-            _row(data, pos, widths[table], info, text, assembly=True)
-        if table == ASSEMBLY_REF:
-            for i in range(min(count, MAX_REFS)):
-                _row(data, pos + i * sum(widths[table]), widths[table], info, text)
-        pos += count * sum(widths.get(table, ()))
+        self.widths = _column_widths(self.rows, heap_sizes)
+        self.start: Dict[int, int] = {}
+        for table in range(MANIFEST_RESOURCE + 1):
+            count = self.rows.get(table, 0)
+            if table not in _TABLES and count:
+                return                             # a table we cannot size: do not guess
+            self.start[table] = pos
+            pos += count * sum(self.widths.get(table, ()))
+        self.data = data
+        self.ok = True
+
+    def text(self, index: int) -> str:
+        if index >= self.heap_size:
+            return ""
+        end = self.data.find(b"\0", self.heap_start + index, self.heap_start + self.heap_size)
+        return self.data[self.heap_start + index:end if end >= 0 else
+                         self.heap_start + self.heap_size].decode("utf-8", "replace")
+
+    def read(self, table: int, row: int, column: int) -> int:
+        widths = self.widths[table]
+        at = self.start[table] + row * sum(widths) + sum(widths[:column])
+        return int.from_bytes(self.data[at:at + widths[column]], "little")
+
+
+def _parse(data: bytes, pe: PeInfo) -> Optional[DotnetInfo]:
+    meta = _Metadata(data, pe)
+    if not meta.ok:
+        return None
+    info = DotnetInfo(runtime=meta.runtime)
+    if meta.rows.get(ASSEMBLY):                   # HashAlgId, Major, Minor, Build, Revision,
+        info.version = ".".join(str(meta.read(ASSEMBLY, 0, i)) for i in (1, 2, 3, 4))
+        info.name = meta.text(meta.read(ASSEMBLY, 0, 7))      # Flags, PublicKey, Name
+    for i in range(min(meta.rows.get(ASSEMBLY_REF, 0), MAX_REFS)):   # Major..Revision, Flags,
+        info.references.append(AssemblyRef(                         # PublicKeyOrToken, Name
+            meta.text(meta.read(ASSEMBLY_REF, i, 6)),
+            ".".join(str(meta.read(ASSEMBLY_REF, i, c)) for c in range(4))))
     return info
 
 
-def _row(data: bytes, at: int, widths: Sequence[int], info: DotnetInfo, text,
-         assembly: bool = False) -> None:
-    def read(index: int) -> int:
-        start = at + sum(widths[:index])
-        return int.from_bytes(data[start:start + widths[index]], "little")
-    if assembly:                                   # HashAlgId, Major, Minor, Build, Revision,
-        info.version = ".".join(str(read(i)) for i in (1, 2, 3, 4))   # Flags, PublicKey, Name
-        info.name = text(read(7))
-    else:                                          # Major, Minor, Build, Revision, Flags,
-        info.references.append(AssemblyRef(        # PublicKeyOrToken, Name, Culture, Hash
-            text(read(6)), ".".join(str(read(i)) for i in range(4))))
+def managed_resources(data: bytes, pe: PeInfo) -> Dict[int, str]:
+    """File offset of each embedded managed resource's data -> its name.
+
+    Native libraries shipped as resources (a .NET assembly carrying one per platform) are
+    named here by their author, which says more than an offset does."""
+    if not pe.is_dotnet:
+        return {}
+    try:
+        meta = _Metadata(data, pe)
+        if not meta.ok:
+            return {}
+        res_rva = struct.unpack_from("<I", data, meta.cor + 24)[0]
+        base = pe.rva_to_offset(res_rva)
+        if base is None:
+            return {}
+        out: Dict[int, str] = {}
+        for i in range(min(meta.rows.get(MANIFEST_RESOURCE, 0), MAX_RESOURCES)):
+            if meta.read(MANIFEST_RESOURCE, i, 3) != 0:
+                continue                           # Implementation set: not in this file
+            at = base + meta.read(MANIFEST_RESOURCE, i, 0)
+            if at + 4 <= len(data):
+                out[at + 4] = meta.text(meta.read(MANIFEST_RESOURCE, i, 2))
+        return out
+    except (struct.error, IndexError, ValueError):
+        return {}
 
 
 def _column_widths(rows: Dict[int, int], heap_sizes: int) -> Dict[int, List[int]]:

@@ -147,7 +147,7 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
             _string_signatures(rulebase), _function_prints(rulebase),
             build_facts.link_map_stem if facts_map else "")
         findings.extend(_binary_findings(binaries, rulebase))
-        unlinked = sum(1 for b in binaries if b.linked is False)
+        unlinked = sum(1 for b in binaries if b.linked is False and b.container is None)
         if unlinked:
             notes.append(
                 f"{unlinked} prebuilt binar(ies) in the tree are not named by the link map; "
