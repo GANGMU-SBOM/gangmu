@@ -138,7 +138,7 @@ def merge_boms(documents: Sequence[Tuple[str, dict]],
 
     # dependencies
     graph: Dict[str, List[str]] = {}
-    for (label, doc), remap in zip(documents, remaps):
+    for (_label, doc), remap in zip(documents, remaps):
         for dep in doc.get("dependencies") or []:
             if not isinstance(dep, dict) or "ref" not in dep:
                 continue
@@ -157,7 +157,7 @@ def merge_boms(documents: Sequence[Tuple[str, dict]],
 
     # vulnerabilities
     vulns: Dict[Tuple[str, str], dict] = {}
-    for (label, doc), remap in zip(documents, remaps):
+    for (_label, doc), remap in zip(documents, remaps):
         for vuln in doc.get("vulnerabilities") or []:
             if not isinstance(vuln, dict) or not vuln.get("id"):
                 continue
