@@ -301,9 +301,11 @@ def build_record(advisory: str, repo: str, commits: Sequence[str],
         if local.is_dir():
             checkout = local
         else:
-            tmp = tempfile.TemporaryDirectory(prefix="gangmu-patch-") \
-                if workdir is None else None
-            checkout = Path(workdir) if workdir else Path(tmp.name)
+            if workdir:
+                checkout = Path(workdir)
+            else:
+                tmp = tempfile.TemporaryDirectory(prefix="gangmu-patch-")
+                checkout = Path(tmp.name)
             checkout.mkdir(parents=True, exist_ok=True)
             _git(["init", "--quiet"], checkout)
             _git(["remote", "add", "origin", repo], checkout)

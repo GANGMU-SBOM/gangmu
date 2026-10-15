@@ -108,7 +108,7 @@ def _read_shard(path: Path) -> Dict[str, dict]:
             items = json.load(fh).get("vulnerabilities", [])
     except (OSError, EOFError, lzma.LZMAError, ValueError) as exc:
         raise _UnreadableShard(str(exc)) from exc
-    return {(i.get("cve") or {}).get("id"): i for i in items
+    return {i["cve"]["id"]: i for i in items
             if (i.get("cve") or {}).get("id")}
 
 
@@ -189,7 +189,7 @@ def _nvd_time(moment: datetime) -> str:
     return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000")
 
 
-def fetch_nvd(dest: Path, get: JsonGetter = None, products: Sequence[str] = (),
+def fetch_nvd(dest: Path, get: Optional[JsonGetter] = None, products: Sequence[str] = (),
               api_key: Optional[str] = None, since: Optional[datetime] = None,
               now: Optional[datetime] = None, base_url: str = NVD_API,
               sleep: Callable[[float], None] = time.sleep,
@@ -283,8 +283,8 @@ def _repo_url(purl: str) -> Optional[str]:
     return f"https://{host}/{m.group(2)}/{m.group(3)}"
 
 
-def fetch_osv(dest: Path, purls: Sequence[str], get: JsonGetter = None,
-              post: Callable[[str, dict], dict] = None,
+def fetch_osv(dest: Path, purls: Sequence[str], get: Optional[JsonGetter] = None,
+              post: Optional[Callable[[str, dict], dict]] = None,
               base_url: str = OSV_API,
               log: Callable[[str], None] = lambda m: None) -> int:
     """Fetch the OSV records affecting *purls* into ``dest/osv/``.

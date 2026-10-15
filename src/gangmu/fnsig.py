@@ -48,7 +48,8 @@ from array import array
 from bisect import bisect_left
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, FrozenSet, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import (Dict, FrozenSet, Iterable, List, MutableSequence, Optional, Sequence,
+                    Set, Tuple)
 
 MAGIC = b"GMFN"
 FORMAT = 2
@@ -59,11 +60,11 @@ MAX_VERSIONS = 64
 @dataclass
 class FunctionSignature:
     versions: List[str]
-    hashes: List[int] = field(default_factory=list)
-    bitmaps: List[int] = field(default_factory=list)
-    flags: List[int] = field(default_factory=list)
-    abstract_hashes: List[int] = field(default_factory=list)
-    abstract_bitmaps: List[int] = field(default_factory=list)
+    hashes: MutableSequence[int] = field(default_factory=list)
+    bitmaps: MutableSequence[int] = field(default_factory=list)
+    flags: MutableSequence[int] = field(default_factory=list)
+    abstract_hashes: MutableSequence[int] = field(default_factory=list)
+    abstract_bitmaps: MutableSequence[int] = field(default_factory=list)
 
     _index: Optional[Dict[int, int]] = field(default=None, repr=False, compare=False)
     _abstract_borrowed: Set[int] = field(default_factory=set, repr=False, compare=False)

@@ -98,7 +98,7 @@ def to_spdx(result: ScanResult, app_name: str = "firmware",
             timestamp: Optional[str] = None,
             namespace: Optional[str] = None) -> Dict[str, Any]:
     root_id = _spdx_id("Package", app_name)
-    packages = [{
+    packages: List[Dict[str, Any]] = [{
         "SPDXID": root_id,
         "name": app_name,
         "versionInfo": app_version or "NOASSERTION",
@@ -108,12 +108,12 @@ def to_spdx(result: ScanResult, app_name: str = "firmware",
         "licenseDeclared": "NOASSERTION",
         "copyrightText": "NOASSERTION",
     }]
-    relationships = [{
+    relationships: List[Dict[str, Any]] = [{
         "spdxElementId": "SPDXRef-DOCUMENT",
         "relationshipType": "DESCRIBES",
         "relatedSpdxElement": root_id,
     }]
-    by_name = {}
+    by_name: Dict[str, List[str]] = {}
     for finding in result.findings:
         pkg = _package(finding)
         packages.append(pkg)

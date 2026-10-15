@@ -224,7 +224,7 @@ def managed_resources(data: bytes, pe: PeInfo) -> Dict[int, str]:
         return {}
     try:
         meta = _Metadata(data, pe)
-        if not meta.ok:
+        if not meta.ok or meta.cor is None:
             return {}
         res_rva = struct.unpack_from("<I", data, meta.cor + 24)[0]
         base = pe.rva_to_offset(res_rva)

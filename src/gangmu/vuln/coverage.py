@@ -120,8 +120,8 @@ def coverage(candidates: Sequence[Candidate], db: Path,
             return "NVD lists CPEs for other products only"
         return "NVD has a CPE for this product (version range differs)"
 
-    missed = Counter()
-    missed_by_status = Counter()
+    missed: Counter = Counter()
+    missed_by_status: Counter = Counter()
     for c in purl_only:
         published, status, _keys = meta.get(c, (None, None, frozenset()))
         when = era(published, cutoff)

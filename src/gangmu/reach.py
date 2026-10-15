@@ -200,8 +200,11 @@ def _reached(graph: Graph, directory: str) -> Tuple[Dict[str, Optional[str]], Se
 
 def _path(parent: Dict[str, Optional[str]], name: str) -> List[str]:
     chain = [name]
-    while parent.get(chain[-1]) is not None and len(chain) < 12:
-        chain.append(parent[chain[-1]])
+    while len(chain) < 12:
+        up = parent.get(chain[-1])
+        if up is None:
+            break
+        chain.append(up)
     return list(reversed(chain))
 
 
