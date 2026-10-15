@@ -201,4 +201,36 @@ def test_findings_rank_the_three_kinds_of_dotnet_evidence_differently(tmp_path, 
     comp = next(c for c in to_cyclonedx(result)["components"] if c["name"] == "app/app.exe")
     props = {(p["name"], p["value"]) for p in comp["properties"]}
     assert ("gangmu:importedLibrary", "Newtonsoft.Json") in props
-    assert ("gangmu:embeddedLibrary", "Newtonsoft.Json 13.0.3") in props
+    # deps.json packages are separate DLLs beside the program: a dependency, not embedded
+    assert ("gangmu:declaredDependency", "Newtonsoft.Json 13.0.3") in props
+    assert not any(n == "gangmu:embeddedLibrary" for n, _ in props)
+
+
+def test_a_managed_dll_naming_itself_is_not_said_to_embed_itself(tmp_path, rules_dir):
+    info = {"ProductName": "BACnet", "ProductVersion": "4.0.0+abc"}
+    _tree(tmp_path, {"BACnet.dll": build_pe(dll=True, version=info,
+                                            clr=dotnet_metadata("BACnet", (4, 0, 0, 0)))})
+    blob = collect_binaries(tmp_path)[0]
+    assert embedded_libraries(blob) == []
+    assert "identifies itself as BACnet 4.0.0" in describe_binary(blob)
+    assert "embeds" not in describe_binary(blob)
+    result = scan(tmp_path, load_rules(rules_dir, strict=True), None, ScanOptions())
+    comp = next(c for c in to_cyclonedx(result)["components"] if c["name"] == "BACnet.dll")
+    props = {(p["name"], p["value"]) for p in comp["properties"]}
+    assert ("gangmu:identifiedAs", "BACnet 4.0.0") in props
+    assert not any(n == "gangmu:embeddedLibrary" for n, _ in props)
+
+
+def test_deps_json_packages_are_listed_as_dependencies_not_as_embedded(tmp_path):
+    _tree(tmp_path, {"app.exe": build_pe(clr=dotnet_metadata("App")), "app.deps.json": DEPS})
+    blob = collect_binaries(tmp_path)[0]
+    assert embedded_libraries(blob) == []
+    text = describe_binary(blob)
+    assert "lists as dependencies in its deps.json" in text and "Newtonsoft.Json 13.0.3" in text
+    assert "embeds" not in text
+
+
+def test_a_long_dependency_list_is_cut_in_the_description(tmp_path):
+    deps = {"libraries": {f"Pkg{i}/1.0.{i}": {"type": "package"} for i in range(20)}}
+    _tree(tmp_path, {"app.exe": build_pe(clr=dotnet_metadata("App")), "app.deps.json": deps})
+    assert "and 12 more" in describe_binary(collect_binaries(tmp_path)[0])

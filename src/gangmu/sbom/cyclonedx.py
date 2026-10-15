@@ -205,10 +205,16 @@ def _binary_component(blob) -> Dict[str, Any]:
     for emb in blob.embedded:
         if emb.method in ("imports", "dotnet-reference"):
             props.append({"name": "gangmu:importedLibrary", "value": emb.display_name})
-            continue
-        props.append({"name": ("gangmu:vendorComponent" if emb.vendor_component
-                               else "gangmu:embeddedLibrary"),
-                      "value": f"{emb.display_name} {emb.version}".strip()})
+        elif emb.method == "deps-json":
+            props.append({"name": "gangmu:declaredDependency",
+                          "value": f"{emb.display_name} {emb.version}".strip()})
+        elif emb.method == "dotnet-assembly":
+            props.append({"name": "gangmu:identifiedAs",
+                          "value": f"{emb.display_name} {emb.version}".strip()})
+        else:
+            props.append({"name": ("gangmu:vendorComponent" if emb.vendor_component
+                                   else "gangmu:embeddedLibrary"),
+                          "value": f"{emb.display_name} {emb.version}".strip()})
     if blob.runtime:
         props.append({"name": "gangmu:runtime", "value": blob.runtime})
     if blob.product:

@@ -11,7 +11,7 @@ from .licenses import observe
 from .core.globbing import matches_suffix
 from .build.kconfig import KconfigValues, disabled_by
 from .declared import Declaration, collect_declarations
-from .binaries import DEPENDENCY_METHODS, collect_binaries
+from .binaries import collect_binaries
 from .discover import discover_roots, empty_submodules
 from .analysis import AnalysisStore
 from .fingerprint import DEFAULT_K, DEFAULT_WINDOW
@@ -243,6 +243,7 @@ BINARY_IMPORT_IDENTITY = 0.50    # an import is a run-time dependency, not code 
 BINARY_SIDECAR = 0.85       # a .deps.json is exact but a separate file, so it can be stale
 BINARY_ASSEMBLY = 0.50      # a .NET assembly named like a NuGet package; nobody confirmed it
 METADATA_METHODS = ("go-buildinfo", "cargo-auditable")
+WEAK_DEPENDENCY_METHODS = ("imports", "dotnet-reference")   # needed at run time, release unknown
 
 
 def _string_signatures(rulebase: RuleBase):
@@ -316,7 +317,7 @@ def _binary_findings(binaries, rulebase: RuleBase) -> List[Finding]:
                               else _spliced(known[1], version) if known else None)
             if exact and version:
                 identity = version_conf = BINARY_METADATA
-            elif emb.method in DEPENDENCY_METHODS:
+            elif emb.method in WEAK_DEPENDENCY_METHODS:
                 identity, version_conf = BINARY_IMPORT_IDENTITY, 0.0
             elif emb.method == "deps-json":
                 identity = version_conf = BINARY_SIDECAR

@@ -66,9 +66,11 @@
 
 1. **按证据强度分层，不混在一起。** 工具链写下的清单 0.90，旁路文件 0.85，作者写的版本资源 0.70，导入和引用 0.50。
    每条的说明文字各写各的，因为意思不同。
-2. **导入不是内嵌。** 以前“库在这个二进制里”的说法对导出符号成立，对导入表是错的：一个 exe 导入 `libcurl-4.dll`，
-   只说明运行时需要 curl，curl 本身是另一个文件。SPDX 的备注、CycloneDX 的 `gangmu:importedLibrary` 与
-   `gangmu:embeddedLibrary` 因此分开。
+2. **内嵌、依赖、自身身份是三件事，分开写。** 以前“库在这个二进制里”的说法对导出符号成立，对导入表是错的：
+   一个 exe 导入 `libcurl-4.dll`，只说明运行时需要 curl，curl 本身是另一个文件。CycloneDX 里因此分成
+   `gangmu:embeddedLibrary`（静态编进文件：横幅、Go 模块、Rust crate）、`gangmu:importedLibrary`（DLL 导入、.NET 程序集引用）、
+   `gangmu:declaredDependency`（`deps.json` 列出的包，是旁边的独立 DLL）和 `gangmu:identifiedAs`（托管 DLL 自己说自己是什么）；
+   SPDX 的备注同样分开。这个区分是用真实的工业库测试时发现的：`BACnet.dll` 一度被写成“内嵌了 BACnet 4.0.0”。
 3. **不为程序自己的程序集生成 NuGet purl。** 公司内部的 `Acme.Core.dll` 在 nuget.org 上不存在，给它一个 purl
    会被漏洞库当成公开包去匹配，还有依赖混淆的风险。只有独立的托管 DLL 且带语义化 `ProductVersion` 时，才作为 0.50 的“可能”候选，
    写明需要人确认；`.exe` 一律当作产品，不当作包。
@@ -99,7 +101,31 @@
 仓库里的测试：`tests/test_pe.py`、`tests/test_binmeta.py`、`tests/test_dotnet.py`。有 Go 工具链和 `cargo-auditable`
 时，会现场构建并与官方工具对照；有 pip 自带启动器时，用真实 PE 跑。
 
+## 在真实工业通信库上的实测
+
+想直接拿 GitHub 上工业设备的 exe 和固件来测，但这个环境里 GitHub 的发布页和 API 对未挂载的仓库返回 403，
+只开放匿名的 `git clone`。克隆了 `libplctag`、`OpenModScan`、OpenEVSE 的 ESP32 固件仓库、`OpenPLC_Editor`、
+`4diac-forte` 五个仓库，按文件头在源码树里找二进制：**一个也没有**（只有两个 `.docx`），因为这些项目的 exe、dll、固件
+都在 Releases 里。所以改用同一批开源项目发布到 PyPI 和 NuGet 的真实产物，下面是结果（`gangmu scan`，规则库 gangmu-rules 2026.10.11）：
+
+| 样本（来源） | 读到什么 | 没读到什么 |
+|---|---|---|
+| `snap7.dll`（python-snap7 2.1.0，Siemens S7 通信库，MSVC 2013） | 导入 `kernel32/winmm/ws2_32`，链接器 12.0 | **没识别出它是 Snap7**：没有版本资源，没有横幅，规则库里也没有它 |
+| `pysoem.cp311-win_amd64.pyd`（pysoem 1.1.13，静态链接了 SOEM EtherCAT 主站） | 导入 `python311.dll`、CRT，链接器 14.44 | **没识别出里面的 SOEM** |
+| `BACnet.dll` 4.0.0 | 名字、版本、PDB 路径（确定性构建的 `/_/obj/...`）、引用 `Microsoft.Extensions.Logging.Abstractions` | |
+| `EasyModbus.dll` 5.6.0 | 名字、版本；PDB 路径 `W:\Projekte\...\obj\Debug\EasyModbus.pdb` | 说明发布的是 Debug 构建，还带出了开发者的目录 |
+| `NModbus.dll` 3.0.83、`S7.Net.dll`（S7netplus 0.20.0） | 名字、版本、CI 构建机上的 PDB 路径 | |
+| `Opc.Ua.Core.dll` 2.0.1（OPC Foundation 官方 OPC UA 栈） | 名字、版本、已签名、10 到 13 个第三方程序集引用 | 每个引用只有程序集版本，没有包版本 |
+| `libplctag.NativeImport.dll` 1.0.41（Allen-Bradley PLC 通信库的 .NET 包装） | 名字、版本 | **3 MB 里把原生 libplctag 当资源嵌了进去**（4 个 Linux ELF、2 个 macOS Mach-O、多个 Windows PE），纲目不拆托管资源，所以认不出里面的原生库，也认不出它的版本；显示的工具链 `Ubuntu 11.4.0` 其实来自那些嵌入的 `.so`，不是 .NET 这个 DLL 的构建环境 |
+
+这组结果的结论要诚实地读：**.NET 库（自带元数据）识别得很好；静态链接的 C/C++ 库（snap7、SOEM）一个都没认出来**，
+和上面“没有任何横幅的静态 C/C++ 程序仍然认不出”一致。要认出它们，得往规则库里加条目（Snap7 的导出 API 名单、SOEM 的字符串或函数指纹），
+这不是改解析器能解决的。样本是 8 个开源项目，不是工业设备厂商的私有程序，不能代表 PLC、HMI 厂商的 exe。
+
 ## 没做的，和没验证的
+
+- **嵌在托管资源或其他文件里的原生二进制不拆。** 上表的 `libplctag.NativeImport.dll` 就是例子；按魔数切出里面的 PE/ELF 再扫，
+  是下一步最直接的改进，但还没做。
 
 - **Rust 在 Windows 上的 `.dep-v0`**：段名在 PE 里的读取只用合成文件测过。我没能构建真实的 Windows Rust 程序
   （本机没有 MinGW 链接器，`rust-lld` 的 gnu 风格需要 nightly），ELF 上是真实验证过的。
