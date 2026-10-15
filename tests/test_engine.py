@@ -171,3 +171,48 @@ def test_a_vendors_rule_firing_outside_its_own_path_does_not_name_that_vendor(
     result = _scan(tmp_path / "p", tmp_path / "r")
     finding = next(f for f in result.findings if f.upstream_name == "tinynet")
     assert finding.supplier == "ACME Semiconductor"
+
+
+def _shared_anchor_rules(rules_dir, tmp_path, reference=True):
+    """The generated rule with its anchor file recorded as shipped unchanged by
+    1.4.1, 1.4.2 and 1.4.3, as real releases often do."""
+    import yaml
+    out = tmp_path / "shared-rules"
+    shutil.copytree(rules_dir, out)
+    path = next(out.glob("*.yaml"))
+    rule = yaml.safe_load(path.read_text(encoding="utf-8"))
+    digest = rule["identity"]["anchors"][0]["sha256"]["1.4.2"]
+    rule["identity"]["anchors"][0]["sha256"] = {"1.4.1": digest, "1.4.2": digest,
+                                                "1.4.3": digest}
+    if not reference:
+        rule["identity"]["signature"].pop("reference_version", None)
+    path.write_text(yaml.safe_dump(rule), encoding="utf-8")
+    return out
+
+
+def _pristine(upstream_dir, tmp_path):
+    tree = tmp_path / "pristine" / "components" / "tinynet"
+    tree.parent.mkdir(parents=True)
+    shutil.copytree(upstream_dir, tree)
+    return tree
+
+
+def test_an_anchor_shared_by_releases_does_not_pin_the_first_of_them(
+        upstream_dir, rules_dir, tmp_path):
+    """open62541 1.4.3 and 1.4.4 ship the same ua_server.c: the 1.4.4 tree was
+    reported as 1.4.3, exact, because the first release with that hash won."""
+    rules = _shared_anchor_rules(rules_dir, tmp_path)
+    tree = _pristine(upstream_dir, tmp_path)
+    result = _scan(tmp_path / "pristine", rules)
+    finding = next(f for f in result.findings if f.upstream_name == "tinynet")
+    assert finding.version == "1.4.2"                 # the probe settles it
+    assert finding.version_source == "probe"
+    (tree / "include" / "tinynet" / "version.h").unlink()
+    (tmp_path / "bare").mkdir()
+    rules = _shared_anchor_rules(rules_dir, tmp_path / "bare", reference=False)
+    result = _scan(tmp_path / "pristine", rules)
+    finding = next(f for f in result.findings if f.upstream_name == "tinynet")
+    assert finding.version == "1.4.1~1.4.3"           # nothing settles it: a span
+    assert finding.version_source == "anchor-shared"
+    assert 0 < finding.version_confidence < 0.98
+    assert any("3 releases ship it unchanged" in e.summary for e in finding.evidence)

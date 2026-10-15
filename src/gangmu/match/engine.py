@@ -48,6 +48,7 @@ VERSION_CONFIDENCE = {
     "probe": 0.85,
     "functions": 0.88,
     "signature-reference": 0.70,
+    "anchor-shared": 0.88,      # a file several releases share: a span, not a point
 }
 
 # A partial copy (``functions.subset``) is accepted when at least this many of its
@@ -310,10 +311,19 @@ class MatchEngine:
         version_source: Optional[str] = None
 
         # --- tier 1: anchor hashes -------------------------------------
-        anchor_hit = self._check_anchors(directory, rule, evidence)
-        if anchor_hit:
+        anchor_versions = self._check_anchors(directory, rule, evidence)
+        anchor_hit = bool(anchor_versions)
+        shared: List[str] = []
+        if anchor_versions:
             identity = max(identity, 0.98)
-            version, version_source = anchor_hit, "anchor"
+            if len(anchor_versions) == 1:
+                version, version_source = anchor_versions[0], "anchor"
+            else:
+                # Releases that ship the file unchanged cannot be told apart by
+                # it. Pinning the first would report 1.4.3 for a 1.4.4 tree, so
+                # the version is settled below by a probe or the functions, or
+                # else reported as the span.
+                shared = anchor_versions
 
         # --- tier 2a: function containment (preferred) ------------------
         # CENTRIS: a component is identified by how much of its own application
@@ -386,6 +396,11 @@ class MatchEngine:
             probed = self._probe_version(directory, rule, evidence, rel)
             if probed and version_source != "anchor":
                 version, version_source = probed, "probe"
+
+        if shared and version_source != "manifest":
+            if version not in shared:
+                version, version_source = f"{shared[0]}~{shared[-1]}", "anchor-shared"
+                version_range = None
 
         # --- vendor manifest -------------------------------------------
         if manifest and identity > 0.0:
@@ -466,7 +481,8 @@ class MatchEngine:
         )
 
     def _check_anchors(self, directory: Path, rule: Rule,
-                       evidence: List[Evidence]) -> Optional[str]:
+                       evidence: List[Evidence]) -> List[str]:
+        """Every release whose recorded hash the first matching anchor file has."""
         for anchor in rule.anchors:
             path = directory / anchor.path
             if not path.is_file():
@@ -475,18 +491,22 @@ class MatchEngine:
                 digest = sha256_file(path)
             except OSError:
                 continue
-            for ver, expected in anchor.sha256.items():
-                if digest == expected:
-                    evidence.append(Evidence(
-                        technique=Technique.HASH_COMPARISON,
-                        confidence=VERSION_CONFIDENCE["anchor"],
-                        summary=(f"{anchor.path} matches, byte for byte, the hash "
-                                 f"rule {rule.id} records for "
-                                 f"{rule.upstream_name} {ver}"),
-                        locator=f"{directory.name}/{anchor.path}",
-                    ))
-                    return ver
-        return None
+            versions = [ver for ver, expected in anchor.sha256.items()
+                        if digest == expected]
+            if versions:
+                which = (versions[0] if len(versions) == 1 else
+                         f"{versions[0]} to {versions[-1]} alike "
+                         f"({len(versions)} releases ship it unchanged)")
+                evidence.append(Evidence(
+                    technique=Technique.HASH_COMPARISON,
+                    confidence=VERSION_CONFIDENCE["anchor"],
+                    summary=(f"{anchor.path} matches, byte for byte, the hash "
+                             f"rule {rule.id} records for "
+                             f"{rule.upstream_name} {which}"),
+                    locator=f"{directory.name}/{anchor.path}",
+                ))
+                return versions
+        return []
 
     def _content_hash(self, directory: Path, rule: Rule) -> Optional[str]:
         include = rule.include or DEFAULT_INCLUDE
