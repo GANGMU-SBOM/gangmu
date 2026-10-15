@@ -13,10 +13,10 @@ STM32 CMSIS device
     and ``_SUB2``, else the newest entry of the ``Release_Notes.html`` beside it
     (titled "Release Notes for STM32F4xx CMSIS").
 STM32 HAL driver
-    The newest entry of ``Release_Notes.html`` titled "Release Notes for
-    STM32F4xx HAL Drivers". The HAL headers of current releases carry no version
-    macro, so the notes are the only statement; a copy whose notes were removed is
-    not reported.
+    ``Src/stm32<family>xx_hal.c``: ``__STM32F4xx_HAL_VERSION_MAIN``, ``_SUB1``,
+    ``_SUB2`` and ``_RC`` (the macros are in the source file, not the headers),
+    else the highest entry of ``Release_Notes.html`` titled "Release Notes for
+    STM32F4xx HAL Drivers"; a copy with neither is not reported.
 CMSIS-Pack
     ``<vendor>``, ``<name>`` and the first ``<release version=...>`` of a
     ``*.pdsc``.
@@ -41,8 +41,12 @@ _CMSIS_MACRO = re.compile(
 _NOTES_TITLE = re.compile(
     r"<title>\s*Release Notes for (STM32\w+?)\s+(CMSIS|HAL)\b[^<]*</title>",
     re.IGNORECASE)
-_NOTES_NEWEST = re.compile(
-    r'id="update-history".*?>\s*(V\d+\.\d+\.\d+(?:\.\d+)?)\s*/', re.DOTALL)
+_HAL_MACRO = re.compile(
+    r"#define\s+__(STM32\w+?)_HAL_VERSION_(MAIN|SUB1|SUB2|RC)\s+\(0x([0-9A-Fa-f]+)U?\)")
+# One heading per release, ``V1.2.0 / 26-June-2019``; ST writes the V in either case
+# (``v1.3.0`` is the newest entry of the STM32WB HAL notes), so the case is ignored
+# and the highest release is taken rather than the first one.
+_NOTES_ENTRY = re.compile(r">\s*[Vv](\d+\.\d+\.\d+(?:\.\d+)?)\s*/")
 
 
 def read_vendor_packages(root: Path) -> List[Declaration]:
@@ -53,6 +57,16 @@ def read_vendor_packages(root: Path) -> List[Declaration]:
 def _family(raw: str) -> str:
     """``STM32F4`` (a header macro) and ``STM32F4xx`` (a title) are one family."""
     return re.sub(r"(?i)xx$", "", raw).lower() + "xx"
+
+
+def _version_key(text: str) -> tuple:
+    return tuple(int(n) for n in text.split("."))
+
+
+def _newest_release(text: str) -> Optional[str]:
+    start = text.find('id="update-history"')
+    found = _NOTES_ENTRY.findall(text[start:] if start >= 0 else text)
+    return max(found, key=_version_key) if found else None
 
 
 def _st_decl(name: str, version: Optional[str], source: str, where: Path,
@@ -87,6 +101,28 @@ def read_stm32cube(root: Path) -> List[Declaration]:
                         name, version, header.relative_to(root).as_posix(), here,
                         f"{fam.upper().replace('XX', 'xx')} CMSIS device"))
                     break
+        # HAL driver: the macros in its Src/stm32*xx_hal.c.
+        src = here / "Src"
+        if src.is_dir():
+            for source in sorted(src.glob("stm32*xx_hal.c")):
+                try:
+                    text = _read(source)
+                except OSError:
+                    continue
+                parts = {}
+                family = None
+                for fam, part, value in _HAL_MACRO.findall(text):
+                    family, parts[part] = fam, int(value, 16)
+                if family and {"MAIN", "SUB1", "SUB2"} <= set(parts):
+                    version = f"{parts['MAIN']}.{parts['SUB1']}.{parts['SUB2']}"
+                    if parts.get("RC"):
+                        version += f"-rc{parts['RC']}"
+                    fam = _family(family)
+                    name = f"{fam}_hal_driver"
+                    out.setdefault(name, _st_decl(
+                        name, version, source.relative_to(root).as_posix(), here,
+                        f"{fam.upper().replace('XX', 'xx')} HAL driver"))
+                    break
         if notes is None:
             continue
         try:
@@ -94,12 +130,12 @@ def read_stm32cube(root: Path) -> List[Declaration]:
         except OSError:
             continue
         title = _NOTES_TITLE.search(text[:4000])
-        newest = _NOTES_NEWEST.search(text)
+        newest = _newest_release(text)
         if not title or not newest:
             continue
         fam, kind = _family(title.group(1)), title.group(2).upper()
         label = fam.upper().replace("XX", "xx")
-        version = newest.group(1)[1:]
+        version = newest
         if kind == "CMSIS":
             name = f"{fam}_cmsis_device"
             if name in out:
