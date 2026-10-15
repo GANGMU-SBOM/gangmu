@@ -166,31 +166,53 @@ class Binary:
         }
 
 
-# Evidence that a binary needs a library, not that the library is inside it.
-DEPENDENCY_METHODS = ("imports", "dotnet-reference")
+# What a piece of evidence is about. A library can be *inside* the file (a banner, a Go module
+# compiled in), *needed by* it (a DLL import, an assembly reference, a package in its
+# deps.json: the code is another file), or what the file *itself* is (a managed DLL naming
+# itself). The SBOM says which, because the three mean different things for a reader.
+DEPENDENCY_METHODS = ("imports", "dotnet-reference", "deps-json")
+SELF_METHODS = ("dotnet-assembly",)
 
 
 def embedded_libraries(blob: Binary) -> List[Embedded]:
-    """Libraries whose code or dependency record is inside the file (not merely imported)."""
-    return [e for e in blob.embedded if e.method not in DEPENDENCY_METHODS]
+    """Libraries whose code or dependency record is inside the file."""
+    return [e for e in blob.embedded
+            if e.method not in DEPENDENCY_METHODS and e.method not in SELF_METHODS]
 
 
 def imported_libraries(blob: Binary) -> List[Embedded]:
-    """Libraries the file needs at run time (a DLL import, a .NET assembly reference); the
-    code is elsewhere."""
-    return [e for e in blob.embedded if e.method in DEPENDENCY_METHODS]
+    """Libraries the file needs at run time (a DLL import, an assembly reference); the code
+    is elsewhere."""
+    return [e for e in blob.embedded if e.method in ("imports", "dotnet-reference")]
+
+
+def declared_dependencies(blob: Binary) -> List[Embedded]:
+    """Packages a ``.deps.json`` beside the program lists: exact, but separate files."""
+    return [e for e in blob.embedded if e.method == "deps-json"]
+
+
+def identified_as(blob: Binary) -> List[Embedded]:
+    """What the file says it is (a .NET assembly named like a package)."""
+    return [e for e in blob.embedded if e.method in SELF_METHODS]
+
+
+def _shown(items: Sequence[Embedded], with_version: bool, limit: int = 8) -> str:
+    names = [((e.display_name + " " + e.version).strip() if with_version else e.display_name)
+             for e in items]
+    more = f" and {len(names) - limit} more" if len(names) > limit else ""
+    return ", ".join(names[:limit]) + more
 
 
 def describe_binary(blob: Binary) -> str:
     """One-line description shared by the SPDX writers."""
     text = f"prebuilt {blob.kind}, no source available"
-    inside = embedded_libraries(blob)
-    if inside:
-        text += "; embeds " + ", ".join(
-            (e.display_name + " " + e.version).strip() for e in inside)
-    needs = imported_libraries(blob)
-    if needs:
-        text += "; imports " + ", ".join(e.display_name for e in needs)
+    for label, items, versions in (
+            ("embeds", embedded_libraries(blob), True),
+            ("identifies itself as", identified_as(blob), True),
+            ("imports", imported_libraries(blob), False),
+            ("lists as dependencies in its deps.json", declared_dependencies(blob), True)):
+        if items:
+            text += f"; {label} {_shown(items, versions)}"
     if blob.runtime:
         text += f"; built with {blob.runtime}"
     return text
