@@ -235,6 +235,43 @@ def test_a_resource_name_is_only_used_when_it_points_at_the_binary(tmp_path):
     assert "#0x" in child.path and "!" not in child.path
 
 
+PLCTAG_API = ("create_ex destroy read write status shutdown get_size set_raw_bytes get_raw_bytes "
+              "get_bit set_bit get_int8 get_uint8 get_int16 get_uint16 get_int32 get_uint32 "
+              "get_int64 get_uint64 get_float32 set_float32 get_float64 set_float64 get_string "
+              "set_string get_string_length get_string_capacity get_int_attribute "
+              "set_int_attribute unlock register_callback unregister_callback "
+              "unregister_logger get_byte_array_attribute").split()
+
+
+def _plctag_lib(*, soname=True, calls=len(PLCTAG_API)):
+    names = [f"plc_tag_{n}" for n in PLCTAG_API[:calls]]
+    text = b"\0" + b"\0".join(n.encode() for n in names) + b"\0"
+    if soname:
+        text += b"libplctag.so.2.6\0"
+    return elf_blob(payload=text + b"\x90" * 3000)
+
+
+def test_a_native_library_carved_from_a_dotnet_wrapper_is_named_but_the_wrapper_is_not(tmp_path):
+    # the wrapper's own metadata lists every plc_tag_* name it P/Invokes; that says what it
+    # calls, not that the library is in it. The carved ELF defines them, and is the library.
+    declared = [(f"plc_tag_{n}", 0) for n in PLCTAG_API]
+    blob, entries = managed_resource_blob([("Pkg.runtime.linux_x64.libplctag.so", _plctag_lib())])
+    meta = dotnet_metadata("Pkg", resources=entries + declared)
+    _tree(tmp_path, {"Pkg.dll": build_pe(dll=True, clr=meta, clr_resources=blob)})
+    outer, child = collect_binaries(tmp_path)
+    assert "libplctag" not in {e.name for e in outer.embedded}
+    [lib] = child.embedded
+    assert (lib.name, lib.version, lib.method) == ("libplctag", "", "symbols")
+    assert "series 2.6" in lib.banner and "34 of 34" in lib.banner
+
+
+def test_a_few_plc_tag_calls_do_not_make_a_library(tmp_path):
+    _tree(tmp_path, {"app.elf": _plctag_lib(calls=10), "lib.elf": _plctag_lib(soname=False)})
+    few, full = collect_binaries(tmp_path)
+    assert few.embedded == []
+    assert [e.name for e in full.embedded] == ["libplctag"] and "series" not in full.embedded[0].banner
+
+
 def test_the_description_says_what_contains_what(tmp_path):
     _tree(tmp_path, {"app.bin": _around(elf_blob(), macho_blob())})
     outer, first, _second = collect_binaries(tmp_path)

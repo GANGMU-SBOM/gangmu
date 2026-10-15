@@ -109,7 +109,24 @@ SYMBOLS = (
         "GSMInitDecode", "GSMFrameDecode", "GSMDecodeFrameExit", "AMRDecode",
         "Decoder_amr_init", "Decoder_amr", "Speech_Decode_Frame_reset", "Bgn_scd",
         "Post_Filter", "D_plsf_3", "Lsp_Az")),
+    # the symbols every libplctag 2.6 build exports, on all of ELF, Mach-O and PE and all
+    # four CPU families of libplctag.NativeImport 1.0.41 (a managed wrapper only *declares*
+    # these, see ``_banners``)
+    ("libplctag", "libplctag", 24, (
+        "plc_tag_create_ex", "plc_tag_destroy", "plc_tag_read", "plc_tag_write", "plc_tag_status",
+        "plc_tag_shutdown", "plc_tag_get_size", "plc_tag_set_raw_bytes", "plc_tag_get_raw_bytes",
+        "plc_tag_get_bit", "plc_tag_set_bit", "plc_tag_get_int8", "plc_tag_get_uint8",
+        "plc_tag_get_int16", "plc_tag_get_uint16", "plc_tag_get_int32", "plc_tag_get_uint32",
+        "plc_tag_get_int64", "plc_tag_get_uint64", "plc_tag_get_float32", "plc_tag_set_float32",
+        "plc_tag_get_float64", "plc_tag_set_float64", "plc_tag_get_string",
+        "plc_tag_set_string", "plc_tag_get_string_length", "plc_tag_get_string_capacity",
+        "plc_tag_get_int_attribute", "plc_tag_set_int_attribute", "plc_tag_unlock",
+        "plc_tag_register_callback", "plc_tag_unregister_callback",
+        "plc_tag_unregister_logger", "plc_tag_get_byte_array_attribute")),
 )
+# What a library's shared-object name says about the release series, shown beside an API match.
+# A SONAME is major.minor, not a release, so it is evidence text and never a version.
+_SERIES = {"libplctag": re.compile(rb"\0libplctag(?:\.so\.|\.)(\d+\.\d+)(?:\.dylib)?\0")}
 _SYMBOL_SETS = tuple((n, d, need, tuple(f"\0{x}\0".encode() for x in names))
                      for n, d, need, names in SYMBOLS)
 _COMPILED = tuple((n, d, re.compile(p)) for n, d, p in BANNERS)
@@ -313,7 +330,7 @@ def _analyze(blob: Binary, data: bytes, suffix: str, sidecar: Optional[Path],
     for layer in layers:
         elf = parse_elf(layer.data) if not layer.label else None
         pe = parse_pe(layer.data) if not layer.label and suffix in PE_SUFFIXES else None
-        found = _banners(layer.data, elf)
+        found = _banners(layer.data, elf, managed=pe is not None and pe.is_dotnet)
         if not layer.label:
             found += _toolchain_lists(blob, layer.data, pe, elf)
         if pe is not None:
@@ -368,7 +385,8 @@ def _resource_names(data: bytes) -> dict:
     return managed_resources(data, pe) if pe is not None and pe.is_dotnet else {}
 
 
-def _banners(data: bytes, elf: Optional[ElfInfo] = None) -> List[Embedded]:
+def _banners(data: bytes, elf: Optional[ElfInfo] = None, managed: bool = False
+             ) -> List[Embedded]:
     found: List[Embedded] = []
     seen = set()
     for name, display, pattern in _COMPILED:
@@ -378,7 +396,9 @@ def _banners(data: bytes, elf: Optional[ElfInfo] = None) -> List[Embedded]:
             found.append(Embedded(name, display, version,
                                   m.group(0).decode("ascii", "replace")))
             seen.add(name)
-    for name, display, need, wanted in _SYMBOL_SETS:
+    for name, display, need, wanted in ([] if managed else _SYMBOL_SETS):
+        # a .NET assembly defines no native symbols: the names in its metadata are P/Invoke
+        # declarations of what it calls, and the library is a separate file (or a carved one)
         if name in seen:
             continue                          # a banner already named it, with a version
         if elf and not elf.stripped:
@@ -387,8 +407,11 @@ def _banners(data: bytes, elf: Optional[ElfInfo] = None) -> List[Embedded]:
         else:
             hits = sum(1 for w in wanted if w in data)
         if hits >= need:
+            series = _SERIES[name].search(data) if name in _SERIES else None
             found.append(Embedded(name, display, "",
-                                  f"{hits} of {len(wanted)} {display} API symbols",
+                                  f"{hits} of {len(wanted)} {display} API symbols"
+                                  + (f"; shared-object name says series {series.group(1).decode()}"
+                                     if series else ""),
                                   method="symbols"))
             seen.add(name)
     vendor = set()

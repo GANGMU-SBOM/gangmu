@@ -4,6 +4,7 @@
 
 ## 未发布
 
+* **新增：认出 libplctag。** 按 `plc_tag_*` 导出符号识别 libplctag 的原生库（不给版本，SONAME 的 2.6 系列写在证据说明里）；`libplctag.NativeImport.dll` 里切出的 10 个原生库全部认出。.NET 程序集不参与导出符号匹配，它元数据里的同名符号只是 P/Invoke 声明，不会被报成“内含 libplctag”。
 * **新增：拆出嵌在别的文件里的原生二进制。** 按文件头找出嵌在文件中的 ELF、PE 和 Mach-O（.NET 程序集里按平台打包的原生库、附着载荷的安装包、嵌了 ELF 的固件），按各自格式的表算出大小，每个当作独立的条目、用同样的流程分析；横幅和工具链记在它真正所在的二进制上，外层文件不再背着嵌入库的工具链。SBOM 里是独立组件，带 `gangmu:containedIn`、`gangmu:offsetInContainer`、`gangmu:architecture`，SPDX 里由外层文件“包含”；.NET 资源里的库用作者起的资源名命名。在 `libplctag.NativeImport.dll` 上切出的 10 个与它的托管资源表逐个一致。不切静态库（`.a`、`.lib`）和 `.o`，最多往里两层。切出来不等于认出来：库本身是哪个库仍要靠规则。见 [BINARY-SBOM.md](BINARY-SBOM.md)。
 * **新增：从 Windows 的 `.exe`、`.dll` 里提取 SBOM。** 读 PE 的导入表、导出表、版本资源和 PDB 路径；Go（`debug/buildinfo`）和 Rust（`cargo auditable`）写进文件的依赖清单按精确版本进 SBOM，purl 为 `pkg:golang`、`pkg:cargo`，Go 的 `replace` 标为已修改；.NET 读程序集引用，并读旁边的 `*.deps.json` 得到 NuGet 包的精确版本。各类证据的可信度不同：工具链清单 0.90、`deps.json` 0.85、版本资源 0.70、导入表和 .NET 引用 0.50（进“可能”一栏）。**导入只说明运行时依赖，不再被写成“内嵌”**（SBOM 里分开写成 `gangmu:embeddedLibrary`、`gangmu:importedLibrary`、`gangmu:declaredDependency`（`deps.json`）和 `gangmu:identifiedAs`（托管 DLL 自己的身份））。不为程序自己的程序集生成 NuGet purl。在真实 Go、Rust、MSVC 和 NuGet 样本上验证过，Go 与 `go version -m` 逐项一致；加壳、安装包、静态链接且无横幅的程序仍然认不出。证据、研究依据和没做的部分见 [BINARY-SBOM.md](BINARY-SBOM.md)。
 * **修正：ESP-IDF 的 `managed_components/` 不再被跳过。** 组件管理器从注册表下载的依赖都放在这里，也都编进固件；以前发现阶段按目录名跳过它，即使编译数据库表明编译了，SBOM 里也没有这些组件。
