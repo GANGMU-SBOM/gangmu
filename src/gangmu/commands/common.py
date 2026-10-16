@@ -73,9 +73,15 @@ def _table(result: ScanResult) -> str:
     rows = [("CONF", "COMPONENT", "VERSION", "SRC", "DIRECTORY", "NOTES")]
     for f in result.findings:
         notes = []
+        older = any("may be older than any release" in e.summary for e in f.evidence)
         if f.vendor_patched:
-            # Not a known release: a vendor fork, or simply a commit newer than the recorded versions.
-            notes.append("vendor-modified (or newer than known releases)")
+            # Not a known release: a vendor fork, a commit newer than the recorded
+            # versions, or (when the closest match is the oldest recorded) a release
+            # older than any the rule records.
+            notes.append("vendor-modified (or older than known releases)" if older
+                         else "vendor-modified (or newer than known releases)")
+        elif older:
+            notes.append("may be older than known releases")
         if f.linked is False:
             notes.append("not linked")
         if f.alternatives:

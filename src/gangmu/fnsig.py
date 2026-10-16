@@ -55,6 +55,9 @@ MAGIC = b"GMFN"
 FORMAT = 2
 FLAG_APPLICATION = 0x01
 MAX_VERSIONS = 64
+# Share of the best release's functions that must be missing or altered before an
+# oldest or newest match is flagged as possibly lying beyond the recorded releases.
+EDGE_ALTERED_SHARE = 0.25
 
 
 @dataclass
@@ -321,6 +324,10 @@ class VersionVerdict:
     # function in files the signature never covered (headers, ports) and
     # ``multi_version`` fires on a handful of bodies shared between releases.
     changed: int = 0
+    # "oldest" or "newest" when the best match is the first or last release the
+    # signature records and a good part of its code is missing or altered: the tree
+    # may then belong to a release the rule does not record, on that side.
+    edge: str = ""
 
     @property
     def is_range(self) -> bool:
@@ -381,7 +388,12 @@ def infer_version(signature: FunctionSignature, present: Set[int]) -> VersionVer
                       if not signature.bitmaps[index[h]] & best_bit)
     multi = unexplained > 0
     foreign = len(present) - len(matched)
-    changed = len(signature.version_application_hashes(best_index) - present)
+    best_own = signature.version_application_hashes(best_index)
+    changed = len(best_own - present)
+    edge = ""
+    if len(signature.versions) > 1 and best_own and changed / len(best_own) >= EDGE_ALTERED_SHARE:
+        edge = ("oldest" if best_index == 0 else
+                "newest" if best_index == len(signature.versions) - 1 else "")
 
     detail = (f"{len(voters)} version-discriminating function(s) matched; "
               f"{overlaps[best_index]} are in {signature.versions[best_index]} "
@@ -409,7 +421,8 @@ def infer_version(signature: FunctionSignature, present: Set[int]) -> VersionVer
         detail=detail,
         best_index=best_index,
         foreign=foreign,
-        changed=changed)
+        changed=changed,
+        edge=edge)
 
 
 def infer_version_subset(signature: FunctionSignature, present: Set[int]) -> VersionVerdict:
