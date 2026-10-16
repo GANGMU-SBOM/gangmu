@@ -516,6 +516,23 @@ def recover_pe(data: bytes, info: "PeInfo") -> Optional[Recovery]:
             if uoff is not None and uoff < len(data) and data[uoff] >> 3 & 4:
                 continue                          # UNW_FLAG_CHAININFO: a fragment, not a start
             found[base + begin] = Function(base + begin, end - begin, "", "unwind")
+    elif arch == "aarch64" and info.exception_rva and info.exception_size:
+        # ARM64: 8-byte entries, the begin RVA and either packed unwind data (low two bits set,
+        # the length in words in bits 2-12) or the RVA of an .xdata record (length in words
+        # in the low 18 bits of its first word)
+        off = info.rva_to_offset(info.exception_rva)
+        table = data[off:off + info.exception_size] if off is not None else b""
+        for i in range(0, len(table) - 7, 8):
+            begin, unwind = struct.unpack_from("<II", table, i)
+            if unwind & 3:
+                length = (unwind >> 2 & 0x7FF) * 4
+            else:
+                uoff = info.rva_to_offset(unwind)
+                if uoff is None or uoff + 4 > len(data):
+                    continue
+                length = (struct.unpack_from("<I", data, uoff)[0] & 0x3FFFF) * 4
+            if begin and 0 < length <= MAX_PE_FUNCTION:
+                found[base + begin] = Function(base + begin, length, "", "unwind")
     elif info.machine == "arm" and info.exception_rva and info.exception_size:
         # Windows CE on ARM: 20-byte entries, begin and end as absolute addresses
         off = info.rva_to_offset(info.exception_rva)
