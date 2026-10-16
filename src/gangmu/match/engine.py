@@ -56,6 +56,8 @@ VERSION_CONFIDENCE = {
 SUBSET_MIN_FUNCTIONS = 40
 # Identity given to a weak resemblance that also defines the component's version.
 PROBE_CORROBORATED = 0.75
+# Said in the evidence and the table when the best match is at the edge of the record.
+EDGE_MARK = "this tree may be {side} than any release the rule records"
 SUBSET_MIN_SHARE = 0.90
 SUBSET_IDENTITY = 0.75      # below a full copy: most of the component is not here
 # A modified derivative (``functions.derivative``): at least this many of the
@@ -622,6 +624,15 @@ class MatchEngine:
                 technique=Technique.SOURCE_CODE_ANALYSIS,
                 confidence=VERSION_CONFIDENCE["functions"],
                 summary=verdict.detail,
+                locator=rel))
+        if verdict.edge:
+            side = "older" if verdict.edge == "oldest" else "newer"
+            evidence.append(Evidence(
+                technique=Technique.OTHER,
+                confidence=0.0,
+                summary=(f"{verdict.best} is the {verdict.edge} release rule {rule.id} "
+                         f"records and {verdict.changed} of its functions are missing or "
+                         f"altered: {EDGE_MARK.format(side=side)}"),
                 locator=rel))
         return identity, (verdict.label if verdict.best else None), verdict
 

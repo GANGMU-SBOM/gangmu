@@ -300,3 +300,30 @@ def test_a_file_name_shared_by_two_nested_files_is_not_guessed(tmp_path):
     (tmp_path / "b" / "inc" / "version.h").unlink()
     assert _locate(tmp_path, "include/version.h", by_name=True) == tmp_path / "a/inc/version.h"
     assert _locate(tmp_path, "include/version.h") is None      # anchors never match by name
+
+
+def test_a_tree_nearest_the_oldest_recorded_release_is_flagged_as_possibly_older(
+        upstream_dir, rules_dir, tmp_path):
+    """ESP8266's libsodium is 1.0.12; the rule records 1.0.17 and later, and the
+    nearest of those was reported as the version with nothing to say it might be
+    older than all of them."""
+    from gangmu.fnsig import FunctionSignature, infer_version
+
+    def fn(n):
+        return n * 7919 + 13
+
+    shared = [fn(i) for i in range(40)]
+    old_only = [fn(100 + i) for i in range(10)]
+    new_only = [fn(200 + i) for i in range(10)]
+    sig = FunctionSignature(
+        versions=["1.0.17", "1.0.18"],
+        hashes=shared + old_only + new_only,
+        bitmaps=[0b11] * 40 + [0b01] * 10 + [0b10] * 10,
+        flags=[1] * 60)
+    # A tree with only some of 1.0.17's own functions and many unrecorded ones.
+    present = set(shared[:10]) | set(old_only[:4]) | {fn(900 + i) for i in range(60)}
+    verdict = infer_version(sig, present)
+    assert verdict.best == "1.0.17" and verdict.edge == "oldest"
+    # The same tree with every recorded function of 1.0.17 present is not flagged.
+    whole = set(shared) | set(old_only)
+    assert infer_version(sig, whole).edge == ""
