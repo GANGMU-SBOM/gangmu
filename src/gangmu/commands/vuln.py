@@ -363,12 +363,24 @@ def _apply_reachability(args: argparse.Namespace, matches) -> int:
             print(f"error: cannot read --symbols {path}: {exc}", file=sys.stderr)
             return 2
     macros = _build_macros(args, root)
-    graph = build_graph(root, macros)
+    db = None
+    if args.compile_db:
+        from ..build.compile_db import load_compile_db
+        try:
+            db = load_compile_db(Path(args.compile_db))
+        except (OSError, ValueError) as exc:
+            print(f"error: cannot read --compile-db {args.compile_db}: {exc}",
+                  file=sys.stderr)
+            return 2
+    graph = build_graph(root, macros, db)
+    if db is not None and not graph.compile_db_used:
+        print("reachability: --compile-db names none of the files under --source; "
+              "ignored", file=sys.stderr)
     print(f"reachability: read {graph.files} source file(s), "
           f"{len(graph.defined)} function(s)", file=sys.stderr)
-    if graph.inactive_lines:
-        print(f"reachability: the build configuration rules out "
-              f"{graph.inactive_lines} line(s), {len(graph.compiled_out)} "
+    if graph.inactive_lines or graph.uncompiled_files:
+        print(f"reachability: the build rules out {graph.inactive_lines} line(s) and "
+              f"{graph.uncompiled_files} uncompiled file(s); {len(graph.compiled_out)} "
               f"function(s) compiled out", file=sys.stderr)
     cache: dict = {}
     tally: dict = {}
