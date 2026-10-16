@@ -41,6 +41,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple, cast
 from . import disasm, xtensa
 from .binsig import MIN_LEN, _wanted
 from .elf import ElfInfo
+from .macho import MachoInfo, parse_macho
 from .pe import PeInfo, parse_pe
 
 MIN_FEATURES = 2          # fewer than this is not a fingerprint (3 left half of zlib out)
@@ -132,6 +133,15 @@ def memory_from_pe(data: bytes, info: "PeInfo") -> Memory:
         if blob:
             regions.append((info.image_base + sec.vaddr, blob))
     return Memory(regions)
+
+
+def memory_from_macho(data: bytes, info: "MachoInfo") -> Memory:
+    """The sections of a Mach-O image at their linked addresses."""
+    image = info.image(data)
+    regions = [(s.addr, image[s.offset:s.offset + s.size]) for s in info.sections
+               if not s.zerofill and s.size and s.offset]
+    bss = [(s.addr, s.addr + s.size) for s in info.sections if s.zerofill and s.size]
+    return Memory(regions, bss)
 
 
 # ------------------------------------------------------------------ features
@@ -398,6 +408,9 @@ def image_features(data: bytes, arch: Optional[str] = None, base: Optional[int] 
             info.functions = []
         rec = disasm.recover_elf(data, info)
         mem = memory_from_elf(data, info)
+    elif (macho_info := parse_macho(data)) is not None:
+        rec = disasm.recover_macho(data, macho_info)
+        mem = memory_from_macho(data, macho_info)
     elif (pe_info := parse_pe(data)) is not None:
         rec = disasm.recover_pe(data, pe_info)
         mem = memory_from_pe(data, pe_info)
