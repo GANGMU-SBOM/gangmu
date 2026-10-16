@@ -665,7 +665,9 @@ def build_parser() -> argparse.ArgumentParser:
                          "references come from --corpus, images from this one, and only "
                          "string literals are compared")
     be.add_argument("--min-features", type=int, default=2)
-    be.add_argument("--tie-share", type=float, default=0.85)
+    be.add_argument("--tie-share", type=float, default=None,
+                    help="score releases by the share of matched functions they explain "
+                         "(the older rule) instead of by contradiction")
     be.add_argument("--loo", action="store_true",
                     help="also choose the thresholds with one library held out, per library")
     be.add_argument("--no-cache", action="store_true", help="re-extract every feature")

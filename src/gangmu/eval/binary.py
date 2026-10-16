@@ -66,7 +66,7 @@ class Cell:
 @dataclass
 class Report:
     min_features: int
-    tie_share: float
+    tie_share: Optional[float]     # None: the default contradiction score
     cells: List[Cell] = field(default_factory=list)
     negatives: List[Tuple[str, str, str]] = field(default_factory=list)   # (prints of, image of, hit)
     negative_total: int = 0
@@ -176,7 +176,7 @@ def _prints_for(corpus: Corpus, lib: str, ref_opt: str, k: int) -> Tuple[Any, Li
         arch=corpus.arch), tags
 
 
-def evaluate(corpus: Corpus, min_features: int = 2, tie_share: float = 0.85,
+def evaluate(corpus: Corpus, min_features: int = 2, tie_share: Optional[float] = None,
              images: Optional[Corpus] = None) -> Report:
     """Score *corpus*. With *images* (a corpus of the same libraries built for another
     architecture) the references come from *corpus* and the images from *images*, which
@@ -255,7 +255,8 @@ def leave_one_library_out(corpus: Corpus, grid: Sequence[Tuple[int, float]] = GR
 
 def format_report(report: Report) -> str:
     libs = sorted({c.lib for c in report.cells})
-    lines = [f"min_features={report.min_features} tie_share={report.tie_share}",
+    scoring = "contradiction" if report.tie_share is None else f"tie_share={report.tie_share}"
+    lines = [f"min_features={report.min_features} {scoring}",
              f"{'library':<12}" + "".join(f"{o:>7}" for o in OUTCOMES)]
     for lib in libs:
         lines.append(f"{lib:<12}" + "".join(f"{report.counts(lib)[o]:>7}" for o in OUTCOMES))

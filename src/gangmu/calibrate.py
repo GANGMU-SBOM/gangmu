@@ -42,7 +42,7 @@ class Calibration:
     negative_pairs: int
     false_positives: int
     min_features: int
-    tie_share: float
+    tie_share: Optional[float]     # None: the default contradiction score
     reasons: List[str] = field(default_factory=list)
 
     @property
@@ -72,7 +72,7 @@ def calibrate(builds: Dict[str, Dict[str, bytes]], negatives: Sequence[bytes] = 
               ) -> Tuple[fprint.FunctionPrints, Calibration]:
     """*builds*: ``{release label: {build name: ELF bytes}}``, releases oldest first."""
     k = fprint.MIN_FEATURES if min_features is None else min_features
-    share = fprint.TIE_SHARE if tie_share is None else tie_share
+    share = tie_share
     corpus = ev.Corpus()
     corpus.releases[SELF] = list(builds)
     corpus.builds[SELF] = {}
