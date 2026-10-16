@@ -108,3 +108,17 @@ def test_windows_ce_on_a_cpu_with_no_decoder_says_so():
     data = build_pe(machine=0x1A6, text=b"\0" * 16, code=True, subsystem=9)    # SH-4
     rec = disasm.recover_pe(data, parse_pe(data))
     assert not rec.functions and "sh4" in rec.note and "Windows CE" in rec.note
+
+
+def test_arm64_functions_come_from_packed_and_xdata_unwind_records():
+    ins = [0xA9BF7BFD, 0x52800000, 0xA8C17BFD, 0xD65F03C0]                # stp ; mov w0,#0 ; ldp ; ret
+    f1 = b"".join(struct.pack("<I", w) for w in ins)                      # 4 words, packed
+    f2 = b"".join(struct.pack("<I", w) for w in (0x52800020, 0x52800040, 0xD65F03C0))   # 3 words, .xdata
+    text = f1 + f2
+    pdata = struct.pack("<II", TEXT, (4 << 2) | 1) + struct.pack("<II", TEXT + 16, 0x2000)
+    data = build_pe(machine=0xAA64, text=text.ljust(0x40, b"\0"), code=True, pdata=pdata,
+                    rdata_head=struct.pack("<I", 3))                       # xdata: length 3 words
+    rec = disasm.recover_pe(data, parse_pe(data))
+    assert rec.arch == "aarch64"
+    unwind = {f.address: f.size for f in rec.functions if f.source == "unwind"}
+    assert unwind == {BASE + TEXT: 16, BASE + TEXT + 16: 12}
