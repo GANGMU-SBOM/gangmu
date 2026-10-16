@@ -30,6 +30,7 @@ from .eval import binary as ev
 MIN_RELEASES = 2          # one release has nothing to be told apart from
 MIN_FINGERPRINTS = 10     # twice the matches a claim needs, so a build-to-build wobble survives
 SELF = "self"
+MAX_SHARED = 0.5         # more than this share found in a negative: it is the library itself
 
 
 @dataclass
@@ -43,6 +44,7 @@ class Calibration:
     false_positives: int
     min_features: int
     tie_share: Optional[float]     # None: the default contradiction score
+    shared_dropped: int = 0        # reference functions also found in a negative image
     reasons: List[str] = field(default_factory=list)
 
     @property
@@ -57,6 +59,7 @@ class Calibration:
                 "negative_pairs": self.negative_pairs,
                 "false_positives": self.false_positives,
                 "min_features": self.min_features, "tie_share": self.tie_share,
+                "shared_dropped": self.shared_dropped,
                 "passed": self.passed}
 
 
@@ -88,10 +91,29 @@ def calibrate(builds: Dict[str, Dict[str, bytes]], negatives: Sequence[bytes] = 
             corpus.builds[SELF][label][name] = ev.Build(ref, img)
             union += [s for s in ref if len(s) >= k]
         merged.append((label, union))
-    for i, data in enumerate(negatives):
+    negative_features = [fprint.image_function_features(data, min_features=1)
+                         for data in negatives]
+    shared = 0
+    if negative_features:
+        # Functions the library shares with other programs are not evidence for it
+        # (see fprint.split_shared); leave them out of the references and the self-test.
+        # A bundled component is a minority of the library. If most of it is found in a
+        # negative, that image is the library itself (or a build of it), and removing its
+        # code would hide the very false positive the control is there to show.
+        builds_ = [b for per in corpus.builds[SELF].values() for b in per.values()]
+        split = [fprint.split_shared(b.ref, negative_features, k) for b in builds_]
+        total = sum(len(b.ref) for b in builds_)
+        shared = sum(dropped for _, dropped in split)
+        if shared <= MAX_SHARED * total:
+            for b, (kept, _) in zip(builds_, split):
+                b.ref = kept
+            merged = [(label, [s for per in corpus.builds[SELF][label].values()
+                               for s in per.ref if len(s) >= k]) for label, _ in merged]
+        else:
+            shared = 0
+    for i, features in enumerate(negative_features):
         corpus.releases[f"neg{i}"] = ["n"]
-        corpus.builds[f"neg{i}"] = {"n": {"x": ev.Build(
-            [], fprint.image_function_features(data, min_features=1))}}
+        corpus.builds[f"neg{i}"] = {"n": {"x": ev.Build([], features)}}
 
     arch = archs.pop() if len(archs) == 1 else ""
     prints = fprint.FunctionPrints.build(merged, min_features=k, arch=arch)
@@ -105,7 +127,8 @@ def calibrate(builds: Dict[str, Dict[str, bytes]], negatives: Sequence[bytes] = 
         cross_build=_counts(cross) if cross else None,
         same_build=_counts([c for c in mine if c.ref_opt == c.img_opt]),
         negative_pairs=report.negative_total,
-        false_positives=len(report.negatives), min_features=k, tie_share=share)
+        false_positives=len(report.negatives), min_features=k, tie_share=share,
+        shared_dropped=shared)
     if cal.releases < MIN_RELEASES:
         cal.reasons.append(f"need at least {MIN_RELEASES} releases to tell versions apart")
     if cal.fingerprintable < MIN_FINGERPRINTS:
@@ -138,5 +161,8 @@ def format_calibration(cal: Calibration) -> str:
                      f"none {c['none']}")
     lines.append(f"negative controls: {cal.false_positives} false positive(s) in "
                  f"{cal.negative_pairs} pairs")
+    if cal.shared_dropped:
+        lines.append(f"left out {cal.shared_dropped} reference function(s) that the negative "
+                     f"images also contain (code shared with other libraries)")
     lines.append("PASSED" if cal.passed else "FAILED:\n  - " + "\n  - ".join(cal.reasons))
     return "\n".join(lines)

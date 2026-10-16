@@ -334,6 +334,35 @@ def image_function_features(data: bytes, arch: Optional[str] = None,
     return image_features(data, arch, base, min_features, ignore_symbols)[0]
 
 
+def split_shared(sets: Sequence[Set[int]], images: Sequence[Sequence[Set[int]]],
+                 floor: Optional[int] = None) -> Tuple[List[Set[int]], int]:
+    """(*sets* without those that some function in *images* already holds, how many).
+
+    A reference function that another program contains by the matching rule (``match``) is
+    code the library shares with it: a bundled xxHash, a copied hash or compression
+    routine. Matching it says "xxHash is here", not which library, so a reference made of
+    such functions names the wrong library (lz4 and zstd both bundle xxHash and matched each
+    other's executables on nothing else). *images* are the feature sets of programs that
+    do not contain the library."""
+    k = MIN_FEATURES if floor is None else floor
+    inverted: Dict[int, List[int]] = {}
+    flat = [feats for image in images for feats in image]
+    for n, feats in enumerate(flat):
+        for f in feats:
+            inverted.setdefault(f, []).append(n)
+    kept: List[Set[int]] = []
+    for feats in sets:
+        votes: Dict[int, int] = {}
+        for f in feats:
+            for n in inverted.get(f, ()):
+                votes[n] = votes.get(n, 0) + 1
+        size = len(feats)
+        if any(h >= min(k, size) and h >= MIN_CONTAINMENT * size for h in votes.values()):
+            continue
+        kept.append(feats)
+    return kept, len(sets) - len(kept)
+
+
 # ------------------------------------------------------------------ reference prints
 
 @dataclass

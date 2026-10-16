@@ -142,3 +142,46 @@ def test_lint_accepts_a_consistent_rule(two_releases, tmp_path, capsys):
     main(["rules", "lint", "--rules", str(_rule(tmp_path, prints, prints.meta))])
     out = capsys.readouterr().out
     assert "ok   test/lib" in out and "FAIL" not in out
+
+
+def _program(tmp, name, own, shared, opt):
+    """*own* functions with their own strings, plus *shared* that carry the same code in
+    every program (a bundled hash routine)."""
+    src = "#include <stdio.h>\n"
+    for i in range(shared):
+        src += (f'int h{i}(int x) {{ if (x > {i}) printf("hash: block {i} is short"); '
+                f'return x * 0x{0x2545F491 + i * 104729:X}u ^ 0x{0x9E3779B1 + i:X}u; }}\n')
+    for i in range(own):
+        src += (f'int {name}{i}(int x) {{ if (x > {i}) printf("{name}: step {i} failed with '
+                f'%d", x); return x * 0x{0x5A827999 + i * 7919 + len(name) * 31:X}u '
+                f'^ 0x{0x6ED9EBA1 + i:X}u; }}\n')
+    calls = [f"{name}{i}(c)" for i in range(own)] + [f"h{i}(c)" for i in range(shared)]
+    src += "int main(int c, char **v) { return " + "+".join(calls) + "; }\n"
+    (tmp / f"{name}{opt}.c").write_text(src)
+    subprocess.run(["gcc", f"-{opt}", "-o", str(tmp / f"{name}{opt}"), str(tmp / f"{name}{opt}.c")],
+                   check=True)
+    return (tmp / f"{name}{opt}").read_bytes()
+
+
+def test_functions_shared_with_a_negative_are_dropped_not_reported_as_the_library(tmp_path):
+    builds = {"1.0": {o: _program(tmp_path, "liba", 14, 6, o) for o in ("O1", "O2")},
+              "1.1": {o: _program(tmp_path, "libb", 22, 6, o) for o in ("O1", "O2")}}
+    other = _program(tmp_path, "app", 10, 6, "O2")        # some other program with the hash
+    plain, cal0 = calibrate.calibrate(builds)
+    assert cal0.passed and cal0.shared_dropped == 0
+    stripped = fprint.image_function_features(other, min_features=1, ignore_symbols=True)
+    assert plain.match([s for s in stripped if len(s) >= 2], 2) is not None   # the problem
+
+    prints, cal = calibrate.calibrate(builds, negatives=[other])
+    assert cal.passed, cal.reasons
+    assert cal.shared_dropped > 0 and prints.meta["shared_dropped"] == cal.shared_dropped
+    assert prints.match([s for s in stripped if len(s) >= 2], 2) is None
+    own = fprint.image_function_features(builds["1.1"]["O2"], min_features=1, ignore_symbols=True)
+    hit = prints.match([s for s in own if len(s) >= 2], 2)
+    assert hit is not None and hit[0] == "1.1"
+
+
+def test_a_negative_that_is_the_library_itself_still_fails_instead_of_erasing_it(two_releases):
+    builds, _ = two_releases
+    _, cal = calibrate.calibrate(builds, negatives=[builds["1.1"]["O2"]])
+    assert cal.shared_dropped == 0 and cal.false_positives > 0 and not cal.passed
