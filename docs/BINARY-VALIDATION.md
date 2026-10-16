@@ -479,3 +479,16 @@ lz4 和 zstd 都带着 xxHash，所以这是真的命中，只是命中的是 xx
 
 **没做的：** 真实 MIPS 固件（没有样本）；MIPS64、microMIPS、MIPS16；用 gcc 编译的 MIPS（固件常用）；Cortex-M 参考对 MIPS 镜像按
 字符串比较（这三个库几乎没有字符串，测不了）。
+
+### 真实 MIPS 库：OpenWrt 的大端 mips_24kc 包（2026-10）
+
+下载的是 OpenWrt 官方包（downloads.openwrt.org，不入库），版本由包名确定，都是 gcc+musl 编译的位置无关共享库、大端。
+
+* **libmbedcrypto 2.28.10**（OpenWrt 23.05.5，普通 MIPS32）：用 clang 非 PIC 编译的 mbedtls 参考（v2.28.0、v2.28.8、v3.6.0，`-Os`/`-O2`）识别，
+  答案是区间 `v2.28.0~v2.28.8`，96 个指纹函数里命中 61（`-Os`）和 58（`-O2`）。真实版本 2.28.10 不在参考里，最近的参考 2.28.8 在区间内，
+  没有错报成 3.x。**只有这一例**，参考和目标的编译器、PIC 与否、优化级别都不同。
+* 这次暴露了两个问题，已修：OpenWrt 把共享库的节表剥掉了（只剩程序头），此前读不出任何函数，现在由 `PT_LOAD` 段合成节，并从
+  `PT_DYNAMIC` 取 `DT_PLTGOT` 作 MIPS 的 `$gp`；共享库链接在地址 0，旧代码把地址为 0 的可加载节当成「未放置」丢掉，现在只对目标文件（`ET_REL`）这样处理。
+* **OpenWrt 的大多数库是 MIPS16e 编译的**（`e_flags` 带 `EF_MIPS_ARCH_ASE_M16`）：liblz4、zlib、libbz2、libpcre2 都是。Capstone 没有 MIPS16，
+  按 MIPS32 解码得到的是噪声（一半是 `swc2`/`sc`），所以现在明确报「不支持（MIPS16e 或 microMIPS）」，不猜。所以 lz4、zlib 等没法用这批包测。
+

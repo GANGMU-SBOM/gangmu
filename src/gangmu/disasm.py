@@ -305,6 +305,9 @@ def _arch(name: str) -> Optional[_Arch]:
     return table.get(name)
 
 
+MIPS_ASE_COMPRESSED = 0x04000000 | 0x02000000     # EF_MIPS_ARCH_ASE_M16 | _MICROMIPS
+
+
 def arch_of_elf(info: ElfInfo) -> Optional[str]:
     """The architecture an ELF is decoded as, or None when it has no decoder here."""
     if info.machine == EM_XTENSA:
@@ -312,6 +315,8 @@ def arch_of_elf(info: ElfInfo) -> Optional[str]:
     if info.machine == EM_ARM:
         return "thumb" if info.entry & 1 else "arm"
     if info.machine == EM_MIPS:
+        if info.flags & MIPS_ASE_COMPRESSED:
+            return None                   # MIPS16e / microMIPS: a different instruction set
         return None if info.bits != 32 else ("mips32" if info.little else "mips32be")
     return {EM_AARCH64: "aarch64", EM_X86_64: "x86-64", EM_386: "x86",
             EM_RISCV: "riscv64" if info.bits == 64 else "riscv32"}.get(info.machine)
@@ -456,7 +461,10 @@ def recover_elf(data: bytes, info: ElfInfo) -> Optional[Recovery]:
     """Functions of an ELF: its symbols, plus whatever the sweep finds between them."""
     arch = arch_of_elf(info)
     if arch is None:
-        return Recovery("unsupported", note=f"no decoder for ELF machine {info.machine}")
+        return Recovery("unsupported", note=f"no decoder for ELF machine {info.machine}"
+                        + (" (MIPS16e or microMIPS code)"
+                           if info.machine == EM_MIPS and info.flags & MIPS_ASE_COMPRESSED
+                           else ""))
     if capstone is None:
         return None
     mask = ~1 if arch == "thumb" else ~0          # a Thumb symbol's bit 0 is not an address
