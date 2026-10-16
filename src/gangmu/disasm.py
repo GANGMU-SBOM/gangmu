@@ -26,6 +26,8 @@ from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 from . import xtensa
+from .pe import IMAGE_SCN_MEM_EXECUTE as PE_EXECUTE
+from .pe import PeInfo
 from .elf import EM_386, EM_ARM, EM_RISCV, EM_X86_64, SHF_EXECINSTR, SHT_PROGBITS, ElfInfo
 
 try:                                      # an optional dependency
@@ -40,6 +42,7 @@ _PADDING = frozenset(("nop", "c.nop", "unimp", "c.unimp", "udf"))
 JUMP_REACH = 512                          # a forward jump this close stays inside the function
 EM_AARCH64 = 183
 EM_XTENSA = 94
+MAX_PE_FUNCTION = 1 << 20
 ARCHES = ("thumb", "arm", "aarch64", "riscv32", "riscv64", "x86", "x86-64")
 
 
@@ -429,6 +432,60 @@ def recover_elf(data: bytes, info: ElfInfo) -> Optional[Recovery]:
     functions = sorted(found.values(), key=lambda f: f.address)
     # symbol sizes are exact; a swept size is only the gap to the next start
     return Recovery(arch, functions)
+
+
+def recover_pe(data: bytes, info: "PeInfo") -> Optional[Recovery]:
+    """Functions of a Windows PE image (x86 or x64).
+
+    An x64 image lists every function that has unwind data in its exception table with an
+    exact start and end, which a sweep can only estimate; the sweep then covers the leaf
+    functions that have none, and x86 images, which carry no such table."""
+    arch = {"x86": "x86", "x86_64": "x86-64", "arm": "arm", "thumb": "thumb",
+            "armnt": "thumb", "aarch64": "aarch64"}.get(info.machine)
+    if arch is None:
+        return Recovery("unsupported", note=f"no decoder for PE machine {info.machine}"
+                        + (" (Windows CE)" if info.is_windows_ce else ""))
+    if capstone is None:
+        return None
+    base = info.image_base
+    found: Dict[int, Function] = {}
+    if arch == "x86-64" and info.exception_rva and info.exception_size:
+        off = info.rva_to_offset(info.exception_rva)
+        table = data[off:off + info.exception_size] if off is not None else b""
+        for i in range(0, len(table) - 11, 12):
+            begin, end, unwind = struct.unpack_from("<III", table, i)
+            if not begin < end or end - begin > MAX_PE_FUNCTION:
+                continue
+            uoff = info.rva_to_offset(unwind & ~3)
+            if uoff is not None and uoff < len(data) and data[uoff] >> 3 & 4:
+                continue                          # UNW_FLAG_CHAININFO: a fragment, not a start
+            found[base + begin] = Function(base + begin, end - begin, "", "unwind")
+    elif info.machine == "arm" and info.exception_rva and info.exception_size:
+        # Windows CE on ARM: 20-byte entries, begin and end as absolute addresses
+        off = info.rva_to_offset(info.exception_rva)
+        table = data[off:off + info.exception_size] if off is not None else b""
+        code = [(base + s.vaddr, base + s.vaddr + s.vsize) for s in info.sections
+                if s.flags & PE_EXECUTE]
+        for i in range(0, len(table) - 19, 20):
+            begin, end = struct.unpack_from("<II", table, i)
+            if begin < end and end - begin <= MAX_PE_FUNCTION and any(
+                    lo <= begin and end <= hi for lo, hi in code):
+                found[begin] = Function(begin, end - begin, "", "unwind")
+    entry = base + info.entry_rva if info.entry_rva else 0
+    if arch == "thumb":
+        entry &= ~1                           # bit 0 marks Thumb state, it is not an address
+    for sec in info.sections:
+        if not sec.flags & PE_EXECUTE:
+            continue
+        blob = info.section_bytes(data, sec.name) if sec.name else b""
+        if not blob:
+            continue
+        start = base + sec.vaddr
+        seeds = [entry] + list(found)
+        for a, size in _sized(sweep(blob, start, arch, seeds), start + len(blob)):
+            if a not in found:
+                found[a] = Function(a, size, "", "entry" if a == entry else "disassembly")
+    return Recovery(arch, sorted(found.values(), key=lambda f: f.address))
 
 
 def cortex_m_base(image: bytes) -> Optional[int]:

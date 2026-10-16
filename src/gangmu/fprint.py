@@ -41,6 +41,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple, cast
 from . import disasm, xtensa
 from .binsig import MIN_LEN, _wanted
 from .elf import ElfInfo
+from .pe import PeInfo, parse_pe
 
 MIN_FEATURES = 2          # fewer than this is not a fingerprint (3 left half of zlib out)
 MAX_FEATURES = 64         # per reference function
@@ -111,6 +112,16 @@ def memory_from_elf(data: bytes, info: ElfInfo) -> Memory:
     bss = [(s.addr, s.addr + s.size) for s in info.sections
            if s.flags & 2 and s.type == 8 and s.addr and s.size]          # SHT_NOBITS
     return Memory(regions, bss)
+
+
+def memory_from_pe(data: bytes, info: "PeInfo") -> Memory:
+    """The sections of a PE image at their preferred load addresses."""
+    regions = []
+    for sec in info.sections:
+        blob = info.section_bytes(data, sec.name)
+        if blob:
+            regions.append((info.image_base + sec.vaddr, blob))
+    return Memory(regions)
 
 
 # ------------------------------------------------------------------ features
@@ -298,6 +309,9 @@ def image_features(data: bytes, arch: Optional[str] = None, base: Optional[int] 
             info.functions = []
         rec = disasm.recover_elf(data, info)
         mem = memory_from_elf(data, info)
+    elif (pe_info := parse_pe(data)) is not None:
+        rec = disasm.recover_pe(data, pe_info)
+        mem = memory_from_pe(data, pe_info)
     else:
         rec = disasm.recover_raw(data, arch, base)
         start = base if base is not None else disasm.cortex_m_base(data)

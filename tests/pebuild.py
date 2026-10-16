@@ -80,7 +80,12 @@ def build_pe(*, machine: int = 0x8664, dll: bool = False, imports: Iterable[str]
              version: Optional[Dict[str, str]] = None, file_version=(1, 2, 3, 4),
              pdb: Optional[str] = None, clr=False, clr_resources: bytes = b"", signed: bool = False,
              extra: Sequence[Tuple[str, bytes]] = (), linker=(14, 38),
-             text: bytes = b"") -> bytes:
+             text: bytes = b"", code: bool = False, pdata: bytes = b"",
+             rdata_head: bytes = b"", subsystem: int = 3,
+             image_base: int = 0x140000000) -> bytes:
+    """``code`` marks .text executable; ``pdata`` is an x64 exception table (it takes the
+    section after .rdata, so it cannot be combined with ``version``); ``rdata_head`` is
+    placed first in .rdata, so its bytes start at RVA 0x2000."""
     rdata = bytearray()
     base = 2 * PAGE                                     # .rdata starts at RVA 0x2000
 
@@ -91,7 +96,12 @@ def build_pe(*, machine: int = 0x8664, dll: bool = False, imports: Iterable[str]
         rdata.extend(raw)
         return at
 
+    if rdata_head:
+        alloc(rdata_head)
     dirs = {i: (0, 0) for i in range(16)}
+    if pdata:
+        assert version is None
+        dirs[3] = (3 * PAGE, len(pdata))
     imports, delay_imports = list(imports), list(delay_imports)
     if imports:
         names = [alloc(n.encode() + b"\0") for n in imports]
@@ -135,6 +145,8 @@ def build_pe(*, machine: int = 0x8664, dll: bool = False, imports: Iterable[str]
                 + struct.pack("<IIII", leaf, len(blob), 0, 0))
         sections.append(_Section(".rsrc", tree + blob))
         dirs[2] = (res_at, len(tree) + len(blob))
+    if pdata:
+        sections.append(_Section(".pdata", pdata))
     for name, data in extra:
         sections.append(_Section(name, data))
 
@@ -144,8 +156,9 @@ def build_pe(*, machine: int = 0x8664, dll: bool = False, imports: Iterable[str]
     for sec in sections:
         size = len(sec.data)
         padded = size + (-size % PAGE or (PAGE if size == 0 else 0))
+        flags = 0x60000020 if code and sec.name == ".text" else 0x40000040
         sec_table += struct.pack("<8sIIIIIIHHI", sec.name.encode(), size, rva, padded, rva,
-                                 0, 0, 0, 0, 0x40000040)
+                                 0, 0, 0, 0, flags)
         body += sec.data + b"\0" * (padded - size)
         rva += padded
     sec_end = rva
@@ -157,7 +170,7 @@ def build_pe(*, machine: int = 0x8664, dll: bool = False, imports: Iterable[str]
         dirs[4] = (sec_off, 16)
         ddirs = b"".join(struct.pack("<II", *dirs[i]) for i in range(16))
     opt = struct.pack("<HBBIIIIIQIIHHHHHHIIIIHHQQQQII", 0x20B, linker[0], linker[1], 0, 0, 0, 0,
-                      PAGE, 0x140000000, PAGE, PAGE, 6, 0, 0, 0, 6, 0, 0, sec_end, PAGE, 0, 3,
+                      PAGE, image_base, PAGE, PAGE, 6, 0, 0, 0, 6, 0, 0, sec_end, PAGE, 0, subsystem,
                       0, 0x100000, 0x1000, 0x100000, 0x1000, 0, 16) + ddirs
     chars = 0x22 | (0x2000 if dll else 0)
     coff = struct.pack("<HHIIIHH", machine, len(sections), 0x65000000, 0, 0, len(opt), chars)

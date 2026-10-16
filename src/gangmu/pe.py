@@ -22,12 +22,18 @@ import struct
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-MACHINES = {0x14C: "x86", 0x8664: "x86_64", 0x1C0: "arm", 0x1C4: "armnt",
-            0xAA64: "aarch64", 0x5064: "riscv64", 0x200: "ia64"}
-DIR_EXPORT, DIR_IMPORT, DIR_RESOURCE, DIR_SECURITY, DIR_DEBUG = 0, 1, 2, 4, 6
+MACHINES = {0x14C: "x86", 0x8664: "x86_64", 0x1C0: "arm", 0x1C2: "thumb", 0x1C4: "armnt",
+            0xAA64: "aarch64", 0x5064: "riscv64", 0x200: "ia64",
+            # Windows CE builds for these too; named so a report says what it could not read
+            0x1A2: "sh3", 0x1A3: "sh3dsp", 0x1A6: "sh4", 0x1A8: "sh5", 0x166: "mips",
+            0x266: "mips16", 0x366: "mipsfpu", 0x466: "mips16fpu", 0x1F0: "powerpc",
+            0x1F1: "powerpcfp"}
+SUBSYSTEM_WINDOWS_CE = 9
+DIR_EXPORT, DIR_IMPORT, DIR_RESOURCE, DIR_EXCEPTION, DIR_SECURITY, DIR_DEBUG = 0, 1, 2, 3, 4, 6
 DIR_DELAY_IMPORT, DIR_CLR = 13, 14
 RT_VERSION = 16
 IMAGE_FILE_DLL = 0x2000
+IMAGE_SCN_MEM_EXECUTE = 0x20000000
 MAX_SECTIONS = 96
 MAX_IMPORTS = 2048
 MAX_EXPORTS = 65536
@@ -43,6 +49,7 @@ class PeSection:
     vsize: int
     offset: int
     size: int
+    flags: int = 0                                    # Characteristics
 
 
 @dataclass
@@ -65,6 +72,15 @@ class PeInfo:
     pdb_guid: str = ""
     clr_rva: int = 0
     clr_size: int = 0
+    image_base: int = 0
+    entry_rva: int = 0
+    subsystem: int = 0
+    exception_rva: int = 0                            # x64 RUNTIME_FUNCTION table
+    exception_size: int = 0
+
+    @property
+    def is_windows_ce(self) -> bool:
+        return self.subsystem == SUBSYSTEM_WINDOWS_CE
 
     def section(self, name: str) -> Optional[PeSection]:
         return next((s for s in self.sections if s.name == name), None)
@@ -102,6 +118,10 @@ def parse_pe(data: bytes) -> Optional[PeInfo]:
             return None
         bits = 32 if magic == 0x10B else 64
         major, minor = data[opt + 2], data[opt + 3]
+        entry_rva = struct.unpack_from("<I", data, opt + 16)[0]
+        image_base = struct.unpack_from("<I" if bits == 32 else "<Q", data,
+                                        opt + (28 if bits == 32 else 24))[0]
+        subsystem = struct.unpack_from("<H", data, opt + 68)[0]
         dirs_at = opt + (96 if bits == 32 else 112)
         ndirs = struct.unpack_from("<I", data, dirs_at - 4)[0]
         dirs: List[Tuple[int, int]] = []
@@ -111,7 +131,8 @@ def parse_pe(data: bytes) -> Optional[PeInfo]:
             dirs.append(struct.unpack_from("<II", data, dirs_at + 8 * i))
         info = PeInfo(MACHINES.get(machine, f"0x{machine:x}"), bits,
                       is_dll=bool(chars & IMAGE_FILE_DLL), timestamp=stamp,
-                      linker=f"{major}.{minor}")
+                      linker=f"{major}.{minor}", image_base=image_base, entry_rva=entry_rva,
+                      subsystem=subsystem)
         table = opt + optsize
         for i in range(nsec):
             raw = data[table + 40 * i:table + 40 * i + 40]
@@ -119,7 +140,8 @@ def parse_pe(data: bytes) -> Optional[PeInfo]:
                 return None
             name, vsize, vaddr, rsize, roff = struct.unpack_from("<8sIIII", raw, 0)
             info.sections.append(PeSection(name.rstrip(b"\0").decode("latin-1"),
-                                           vaddr, vsize, roff, rsize))
+                                           vaddr, vsize, roff, rsize,
+                                           struct.unpack_from("<I", raw, 36)[0]))
     except struct.error:
         return None
 
@@ -129,6 +151,7 @@ def parse_pe(data: bytes) -> Optional[PeInfo]:
     sec_off, sec_size = directory(DIR_SECURITY)         # a file offset, not an RVA
     info.signed = bool(sec_off and sec_size and sec_off < len(data))
     info.clr_rva, info.clr_size = directory(DIR_CLR)
+    info.exception_rva, info.exception_size = directory(DIR_EXCEPTION)
     info.is_dotnet = bool(info.clr_rva and info.clr_size)
     for reader, index in ((_read_imports, DIR_IMPORT), (_read_delay_imports, DIR_DELAY_IMPORT),
                           (_read_exports, DIR_EXPORT), (_read_debug, DIR_DEBUG),
