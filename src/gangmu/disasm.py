@@ -42,8 +42,10 @@ _PADDING = frozenset(("nop", "c.nop", "unimp", "c.unimp", "udf"))
 JUMP_REACH = 512                          # a forward jump this close stays inside the function
 EM_AARCH64 = 183
 EM_XTENSA = 94
+EM_MIPS = 8
 MAX_PE_FUNCTION = 1 << 20
-ARCHES = ("thumb", "arm", "aarch64", "riscv32", "riscv64", "x86", "x86-64")
+ARCHES = ("thumb", "arm", "aarch64", "riscv32", "riscv64", "x86", "x86-64", "mips32",
+          "mips32be")
 
 
 def available() -> bool:
@@ -186,6 +188,42 @@ def _riscv_call(insn) -> Optional[int]:
     return insn.address + off
 
 
+def _mips_start(prev, insn) -> bool:
+    return insn.mnemonic == "addiu" and insn.op_str.replace(" ", "").startswith("$sp,$sp,-") \
+        and prev in ("end", "gap")
+
+
+def _mips_call(insn) -> Optional[int]:
+    return _imm(insn.op_str) if insn.mnemonic in ("jal", "bal") else None
+
+
+def _mips_end(insn) -> bool:
+    return insn.mnemonic == "jr" and insn.op_str.strip() == "$ra"
+
+
+def _mips_flow(insn):
+    """Branches and returns of a MIPS instruction as Capstone prints them (it resolves a
+    branch to an absolute address): ``("cond", target)``, ``("jump", target)``,
+    ``("ret", None)`` for ``jr $ra``. Calls and indirect jumps are not listed."""
+    m = insn.mnemonic
+    last = insn.op_str.split(",")[-1].strip()
+    if m == "jr":
+        return ("ret", None) if last == "$ra" else None
+    if m in ("j", "b"):
+        target = _imm(last)
+        return ("jump", target) if target is not None else None
+    if m.startswith("b") and m not in ("break", "bal", "bgezal", "bltzal", "bgezall",
+                                       "bltzall"):
+        target = _imm(last)
+        return ("cond", target) if target is not None else None
+    return None
+
+
+def _mips_branches(mnemonic: str) -> bool:
+    """Whether an instruction has a delay slot: the next instruction belongs to it."""
+    return (mnemonic[0] in "bj" and mnemonic != "break") if mnemonic else False
+
+
 def _x86_end(insn) -> bool:
     return insn.mnemonic in ("ret", "retf", "jmp", "ud2", "hlt")
 
@@ -240,6 +278,7 @@ class _Arch:
     end: Callable
     align: int
     flow: Optional[Callable] = None     # branch and return decoder; enables the closure rule
+    delay_slot: bool = False            # the instruction after a branch still belongs to it
 
 
 def _arch(name: str) -> Optional[_Arch]:
@@ -256,6 +295,10 @@ def _arch(name: str) -> Optional[_Arch]:
                          _riscv_start, _riscv_call, _riscv_end, 2, _riscv_flow),
         "riscv64": _Arch(c.CS_ARCH_RISCV, c.CS_MODE_RISCV64 | c.CS_MODE_RISCVC,
                          _riscv_start, _riscv_call, _riscv_end, 2, _riscv_flow),
+        "mips32": _Arch(c.CS_ARCH_MIPS, c.CS_MODE_MIPS32 | c.CS_MODE_LITTLE_ENDIAN,
+                        _mips_start, _mips_call, _mips_end, 4, _mips_flow, True),
+        "mips32be": _Arch(c.CS_ARCH_MIPS, c.CS_MODE_MIPS32 | c.CS_MODE_BIG_ENDIAN,
+                          _mips_start, _mips_call, _mips_end, 4, _mips_flow, True),
         "x86": _Arch(c.CS_ARCH_X86, c.CS_MODE_32, _x86_start, _x86_call, _x86_end, 1),
         "x86-64": _Arch(c.CS_ARCH_X86, c.CS_MODE_64, _x86_start, _x86_call, _x86_end, 1),
     }
@@ -268,6 +311,8 @@ def arch_of_elf(info: ElfInfo) -> Optional[str]:
         return "xtensa"                   # no Capstone: see xtensa.py
     if info.machine == EM_ARM:
         return "thumb" if info.entry & 1 else "arm"
+    if info.machine == EM_MIPS:
+        return None if info.bits != 32 else ("mips32" if info.little else "mips32be")
     return {EM_AARCH64: "aarch64", EM_X86_64: "x86-64", EM_386: "x86",
             EM_RISCV: "riscv64" if info.bits == 64 else "riscv32"}.get(info.machine)
 
@@ -295,12 +340,14 @@ def _scan(spec, code: bytes, base: int, inside: bool = False):
     expected = base
     pending = 0                   # farthest forward target of a conditional branch
     closed = False                # a return or jump ended the function and nothing jumps past it
+    slot = False                  # this instruction is a branch's delay slot
     for insn in _decode(spec, code, base):
         if insn.mnemonic == "db":
             prev = "gap"
             expected = insn.address + insn.size
             continue
-        if closed and insn.mnemonic not in _PADDING:
+        in_slot, slot = slot, spec.delay_slot and _mips_branches(insn.mnemonic)
+        if closed and not in_slot and insn.mnemonic not in _PADDING:
             # Leaf functions have no prologue to recognise. What follows the end of a
             # function, once no branch reaches past it, is the next function.
             prologues.add(insn.address)
