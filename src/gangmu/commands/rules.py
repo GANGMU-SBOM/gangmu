@@ -32,13 +32,26 @@ def cmd_rules_lint(args: argparse.Namespace) -> int:
     for err in rulebase.errors:
         print(f"FAIL {err}")
     for rule in rulebase:
-        if rule.binary_functions is not None:
+        broken = False
+        arches: dict = {}
+        for spec in rule.binary_function_specs():
             try:
-                rule.binary_functions.load()
+                arch = spec.load().arch
             except (RuleError, OSError, ValueError) as exc:
                 print(f"FAIL {rule.id}: {exc}")
                 rulebase.errors.append(f"{rule.id}: {exc}")
-                continue
+                broken = True
+                break
+            if arch in arches:
+                msg = (f"{rule.id}: {spec.file} and {arches[arch]} are both built for "
+                       f"{arch or 'an unrecorded architecture'}; list one sidecar per architecture")
+                print(f"FAIL {msg}")
+                rulebase.errors.append(msg)
+                broken = True
+                break
+            arches[arch] = spec.file
+        if broken:
+            continue
         flag = "" if rule.cpe else ("  [no CPE: " +
                                     (rule.cpe_status or "no reason recorded") .split(":")[0] + "]")
         print(f"ok   {rule.id}  ({rule.source_path}){flag}")

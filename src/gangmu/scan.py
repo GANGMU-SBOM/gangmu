@@ -254,8 +254,10 @@ def _string_signatures(rulebase: RuleBase):
 
 
 def _function_prints(rulebase: RuleBase):
-    return [(r.upstream_name, _norm(r.ships_as or r.upstream_name), r.binary_functions.load())
-            for r in rulebase if r.binary_functions is not None]
+    # a rule may carry one sidecar per architecture; the matcher tries the one built for the
+    # image's CPU first (binaries._by_functions)
+    return [(r.upstream_name, _norm(r.ships_as or r.upstream_name), spec.load())
+            for r in rulebase for spec in r.binary_function_specs()]
 
 
 def _binary_summary(emb, version: Optional[str]) -> str:

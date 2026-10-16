@@ -155,8 +155,8 @@ def load_rules(root: Path, strict: bool = False) -> RuleBase:
             rule.functions.base_dir = str(path.parent)
         if rule.binary_strings is not None:
             rule.binary_strings.base_dir = str(path.parent)
-        if rule.binary_functions is not None:
-            rule.binary_functions.base_dir = str(path.parent)
+        for spec in rule.binary_function_specs():
+            spec.base_dir = str(path.parent)
         seen[rule.id] = rel
         base.rules.append(rule)
     return base
