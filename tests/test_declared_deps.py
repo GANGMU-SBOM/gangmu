@@ -115,3 +115,49 @@ def test_a_scan_reports_cmake_declarations(tmp_path):
     result = scan(tmp_path, load_rules(Path(__file__).parent / "fixtures" / "rules"))
     names = {(f.rule_id, f.version) for f in result.findings}
     assert ("declared/cmake/zlib", "1.3.1") in names
+
+
+def test_arduino_libraries_are_read_but_platformio_ones_are_left_alone(tmp_path):
+    from gangmu.declared_deps import read_arduino
+    _w(tmp_path / "libraries" / "ArduinoJson" / "library.properties",
+       "name=ArduinoJson\nversion=6.21.3\nauthor=Benoit Blanchon\n"
+       "sentence=JSON library\nurl=https://arduinojson.org\n")
+    _w(tmp_path / "libraries" / "NoName" / "library.properties", "version=1.0\n")
+    _w(tmp_path / "pio" / "platformio.ini", "[env:a]\n")
+    _w(tmp_path / "pio" / "lib" / "Inner" / "library.properties", "name=Inner\nversion=1.0\n")
+    found = {d.name: d for d in read_arduino(tmp_path)}
+    assert set(found) == {"ArduinoJson"}
+    d = found["ArduinoJson"]
+    assert d.version == "6.21.3" and d.version_is_upstream
+    assert d.supplier == "Benoit Blanchon" and d.upstream_url == "https://arduinojson.org"
+    assert d.source == "libraries/ArduinoJson/library.properties"
+
+
+def test_idf_dependencies_lock(tmp_path):
+    from gangmu.declared_deps import read_idf_lock
+    _w(tmp_path / "dependencies.lock", """
+dependencies:
+  espressif/mdns:
+    component_hash: abc
+    source: {registry_url: https://components.espressif.com/, type: service}
+    version: 1.2.0
+  espressif/cjson:
+    source: {type: service}
+    version: 1.7.16
+  idf:
+    source: {type: idf}
+    version: 5.2.1
+  broken: {source: {type: local}}
+direct_dependencies: [espressif/mdns]
+manifest_hash: x
+target: esp32
+version: 2.0.0
+""")
+    (tmp_path / "managed_components" / "espressif__mdns").mkdir(parents=True)
+    found = {d.name: d for d in read_idf_lock(tmp_path)}
+    assert set(found) == {"esp-idf", "espressif/mdns", "espressif/cjson"}
+    assert found["esp-idf"].version == "5.2.1" and found["esp-idf"].version_is_upstream
+    assert found["espressif/mdns"].present and not found["espressif/mdns"].manifest_only
+    assert found["espressif/cjson"].directory is None and found["espressif/cjson"].manifest_only
+    assert not found["espressif/mdns"].version_is_upstream
+    assert found["espressif/mdns"].version == "1.2.0"
