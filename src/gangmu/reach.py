@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from .functions import extract_functions
+from .ifdef import Macros, strip_inactive
 from .normalize import tokenize
 
 SOURCE_SUFFIXES = (".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".inc")
@@ -49,8 +50,10 @@ class Graph:
     edges: Dict[str, Set[str]] = field(default_factory=dict)     # name -> names
     roots_by_file: Dict[str, Set[str]] = field(default_factory=dict)
     file_scope: Dict[str, Set[str]] = field(default_factory=dict)  # file -> names
+    compiled_out: Dict[str, Set[str]] = field(default_factory=dict)  # name -> files
     files: int = 0
     unreadable: int = 0
+    inactive_lines: int = 0      # lines the build configuration rules out
 
     def functions_in(self, directory: str) -> Set[str]:
         prefix = _prefix(directory)
@@ -93,8 +96,13 @@ def _macros(data: bytes) -> Dict[str, Set[str]]:
     return out
 
 
-def build_graph(root: Path) -> Graph:
-    """Parse every C/C++ source under ``root`` once."""
+def build_graph(root: Path, macros_known: Optional[Macros] = None) -> Graph:
+    """Parse every C/C++ source under ``root`` once.
+
+    With ``macros_known`` (the build's configuration), branches the
+    configuration rules out are left out of the graph, and a function that
+    exists only in such a branch is listed in ``compiled_out``.
+    """
     graph = Graph()
     macros: Dict[str, Set[str]] = {}
     bodies: Dict[str, List[Tuple[str, frozenset]]] = {}      # file -> (name, refs)
@@ -110,6 +118,14 @@ def build_graph(root: Path) -> Graph:
             graph.unreadable += 1
             continue
         graph.files += 1
+        if macros_known is not None:
+            live, dead = strip_inactive(data, macros_known)
+            if dead:
+                graph.inactive_lines += dead
+                full = {f.name for f in extract_functions(data, with_refs=False, min_tokens=1)}
+                data = live
+                for name in full - {f.name for f in extract_functions(data, with_refs=False, min_tokens=1)}:
+                    graph.compiled_out.setdefault(name, set()).add(rel)
         for name, ids in _macros(data).items():
             macros.setdefault(name, set()).update(ids)
         toks = tokenize(data)
@@ -228,6 +244,15 @@ def assess(graph: Graph, directory: str, symbols: Sequence[str],
     present = [s for s in symbols if s in inside]
     absent = [s for s in symbols if s not in inside]
     if not present:
+        prefix = _prefix(directory)
+        off = [s for s in absent
+               if any(_inside(f, prefix) for f in graph.compiled_out.get(s, ()))]
+        if off:
+            return Reach("absent",
+                         f"{', '.join(off[:4])} is in the source under "
+                         f"{directory or '.'} but the build configuration "
+                         f"compiles it out",
+                         list(symbols), basis=basis)
         if basis == "curated":
             return Reach("absent",
                          f"{', '.join(absent[:4])} is not defined anywhere under "

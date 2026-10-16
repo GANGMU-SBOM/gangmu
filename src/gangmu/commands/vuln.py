@@ -322,6 +322,33 @@ def _fix_from_advisory(cve: str, db: Path):
     return "", []
 
 
+def _build_macros(args: argparse.Namespace, root: Path):
+    """The configuration to evaluate ``#if`` with, or None when none was given."""
+    from ..build.kconfig import find_kconfig, read_kconfig
+    from ..ifdef import Macros, collect_tree_defines, find_config_headers
+    paths = [Path(p) for p in (args.config or [])]
+    headers = [p for p in paths if p.suffix in (".h", ".hpp", ".hh")]
+    paths = [p for p in paths if p not in headers]
+    if not args.config:
+        found = find_kconfig(root)
+        paths = [found] if found else []
+        headers = find_config_headers(root)
+    defines = list(args.define or [])
+    if not (paths or headers or defines or args.assume_undefined_off):
+        return None
+    macros = Macros(assume_undefined=args.assume_undefined_off)
+    for path in paths:
+        try:
+            macros.add_kconfig(read_kconfig(path).values)
+        except OSError as exc:
+            print(f"warning: cannot read --config {path}: {exc}", file=sys.stderr)
+    for item in defines:
+        name, _, text = item.partition("=")
+        macros.define(name, text if "=" in item else "1")
+    collect_tree_defines(root, macros, headers)
+    return macros
+
+
 def _apply_reachability(args: argparse.Namespace, matches) -> int:
     from ..reach import assess, build_graph, load_symbols, mine_symbols
     root = Path(args.source)
@@ -335,9 +362,14 @@ def _apply_reachability(args: argparse.Namespace, matches) -> int:
         except (OSError, ValueError) as exc:
             print(f"error: cannot read --symbols {path}: {exc}", file=sys.stderr)
             return 2
-    graph = build_graph(root)
+    macros = _build_macros(args, root)
+    graph = build_graph(root, macros)
     print(f"reachability: read {graph.files} source file(s), "
           f"{len(graph.defined)} function(s)", file=sys.stderr)
+    if graph.inactive_lines:
+        print(f"reachability: the build configuration rules out "
+              f"{graph.inactive_lines} line(s), {len(graph.compiled_out)} "
+              f"function(s) compiled out", file=sys.stderr)
     cache: dict = {}
     tally: dict = {}
     for match in matches:

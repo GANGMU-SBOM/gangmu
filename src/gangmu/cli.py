@@ -780,6 +780,22 @@ def build_parser() -> argparse.ArgumentParser:
                    help="JSON {\"CVE-...\": [\"function\", ...]} naming the "
                         "vulnerable functions; without it they are guessed from "
                         "the advisory text. Repeatable")
+    v.add_argument("--config", action="append", metavar="FILE",
+                   help="with --source: the build's configuration, a Kconfig answer file "
+                        "(sdkconfig, .config) or a C header (mbedtls_config.h, "
+                        "sdkconfig.h). Branches it rules out are not counted, "
+                        "and a function only in such a branch is absent. "
+                        "Default: the sdkconfig/.config and sdkconfig.h/"
+                        "autoconf.h found under --source. Repeatable")
+    v.add_argument("--define", "-D", action="append", metavar="NAME[=VALUE]",
+                   help="with --source: a macro the build defines on its "
+                        "command line; repeatable")
+    v.add_argument("--assume-undefined-off", action="store_true",
+                   help="with --source: treat a macro that nothing in the tree, "
+                        "--config or --define mentions as off. Right when the "
+                        "product's config header is named with --config (Mbed "
+                        "TLS mbedtls_config.h); wrong when the toolchain "
+                        "defines it")
     v.add_argument("--reachability-vex", action="store_true",
                    help="with --source: mark findings whose function is absent or "
                         "unreferenced not_affected (code_not_present / "
