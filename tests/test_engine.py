@@ -1,5 +1,6 @@
 import re
 import shutil
+from pathlib import Path
 
 from gangmu.rules.loader import load_rules
 from gangmu.scan import ScanOptions, scan
@@ -250,6 +251,28 @@ def test_a_version_definition_naming_a_recorded_release_does_not_beat_the_anchor
                    if f.upstream_name == "tinynet")
     assert finding.version == "1.4.2"
     assert finding.version_source == "anchor"
+
+def test_a_probe_header_beside_the_src_directory_is_read(rules_dir, tmp_path):
+    """LVGL is found at ``lvgl/src`` (which has its own, versionless ``lvgl.h``)
+    and FreeRTOS at ``freertos/src``; the header naming the version sits beside it."""
+    from gangmu.match.engine import MatchEngine
+    rule = load_rules(rules_dir, strict=True).rules[0]
+    probe = rule.probes[0]
+    root = tmp_path / "lib"
+    (root / "src" / "inner").mkdir(parents=True)
+    (root / "src" / "version.h").write_text("/* no version here */\n")
+    (root / "src" / "inner" / "marker.c").write_text("int x;\n")
+    target = root / Path(probe.file)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text((Path(__file__).parent / "fixtures" / "upstream"
+                       / "tinynet" / probe.file).read_text())
+    evidence = []
+    found = MatchEngine._probe_version(None, root / "src", rule, evidence, "lib/src")
+    assert found == "1.4.2"
+    assert evidence[0].locator == f"lib/{probe.file}"
+    # A directory that is not a source subdirectory does not look upwards.
+    (root / "other").mkdir()
+    assert MatchEngine._probe_version(None, root / "other", rule, [], "lib/other") is None
 
 
 def test_a_rule_file_one_directory_down_is_found(tmp_path):
