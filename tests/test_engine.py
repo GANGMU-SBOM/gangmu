@@ -384,3 +384,33 @@ def test_a_tree_nearest_the_oldest_recorded_release_is_flagged_as_possibly_older
     # The same tree with every recorded function of 1.0.17 present is not flagged.
     whole = set(shared) | set(old_only)
     assert infer_version(sig, whole).edge == ""
+
+
+def test_a_probe_can_read_a_packed_hex_version_and_an_optional_suffix():
+    from gangmu.rules.schema import VersionProbe
+    lfs = VersionProbe(
+        file="lfs.h",
+        patterns={"hex_major": r"LFS_VERSION\s+0x([0-9a-fA-F]{4})[0-9a-fA-F]{4}",
+                  "hex_minor": r"LFS_VERSION\s+0x[0-9a-fA-F]{4}([0-9a-fA-F]{4})"},
+        template="{major}.{minor}")
+    assert lfs.apply("#define LFS_VERSION 0x0002000a\n") == "2.10"
+    zephyr = VersionProbe(
+        file="VERSION",
+        patterns={"major": r"VERSION_MAJOR\s*=\s*(\d+)",
+                  "dash_extra": r"EXTRAVERSION[ \t]*=[ \t]*(\S*)"},
+        template="{major}{extra}")
+    assert zephyr.apply("VERSION_MAJOR = 4\nEXTRAVERSION = rc2\n") == "4-rc2"
+    assert zephyr.apply("VERSION_MAJOR = 4\nEXTRAVERSION =\nNEXT = x\n") == "4"
+
+
+def test_a_partial_version_definition_narrows_the_span_the_functions_give():
+    from types import SimpleNamespace
+
+    from gangmu.match.engine import _narrow_range
+    versions = ("2.9.3", "2.10.0", "2.10.1", "2.10.2", "2.11.0", "2.11.1")
+    rule = SimpleNamespace(functions=SimpleNamespace(versions=versions))
+    assert _narrow_range(rule, "2.10.2~2.11.1", "2.10") == "2.10.2"
+    assert _narrow_range(rule, "2.10.0~2.11.0", "2.10") == "2.10.0~2.10.2"
+    assert _narrow_range(rule, "2.10.0~2.10.2", "2.10") is None      # nothing to narrow
+    assert _narrow_range(rule, "2.10.2~2.11.1", "2.9") is None       # contradicts: not narrowed
+    assert _narrow_range(rule, "2.11.1", "2.11") is None

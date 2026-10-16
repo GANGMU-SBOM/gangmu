@@ -400,7 +400,23 @@ class MatchEngine:
         # --- tier 3: version probes ------------------------------------
         if identity > 0.0:
             probed = self._probe_version(directory, rule, evidence, rel)
-            if probed and version_source != "anchor":
+            narrowed = (_narrow_range(rule, version, probed)
+                        if probed and version_source == "functions" and version
+                        else None)
+            if narrowed:
+                evidence.append(Evidence(
+                    technique=Technique.SOURCE_CODE_ANALYSIS,
+                    confidence=VERSION_CONFIDENCE["probe"],
+                    summary=(f"the functions span {version}; the tree's own version "
+                             f"definition says {probed}, which narrows it to "
+                             f"{narrowed}"),
+                    locator=rel))
+                version = narrowed
+            elif (probed and version_source == "functions" and version
+                  and all(part.startswith(probed + ".")
+                          for part in version.split("~"))):
+                pass        # the functions already name the release more exactly
+            elif probed and version_source != "anchor":
                 version, version_source = probed, "probe"
             elif (probed and probed != version and version is not None
                   and not version.startswith("git-")
@@ -765,6 +781,26 @@ class MatchEngine:
 NESTED_LOOKUP_DEPTH = 2
 SOURCE_DIRECTORY_NAMES = frozenset({"src", "source", "lib", "library"})
 NAMED_LOOKUP_DEPTH = 4
+
+
+def _narrow_range(rule: Rule, version: str, probed: str) -> Optional[str]:
+    """The part of a ``low~high`` span a version definition leaves standing.
+
+    A header that carries only major.minor (littlefs's ``LFS_VERSION`` is 2.10 for
+    2.10.0 to 2.10.2) cannot name a release, but it can say which of the releases
+    the functions span the tree belongs to.
+    """
+    if "~" not in version or rule.functions is None:
+        return None
+    low, _, high = version.partition("~")
+    recorded = list(rule.functions.versions)
+    if low not in recorded or high not in recorded:
+        return None
+    span = recorded[recorded.index(low):recorded.index(high) + 1]
+    kept = [v for v in span if v == probed or v.startswith(probed + ".")]
+    if not kept or len(kept) == len(span):
+        return None
+    return kept[0] if len(kept) == 1 else f"{kept[0]}~{kept[-1]}"
 
 
 def _recorded_versions(rule: Rule) -> set:
