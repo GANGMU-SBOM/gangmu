@@ -49,6 +49,9 @@ Key facts:
 
 - [gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules): the free community rule base (CDLA-Permissive-2.0), installed as the `gangmu-rules` package; add or fix general-component rules there. Vendor-specific rules are part of the commercial edition
 - [gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench): reproducible identification accuracy on real upstream releases
+- [gangmu-cbom-rules](https://github.com/GANGMU-SBOM/gangmu-cbom-rules): CBOM rule pack (algorithm table and library capability tables), loaded with `gangmu cbom --rules`; not on PyPI yet
+- [gangmu-aibom-rules](https://github.com/GANGMU-SBOM/gangmu-aibom-rules): AIBOM rule pack (model formats and inference runtimes), loaded with `gangmu aibom --rules`; not on PyPI yet
+- [gangmu-action](https://github.com/GANGMU-SBOM/gangmu-action): GitHub Action producing SBOM, CBOM and a post-quantum summary in one step
 
 ## Optional
 
