@@ -77,6 +77,18 @@ class Macros:
             else:
                 self.define(symbol, raw)
 
+    def derive(self, args: Sequence[str]) -> "Macros":
+        """A copy with a compile command's ``-D``/``-U`` flags applied, or
+        ``self`` when the command has none."""
+        flags = tuple(a for a in args if a[:2] in ("-D", "-U")) \
+            + tuple(a for prev, a in zip(args, args[1:]) if prev in ("-D", "-U"))
+        if not flags:
+            return self
+        out = Macros(dict(self.value), set(self.undefined), self.assume_undefined,
+                     dict(self.alias), set(self.maybe))
+        out.add_flags(args)
+        return out
+
     def add_flags(self, args: Iterable[str]) -> None:
         """``-DNAME``, ``-DNAME=VALUE``, ``-D NAME`` and ``-UNAME`` from a compile command."""
         it = iter(args)

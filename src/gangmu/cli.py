@@ -787,6 +787,12 @@ def build_parser() -> argparse.ArgumentParser:
                         "and a function only in such a branch is absent. "
                         "Default: the sdkconfig/.config and sdkconfig.h/"
                         "autoconf.h found under --source. Repeatable")
+    v.add_argument("--compile-db", metavar="FILE",
+                   help="with --source: compile_commands.json of the real build. "
+                        "A .c/.cpp file it does not list was not compiled, so "
+                        "functions only defined there are absent; each compiled "
+                        "file's own -D/-U flags are applied to its #if. Ignored "
+                        "(with a note) when it names none of the tree's files")
     v.add_argument("--define", "-D", action="append", metavar="NAME[=VALUE]",
                    help="with --source: a macro the build defines on its "
                         "command line; repeatable")

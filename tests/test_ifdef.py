@@ -118,7 +118,7 @@ def test_function_compiled_out_is_absent(tmp_path):
     m.add_kconfig({"LWIP_FEATURE": "n"})
     graph = build_graph(root, m)
     got = assess(graph, "lwip", ["vuln_parse"], "advisory text")
-    assert got.status == "absent" and "compiles it out" in got.detail
+    assert got.status == "absent" and "does not compile it" in got.detail
     assert graph.inactive_lines >= 2
     m.define("CONFIG_LWIP_FEATURE", "1")
     assert assess(build_graph(root, m), "lwip", ["vuln_parse"], "curated").status == "unreachable"
@@ -162,3 +162,79 @@ def test_generated_config_headers_are_found_and_used(tmp_path):
     collect_tree_defines(root, m, find_config_headers(root))
     graph = build_graph(root, m)
     assert assess(graph, "lwip", ["vuln_parse"], "curated").status == "absent"
+
+
+def _db_for(root, entries):
+    db = root / "compile_commands.json"
+    db.write_text(json.dumps([
+        {"directory": str(root), "file": str(root / f), "arguments": ["cc", *args, "-c", f]}
+        for f, args in entries]))
+    return db
+
+
+def test_uncompiled_translation_units_and_per_file_flags(tmp_path):
+    from gangmu.build.compile_db import load_compile_db
+    root = tmp_path / "fw"
+    (root / "lwip").mkdir(parents=True)
+    (root / "lwip" / "core.c").write_text(
+        "int lwip_init(void) { return 0; }\n"
+        "#ifdef WITH_DEBUG\nint dbg_dump(void) { return 1; }\n#endif\n")
+    (root / "lwip" / "ports.c").write_text("int vuln_port(void) { return 2; }\n")
+    (root / "lwip" / "other.c").write_text("int lwip_other(void) { return 3; }\n")
+    db = load_compile_db(_db_for(root, [("lwip/core.c", ["-DWITH_DEBUG"]),
+                                        ("lwip/other.c", [])]))
+    graph = build_graph(root, None, db)
+    assert graph.compile_db_used and graph.uncompiled_files == 1
+    assert assess(graph, "lwip", ["vuln_port"], "curated").status == "absent"
+    assert "dbg_dump" in graph.defined               # -DWITH_DEBUG on core.c
+    # without the flag the macro is merely unknown (a header may define it): kept
+    db = load_compile_db(_db_for(root, [("lwip/core.c", ["-UWITH_DEBUG"]),
+                                        ("lwip/other.c", [])]))
+    graph = build_graph(root, None, db)
+    assert assess(graph, "lwip", ["dbg_dump"], "curated").status == "absent"
+
+
+def test_a_compile_database_from_another_machine_is_ignored(tmp_path):
+    from gangmu.build.compile_db import CompileDB, CompileEntry
+    from pathlib import Path
+    root = tmp_path / "fw"
+    root.mkdir()
+    (root / "a.c").write_text("int fa(void) { return 1; }\n")
+    db = CompileDB(entries=[CompileEntry(source=Path("/elsewhere/zzz.c"),
+                                         directory=Path("/elsewhere"))])
+    graph = build_graph(root, None, db)
+    assert not graph.compile_db_used and "fa" in graph.defined
+    # the same tree under another prefix still matches by relative path
+    db = CompileDB(entries=[CompileEntry(source=Path("/ci/build/fw/a.c"),
+                                         directory=Path("/ci/build"))])
+    assert build_graph(root, None, db).compile_db_used
+
+
+def test_vuln_command_with_a_compile_database(tmp_path, capsys):
+    root = _tree(tmp_path)
+    (root / "sdkconfig").unlink()
+    (root / "lwip" / "port.c").write_text("int vuln_port(void) { return 2; }\n")
+    cdb = _db_for(root, [("lwip/core.c", ["-DCONFIG_LWIP_FEATURE=1"]), ("app/main.c", [])])
+    feed = {"vulnerabilities": [{"cve": {
+        "id": "CVE-2021-0009",
+        "descriptions": [{"lang": "en", "value": "overflow in `vuln_port()`"}],
+        "configurations": [{"nodes": [{"cpeMatch": [{
+            "vulnerable": True,
+            "criteria": "cpe:2.3:a:lwip_project:lwip:*:*:*:*:*:*:*:*",
+            "versionEndExcluding": "2.2.0"}]}]}]}}]}
+    db = tmp_path / "db"
+    db.mkdir()
+    (db / "nvd-2021.json").write_text(json.dumps(feed))
+    sbom = tmp_path / "sbom.json"
+    sbom.write_text(json.dumps({"bomFormat": "CycloneDX", "specVersion": "1.6",
+        "components": [{"type": "library", "name": "lwip", "version": "2.1.0",
+                        "bom-ref": "lwip",
+                        "cpe": "cpe:2.3:a:lwip_project:lwip:2.1.0:*:*:*:*:*:*:*",
+                        "properties": [{"name": "gangmu:directory", "value": "lwip"}]}]}))
+    args = ["vuln", str(sbom), "--db", str(db), "--format", "json", "--source", str(root)]
+    assert main(args) == 0
+    assert json.loads(capsys.readouterr().out)["matches"][0]["reachability"]["status"] \
+        == "unreachable"
+    assert main(args + ["--compile-db", str(cdb)]) == 0
+    assert json.loads(capsys.readouterr().out)["matches"][0]["reachability"]["status"] \
+        == "absent"
