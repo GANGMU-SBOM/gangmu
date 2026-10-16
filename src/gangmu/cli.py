@@ -628,7 +628,7 @@ def build_parser() -> argparse.ArgumentParser:
                           "other. Build for the architecture you will scan, with only the "
                           "library's own code linked in (no libc)")
     rbp.add_argument("--negative", action="append",
-                     help="an ELF of unrelated firmware that must match nothing; repeatable")
+                     help="an ELF or PE of unrelated firmware that must match nothing; repeatable. Reference functions it also contains (a bundled xxHash, say) are left out of the fingerprints, unless that is most of the library")
     rbp.add_argument("--out", required=True, help="path for the .fnprint sidecar")
     rbp.set_defaults(func=cmd_rules_binary_prints)
 
