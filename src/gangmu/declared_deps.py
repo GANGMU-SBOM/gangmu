@@ -28,6 +28,17 @@ Cargo
     those are the ones that bind or bundle a C library, which is what a C/C++
     SBOM is for. The rest of a Rust dependency graph is a different inventory,
     and ``Cargo.lock`` does not say which crates run on the build machine only.
+
+Arduino
+    ``library.properties`` of every library in the tree (name, version, url,
+    author as supplier). Libraries inside a PlatformIO project are the
+    PlatformIO reader's and are skipped here.
+
+ESP-IDF component manager
+    ``dependencies.lock``: each locked registry component with its exact
+    version, and the ESP-IDF release itself (``idf``). A component whose
+    sources are under ``managed_components/`` points there; one that is locked
+    but not downloaded is reported without a directory.
 """
 
 from __future__ import annotations
@@ -45,6 +56,8 @@ ECOSYSTEM_CMAKE = "cmake"
 ECOSYSTEM_VCPKG = "vcpkg"
 ECOSYSTEM_MESON = "meson"
 ECOSYSTEM_CARGO = "cargo"
+ECOSYSTEM_ARDUINO = "arduino"
+ECOSYSTEM_IDF = "idf-component"
 
 # Names in these build files that the NVD files under another product name.
 _ALIASES = {"libz": "zlib", "libpng16": "libpng", "libxml-2.0": "libxml2"}
@@ -55,7 +68,8 @@ _HASH = re.compile(r"^[0-9a-f]{7,40}$")
 
 def read_dependency_files(root: Path) -> List[Declaration]:
     root = Path(root).resolve()
-    return read_cmake(root) + read_vcpkg(root) + read_meson(root) + read_cargo(root)
+    return (read_cmake(root) + read_vcpkg(root) + read_meson(root) + read_cargo(root)
+            + read_arduino(root) + read_idf_lock(root))
 
 
 def _decl(ecosystem: str, name: str, version: Optional[str], source: str, where: Path,
@@ -279,3 +293,90 @@ def read_cargo(root: Path) -> List[Declaration]:
                             "library's own version is not the crate's",
                 manifest_only=True))
     return list(out.values())
+
+
+# ---------------------------------------------------------------------- Arduino
+
+def _properties(text: str) -> Dict[str, str]:
+    out: Dict[str, str] = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, _, value = line.partition("=")
+            out[key.strip()] = value.strip()
+    return out
+
+
+def _inside_platformio(path: Path, root: Path) -> bool:
+    for parent in path.parents:
+        if (parent / "platformio.ini").is_file():
+            return True
+        if parent == root:
+            break
+    return False
+
+
+def read_arduino(root: Path) -> List[Declaration]:
+    out: Dict[tuple, Declaration] = {}
+    for here, files in _walk(root, 6):
+        if "library.properties" not in files or _inside_platformio(here, root):
+            continue
+        props = _properties(_read(here / "library.properties"))
+        name = props.get("name")
+        if not name:
+            continue
+        version = props.get("version") or None
+        display, cpe = _known(_ALIASES.get(name.lower(), name.lower()))
+        source = (here / "library.properties").relative_to(root).as_posix()
+        out.setdefault((name.lower(), version), Declaration(
+            ecosystem=ECOSYSTEM_ARDUINO, name=name, directory=here, source=source,
+            version=version, version_is_upstream=version is not None,
+            upstream_url=props.get("url") or None, cpe=cpe, display_name=display,
+            supplier=props.get("author") or None,
+            description=props.get("sentence") or None))
+    return list(out.values())
+
+
+# ------------------------------------------------- ESP-IDF component manager lock
+
+def read_idf_lock(root: Path) -> List[Declaration]:
+    import yaml
+    out: List[Declaration] = []
+    for here, files in _walk(root, 4):
+        if "dependencies.lock" not in files:
+            continue
+        path = here / "dependencies.lock"
+        try:
+            data = yaml.safe_load(_read(path)) or {}
+        except yaml.YAMLError:
+            continue
+        deps = data.get("dependencies") if isinstance(data, dict) else None
+        if not isinstance(deps, dict):
+            continue
+        source = path.relative_to(root).as_posix()
+        for name, entry in deps.items():
+            if not isinstance(entry, dict) or not entry.get("version"):
+                continue
+            version = str(entry["version"])
+            kind = (entry.get("source") or {}).get("type") if isinstance(
+                entry.get("source"), dict) else None
+            short = str(name).split("/")[-1]
+            managed = here / "managed_components" / str(name).replace("/", "__")
+            if name == "idf" or kind == "idf":
+                out.append(Declaration(
+                    ecosystem=ECOSYSTEM_IDF, name="esp-idf", directory=here,
+                    source=source, version=version, version_is_upstream=True,
+                    upstream_url="https://github.com/espressif/esp-idf",
+                    display_name="ESP-IDF", manifest_only=True))
+                continue
+            display, cpe = _known(_ALIASES.get(short.lower(), short.lower()))
+            present = managed.is_dir()
+            out.append(Declaration(
+                ecosystem=ECOSYSTEM_IDF, name=str(name),
+                directory=managed if present else None, source=source,
+                version=version, version_is_upstream=False, cpe=cpe,
+                display_name=display, manifest_only=not present,
+                description="ESP-IDF component-registry package; its version is "
+                            "the registry package's, which wraps the upstream "
+                            "library and is not the upstream release"))
+    return out
