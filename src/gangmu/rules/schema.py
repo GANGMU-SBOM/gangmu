@@ -140,7 +140,14 @@ class VersionProbe:
             m = re.search(pattern, text)
             if not m:
                 return None
-            values[name] = m.group(1) if m.groups() else m.group(0)
+            value = m.group(1) if m.groups() else m.group(0)
+            if name.startswith("hex_"):
+                # littlefs packs 2.10 into ``0x0002000a``.
+                name, value = name[4:], str(int(value, 16))
+            elif name.startswith("dash_"):
+                # Zephyr's ``EXTRAVERSION = rc2``: ``-rc2``, or nothing when empty.
+                name, value = name[5:], f"-{value}" if value else ""
+            values[name] = value
         try:
             return self.template.format(**values)
         except KeyError:
