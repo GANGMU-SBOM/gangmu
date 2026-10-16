@@ -1,3 +1,4 @@
+import re
 import shutil
 
 from gangmu.rules.loader import load_rules
@@ -216,6 +217,39 @@ def test_an_anchor_shared_by_releases_does_not_pin_the_first_of_them(
     assert finding.version_source == "anchor-shared"
     assert 0 < finding.version_confidence < 0.98
     assert any("3 releases ship it unchanged" in e.summary for e in finding.evidence)
+
+
+def test_a_version_definition_naming_an_unrecorded_release_beats_the_anchor(
+        upstream_dir, rules_dir, tmp_path):
+    """Zephyr's Mbed TLS: library/version_features.c is the same in 4.1.0 and
+    4.1.1, the rule recorded 4.1.0, and build_info.h said 4.1.1."""
+    tree = _pristine(upstream_dir, tmp_path)
+    header = tree / "include" / "tinynet" / "version.h"
+    header.write_text(re.sub(r"(REVISION\s+)2", r"\g<1>9", header.read_text()))
+    finding = next(f for f in _scan(tmp_path / "pristine", rules_dir).findings
+                   if f.upstream_name == "tinynet")
+    assert finding.version == "1.4.9"
+    assert finding.version_source == "probe"
+    assert any("does not record" in e.summary for e in finding.evidence)
+
+
+def test_a_version_definition_naming_a_recorded_release_does_not_beat_the_anchor(
+        upstream_dir, rules_dir, tmp_path):
+    """Three Mbed TLS tags did not bump their header: the anchor is the better witness."""
+    import yaml
+    rules = tmp_path / "two"
+    shutil.copytree(rules_dir, rules)
+    path = next(rules.glob("*.yaml"))
+    rule = yaml.safe_load(path.read_text(encoding="utf-8"))
+    rule["identity"]["anchors"][0]["sha256"]["1.4.1"] = "0" * 64
+    path.write_text(yaml.safe_dump(rule), encoding="utf-8")
+    tree = _pristine(upstream_dir, tmp_path)
+    header = tree / "include" / "tinynet" / "version.h"
+    header.write_text(re.sub(r"(REVISION\s+)2", r"\g<1>1", header.read_text()))
+    finding = next(f for f in _scan(tmp_path / "pristine", rules).findings
+                   if f.upstream_name == "tinynet")
+    assert finding.version == "1.4.2"
+    assert finding.version_source == "anchor"
 
 
 def test_a_rule_file_one_directory_down_is_found(tmp_path):

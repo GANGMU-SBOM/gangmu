@@ -402,6 +402,21 @@ class MatchEngine:
             probed = self._probe_version(directory, rule, evidence, rel)
             if probed and version_source != "anchor":
                 version, version_source = probed, "probe"
+            elif (probed and probed != version and version is not None
+                  and not version.startswith("git-")
+                  and probed not in _recorded_versions(rule)):
+                # An anchor says the files are those of a release, not that the
+                # tree is that release: the next one may ship them unchanged. A
+                # version definition naming a release the rule does not record is
+                # news the anchor cannot contradict.
+                evidence.append(Evidence(
+                    technique=Technique.SOURCE_CODE_ANALYSIS,
+                    confidence=VERSION_CONFIDENCE["probe"],
+                    summary=(f"the anchored files are those of {version}, but the "
+                             f"tree's own version definition says {probed}, a "
+                             f"release rule {rule.id} does not record"),
+                    locator=rel))
+                version, version_source = probed, "probe"
             if probed and not demoted and 0.0 < identity < PROBE_CORROBORATED:
                 # What resembles the component only weakly (a vendor fork with most
                 # of its functions rewritten) and also defines the component's own
@@ -743,6 +758,14 @@ class MatchEngine:
 
 NESTED_LOOKUP_DEPTH = 2
 NAMED_LOOKUP_DEPTH = 4
+
+
+def _recorded_versions(rule: Rule) -> set:
+    """Every release the rule has a hash or function set for."""
+    out = {v for anchor in rule.anchors for v in anchor.sha256}
+    if rule.functions is not None:
+        out.update(rule.functions.versions)
+    return out
 
 
 def _locate(directory: Path, relpath: str, by_name: bool = False) -> Optional[Path]:
