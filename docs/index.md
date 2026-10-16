@@ -20,7 +20,7 @@ description: 纲目（Gangmu）是面向嵌入式 C/C++ 固件的开源构建期
 - [能力边界](LIMITS.md) · [更新记录](CHANGELOG.md) · [开源版与商业版](EDITIONS.md)
 - 按任务查：[ESP-IDF](guides/esp-idf-sbom.md) · [Zephyr](guides/zephyr-sbom.md) · [IAR / Keil / CCS](guides/iar-keil-ccs-sbom.md) · [STM32 / NXP / Nordic](guides/stm32-nxp-nordic-sbom.md) · [RT-Thread / OpenHarmony](guides/rt-thread-sbom.md) · [国密库 GmSSL / 铜锁](guides/gmssl-tongsuo-sbom.md) · [魔改组件识别](guides/vendor-modified-components.md) · [密码清单 CBOM 与后量子](guides/cbom-post-quantum.md) · [AI 清单 AIBOM](guides/aibom.md) · [策略检查](guides/policy.md) · [CRA 与工信部报送](guides/cra-and-miit-reporting.md) · [医疗器械 FDA SBOM](guides/medical-device-fda-sbom.md) · [工控 IEC 62443 与 CRA](guides/industrial-iec62443-cra-sbom.md) · [联网设备 CRA 与 RED](guides/iot-cra-red-sbom.md) · [与 Syft / Trivy 等的区别](COMPARE.md)
 - 示例产物：[SBOM、CRA 自查、报送草稿](https://github.com/GANGMU-SBOM/gangmu/tree/main/examples/output)
-- 相关仓库：[gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules)（免费规则库，识别不出通用组件去这里；厂商专属规则属于商业版）· [gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench)（识别准确率评测）· [gangmu-cbom-rules](https://github.com/GANGMU-SBOM/gangmu-cbom-rules)（CBOM 规则）· [gangmu-action](https://github.com/GANGMU-SBOM/gangmu-action)（GitHub Action：SBOM、CBOM、后量子摘要）
+- 相关仓库：[gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules)（免费规则库，识别不出通用组件去这里；厂商专属规则属于商业版）· [gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench)（识别准确率评测）· [gangmu-cbom-rules](https://github.com/GANGMU-SBOM/gangmu-cbom-rules)（CBOM 规则）· [gangmu-action](https://github.com/GANGMU-SBOM/gangmu-action)（GitHub Action：SBOM、CBOM、后量子摘要）· [gangmu-aibom-rules](https://github.com/GANGMU-SBOM/gangmu-aibom-rules)（AIBOM 规则）
 
 ## 能做什么
 
