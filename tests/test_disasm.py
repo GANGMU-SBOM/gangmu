@@ -131,3 +131,64 @@ def test_the_inventory_works_without_capstone(tmp_path, monkeypatch):
     monkeypatch.setattr(disasm, "capstone", None)
     blob = collect_binaries(tmp_path)[0]
     assert blob.functions is None and blob.arch is None
+
+
+# ---------------------------------------------------------------- MIPS (both byte orders)
+
+def _mips_words(order):
+    def i(op, rs, rt, imm):
+        return op << 26 | rs << 21 | rt << 16 | imm & 0xFFFF
+    sp, ra, a0, v0 = 29, 31, 4, 2
+    base = 0x80000000
+    f2 = base + 0x40
+    f1 = [i(9, sp, sp, -24), i(0x2B, sp, ra, 20), i(0xF, 0, a0, 0x1234), i(0xD, a0, a0, 0x5678),
+          3 << 26 | (f2 >> 2) & 0x3FFFFFF, 0,             # jal f2 ; nop (delay slot)
+          i(0x23, sp, ra, 20), ra << 21 | 8,              # lw ra ; jr ra
+          i(9, sp, sp, 24)]                               # addiu sp (delay slot)
+    leaf = [i(0xF, 0, v0, 0x9E37), i(0xD, v0, v0, 0x79B1), ra << 21 | 8, 0]
+    words = f1 + [0] * (16 - len(f1)) + leaf
+    image = b"".join(struct.pack(order + "I", w) for w in words)
+    return base, image, f2
+
+
+@pytest.mark.parametrize("arch,order", [("mips32", "<"), ("mips32be", ">")])
+def test_mips_functions_are_found_by_calls_and_prologues_and_the_delay_slot_stays(arch, order):
+    base, image, f2 = _mips_words(order)
+    rec = disasm.recover_raw(image, arch, base)
+    assert rec.arch == arch
+    starts = {f.address for f in rec.functions}
+    assert {base, f2} <= starts
+    # the instruction after "jr ra" belongs to the function; it is not a start of its own
+    assert base + 8 * 4 not in starts
+
+
+@pytest.mark.parametrize("arch,order", [("mips32", "<"), ("mips32be", ">")])
+def test_mips_constants_and_string_addresses_are_rebuilt_from_lui_pairs(arch, order):
+    from gangmu.fprint import Memory, _hash, function_features
+    base, image, f2 = _mips_words(order)
+    text = b"mips string literal\0"
+    mem = Memory([(base, image), (0x12340000 + 0x5678, text)])
+    feats = function_features(mem, arch, base, 36)
+    assert _hash(b"s", text[:-1]) in feats                     # lui+ori formed 0x12345678
+    leaf = function_features(mem, arch, f2, 16)
+    assert _hash(b"c", (0x9E3779B1).to_bytes(8, "big")) in leaf
+
+
+def test_position_independent_mips_finds_strings_through_the_got_and_ignores_gp_disp():
+    from gangmu.fprint import Memory, _hash, function_features
+    base, gp = 0x80100000, 0x80108120
+
+    def i(op, rs, rt, imm):
+        return op << 26 | rs << 21 | rt << 16 | imm & 0xFFFF
+    code = [i(0xF, 0, 2, 1),                        # lui   v0, 1
+            i(9, 2, 2, gp - base - 0x10000),         # addiu v0, v0, _gp_disp - 0x10000
+            2 << 21 | 25 << 16 | 17 << 11 | 0x21,    # addu  s1, v0, t9
+            i(0x23, 17, 1, -0x7FE8),                 # lw    at, got_entry(s1)
+            i(9, 1, 4, 0x100),                       # addiu a0, at, %lo(string)
+            31 << 21 | 8, 0]                         # jr ra ; nop
+    text = b"a string reached through the global offset table\0"
+    mem = Memory([(base, b"".join(struct.pack("<I", w) for w in code)),
+                  (gp - 0x7FE8, struct.pack("<I", base + 0x100)), (base + 0x200, text)])
+    mem.gp = gp
+    feats = function_features(mem, "mips32", base, len(code) * 4)
+    assert set(feats) == {_hash(b"s", text[:-1])}      # the string, and no _gp_disp constant

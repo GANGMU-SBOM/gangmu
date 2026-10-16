@@ -78,6 +78,7 @@ class Memory:
 
     regions: List[Tuple[int, bytes]] = field(default_factory=list)
     ranges: List[Tuple[int, int]] = field(default_factory=list)   # allocated, no bytes (.bss)
+    gp: Optional[int] = None    # MIPS global pointer: where ``$gp``-relative loads start from
 
     def is_address(self, value: int) -> bool:
         """Inside the image or its zero-initialised data: a pointer, not a constant."""
@@ -111,7 +112,12 @@ def memory_from_elf(data: bytes, info: ElfInfo) -> Memory:
                if s.flags & 2 and s.type == 1 and s.addr and s.size]      # SHF_ALLOC, PROGBITS
     bss = [(s.addr, s.addr + s.size) for s in info.sections
            if s.flags & 2 and s.type == 8 and s.addr and s.size]          # SHT_NOBITS
-    return Memory(regions, bss)
+    mem = Memory(regions, bss)
+    if info.machine == disasm.EM_MIPS:
+        got = next((sec for sec in info.sections if sec.name == ".got"), None)
+        if got is not None:
+            mem.gp = got.addr + 0x7FF0      # the o32 ABI's value of _gp
+    return mem
 
 
 def memory_from_pe(data: bytes, info: "PeInfo") -> Memory:
@@ -126,6 +132,7 @@ def memory_from_pe(data: bytes, info: "PeInfo") -> Memory:
 
 # ------------------------------------------------------------------ features
 
+MIPS_GP_WINDOW = 8        # instructions within which a PIC prologue adds $t9 to a built value
 SMALL_NEGATIVE = 0x1000   # a value this close below 2**bits is a small negative number
 
 _SIMPLE = {0xFF, 0xFFFF, 0xFFFFFF, 0xFFFFFFFF, 0x7FFFFFFF, 0x80000000, 0x7FFFFFFFFFFFFFFF}
@@ -192,7 +199,9 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
     md.skipdata_setup = ("db", None, None)
     building: Dict[int, int] = {}         # AArch64: register -> constant being built
     low: Dict[int, int] = {}              # ARM: register -> movw half
-    regs: Dict[int, int] = {}             # RISC-V: register -> known value
+    regs: Dict[int, int] = {}             # RISC-V, MIPS: register -> known value
+    held: Dict[int, List[int]] = {}       # MIPS: register -> [value, age] of a built value,
+    #                                       emitted unless a $t9 addition shows it is _gp_disp
     cs = disasm.capstone
     for insn in md.disasm(code, address):
         m = insn.mnemonic
@@ -240,6 +249,80 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
                 continue
             elif names and ops[0].type == cs.CS_OP_REG:
                 regs.pop(ops[0].reg, None)
+        elif arch in ("mips32", "mips32be"):
+            # lui + addiu/ori build a constant or an address; a load through $gp reads a GOT
+            # entry (a page address in the file) that an addiu then completes.
+            t9_sum = m == "addu" and len(ops) == 3 and "t9" in (
+                insn.reg_name(ops[1].reg), insn.reg_name(ops[2].reg))
+            for held_reg in list(held):
+                if t9_sum and held_reg in (ops[1].reg, ops[2].reg):
+                    del held[held_reg]       # lui+addiu then + $t9 is _gp_disp: it moves with
+                    continue                 # the layout, so it is not a constant of the code
+                held[held_reg][1] += 1
+                if held[held_reg][1] > MIPS_GP_WINDOW:
+                    emit(held.pop(held_reg)[0])
+            if m in ("j", "jal", "jr", "jalr", "b", "bal") or (m[0] == "b" and m != "break"):
+                continue
+            if not ops or ops[0].type != cs.CS_OP_REG:
+                continue
+            rt = ops[0].reg
+            if m == "lui" and len(ops) == 2:
+                regs[rt] = (ops[1].imm << 16) & 0xFFFFFFFF
+            elif m in ("addiu", "ori") and len(ops) == 3 and ops[2].type == cs.CS_OP_IMM:
+                src = ops[1].reg
+                name = insn.reg_name(src)
+                if name == "zero":
+                    base_value: Optional[int] = 0
+                elif name == "gp" and mem.gp is not None:
+                    base_value = mem.gp
+                else:
+                    base_value = regs.get(src)
+                if base_value is None:
+                    emit(ops[2].imm & 0xFFFFFFFF if m == "ori" else ops[2].imm)
+                    regs.pop(rt, None)
+                else:
+                    value = (base_value + ops[2].imm if m == "addiu"
+                             else base_value | (ops[2].imm & 0xFFFF)) & 0xFFFFFFFF
+                    if rt in held:
+                        emit(held[rt][0])
+                    held[rt] = [value, 0]
+                    regs[rt] = value
+            elif m == "addu" and len(ops) == 3 and ops[1].type == ops[2].type == cs.CS_OP_REG:
+                # position-independent code computes $gp as _gp_disp + $t9, and $t9 holds
+                # the function's own address on entry
+                first, second = ops[1].reg, ops[2].reg
+                if insn.reg_name(second) == "t9" and first in regs:
+                    regs[rt] = (regs[first] + address) & 0xFFFFFFFF
+                elif insn.reg_name(first) == "t9" and second in regs:
+                    regs[rt] = (regs[second] + address) & 0xFFFFFFFF
+                else:
+                    regs.pop(rt, None)
+            elif m == "move" and len(ops) == 2 and ops[1].type == cs.CS_OP_REG:
+                if ops[1].reg in regs:
+                    regs[rt] = regs[ops[1].reg]
+                else:
+                    regs.pop(rt, None)
+            elif m in ("lw", "sw", "lh", "lhu", "lb", "lbu", "sh", "sb") and len(ops) == 2 \
+                    and ops[1].type == cs.CS_OP_MEM:
+                base = ops[1].mem.base
+                disp = ops[1].mem.disp
+                value = None
+                if base and insn.reg_name(base) == "gp" and mem.gp is not None:
+                    value = mem.gp
+                elif base in regs:
+                    value = regs[base]
+                if m == "lw" and value is not None and value == mem.gp:
+                    # a load through $gp reads a GOT entry, which holds an address in the file
+                    word = mem.read((value + disp) & 0xFFFFFFFF, 4)
+                    if word:
+                        regs[rt] = struct.unpack(">I" if arch == "mips32be" else "<I", word)[0]
+                        continue
+                elif value is not None:
+                    emit((value + disp) & 0xFFFFFFFF)
+                if m[0] == "l":
+                    regs.pop(rt, None)
+            else:
+                regs.pop(rt, None)
         elif arch == "aarch64":
             # A constant is built from movz/movk (flushed once the run of movk ends) and an
             # address from adrp + add or an adrp-relative load.
@@ -287,6 +370,8 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
                         # calculation: gcc turns ``x + K`` into ``lea K(%reg)``
                         emit(op.mem.disp)
     for value in building.values():
+        emit(value)
+    for value, _age in held.values():
         emit(value)
     return out
 
