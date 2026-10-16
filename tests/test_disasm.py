@@ -135,11 +135,10 @@ def test_the_inventory_works_without_capstone(tmp_path, monkeypatch):
 
 # ---------------------------------------------------------------- MIPS (both byte orders)
 
-def _mips_words(order):
+def _mips_words(order, base=0x80000000):
     def i(op, rs, rt, imm):
         return op << 26 | rs << 21 | rt << 16 | imm & 0xFFFF
     sp, ra, a0, v0 = 29, 31, 4, 2
-    base = 0x80000000
     f2 = base + 0x40
     f1 = [i(9, sp, sp, -24), i(0x2B, sp, ra, 20), i(0xF, 0, a0, 0x1234), i(0xD, a0, a0, 0x5678),
           3 << 26 | (f2 >> 2) & 0x3FFFFFF, 0,             # jal f2 ; nop (delay slot)
@@ -192,3 +191,41 @@ def test_position_independent_mips_finds_strings_through_the_got_and_ignores_gp_
     mem.gp = gp
     feats = function_features(mem, "mips32", base, len(code) * 4)
     assert set(feats) == {_hash(b"s", text[:-1])}      # the string, and no _gp_disp constant
+
+
+def test_an_elf_without_a_section_table_is_read_from_its_program_headers():
+    """OpenWrt strips shared libraries down to their segments, and a shared object is
+    linked at address 0, so the code starts there."""
+    from gangmu.fprint import _hash, image_features
+    base = 0x100
+    _, code, f2 = _mips_words(">", base)
+    text = b"a string that sits in the same segment\0"
+    image = bytearray(0x300)
+    image[base:base + len(code)] = code
+    image[0x200:0x200 + len(text)] = text
+    # lui+ori in f1 build 0x12345678; point the function at the string instead
+    struct.pack_into(">II", image, base + 8, 0x3C040000 | 0, 0x34840200)       # lui a0,0 ; ori a0,a0,0x200
+    dyn = 0x280
+    struct.pack_into(">II", image, dyn, 3, 0x2F000)                            # DT_PLTGOT
+    ehdr = b"\x7fELF" + bytes([1, 2, 1, 0]) + bytes(8)
+    ehdr += struct.pack(">HHIIIIIHHHHHH", 3, 8, 1, 0, 52, 0, 0x70001005, 52, 32, 2, 0, 0, 0)
+    phdrs = struct.pack(">8I", 1, 0, 0, 0, len(image), len(image), 5, 0x10000)  # PT_LOAD R+X
+    phdrs += struct.pack(">8I", 2, dyn, dyn, dyn, 16, 16, 4, 4)                 # PT_DYNAMIC
+    image[:len(ehdr) + len(phdrs)] = ehdr + phdrs
+    info = parse_elf(bytes(image))
+    assert info is not None and info.sections and not info.sections[0].name.startswith(".text")
+    assert info.sections[0].addr == 0 and info.got == 0x2F000
+    feats, arch = image_features(bytes(image), min_features=1)
+    assert arch == "mips32be"
+    assert any(_hash(b"s", text[:-1]) in f for f in feats)
+
+
+def test_mips16_code_is_reported_as_unsupported_not_decoded_as_mips32():
+    """OpenWrt builds most libraries as MIPS16e; decoding those words as MIPS32 gives noise."""
+    image = bytearray(0x100)
+    image[:4] = b"\x7fELF"
+    image[4:6] = bytes([1, 2])
+    struct.pack_into(">HHIIIIIHHHHHH", image, 16, 3, 8, 1, 0, 52, 0, 0x74001005, 52, 32, 0, 0, 0, 0)
+    info = parse_elf(bytes(image))
+    rec = disasm.recover_elf(bytes(image), info)
+    assert rec.arch == "unsupported" and "MIPS16" in rec.note

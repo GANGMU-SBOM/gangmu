@@ -108,15 +108,19 @@ class Memory:
 
 
 def memory_from_elf(data: bytes, info: ElfInfo) -> Memory:
+    # (a shared object is linked at 0; only in an object file does address 0 mean "unplaced")
+    placed = lambda s: s.addr or not info.relocatable
     regions = [(s.addr, data[s.offset:s.offset + s.size]) for s in info.sections
-               if s.flags & 2 and s.type == 1 and s.addr and s.size]      # SHF_ALLOC, PROGBITS
+               if s.flags & 2 and s.type == 1 and placed(s) and s.size]   # SHF_ALLOC, PROGBITS
     bss = [(s.addr, s.addr + s.size) for s in info.sections
-           if s.flags & 2 and s.type == 8 and s.addr and s.size]          # SHT_NOBITS
+           if s.flags & 2 and s.type == 8 and placed(s) and s.size]       # SHT_NOBITS
     mem = Memory(regions, bss)
     if info.machine == disasm.EM_MIPS:
         got = next((sec for sec in info.sections if sec.name == ".got"), None)
         if got is not None:
             mem.gp = got.addr + 0x7FF0      # the o32 ABI's value of _gp
+        elif info.got:
+            mem.gp = info.got + 0x7FF0      # no section table: DT_PLTGOT
     return mem
 
 
