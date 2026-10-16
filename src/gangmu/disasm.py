@@ -27,6 +27,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 from . import xtensa
 from .pe import IMAGE_SCN_MEM_EXECUTE as PE_EXECUTE
+from .macho import MachoInfo
 from .pe import PeInfo
 from .elf import EM_386, EM_ARM, EM_RISCV, EM_X86_64, SHF_EXECINSTR, SHT_PROGBITS, ElfInfo
 
@@ -541,6 +542,40 @@ def recover_pe(data: bytes, info: "PeInfo") -> Optional[Recovery]:
             if a not in found:
                 found[a] = Function(a, size, "", "entry" if a == entry else "disassembly")
     return Recovery(arch, sorted(found.values(), key=lambda f: f.address))
+
+
+def recover_macho(data: bytes, info: "MachoInfo") -> Optional[Recovery]:
+    """Functions of a Mach-O image (x86, x86-64, ARM64).
+
+    ``LC_FUNCTION_STARTS`` lists every function the linker placed, even in a stripped binary,
+    so a sweep is only the fallback for an image without it (or for one the symbols and
+    the entry point leave uncovered)."""
+    arch = {"x86": "x86", "x86_64": "x86-64", "aarch64": "aarch64"}.get(info.cpu)
+    if arch is None:
+        return Recovery("unsupported", note=f"no decoder for Mach-O CPU {info.cpu}")
+    if capstone is None:
+        return None
+    code = [s for s in info.sections if s.executable and not s.zerofill and s.size]
+    found: Dict[int, Function] = {}
+    for a, name in info.functions:
+        found[a] = Function(a, 0, name, "symbol")
+    for a in info.starts:
+        found.setdefault(a, Function(a, 0, "", "function-starts"))
+    if info.entry:
+        found.setdefault(info.entry, Function(info.entry, 0, "", "entry"))
+    image = info.image(data)
+    out: List[Function] = []
+    for sec in code:
+        blob = image[sec.offset:sec.offset + sec.size]
+        lo, hi = sec.addr, sec.addr + len(blob)
+        starts = sorted(a for a in found if lo <= a < hi)
+        if not info.starts:               # nothing authoritative: let the sweep find the rest
+            starts = sorted(set(starts) | set(sweep(blob, lo, arch, starts)))
+        for a, size in _sized(starts, hi):
+            known = found.get(a)
+            out.append(Function(a, size, known.name if known else "",
+                                known.source if known else "disassembly"))
+    return Recovery(arch, out)
 
 
 def cortex_m_base(image: bytes) -> Optional[int]:
