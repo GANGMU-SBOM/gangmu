@@ -185,3 +185,100 @@ def test_a_negative_that_is_the_library_itself_still_fails_instead_of_erasing_it
     builds, _ = two_releases
     _, cal = calibrate.calibrate(builds, negatives=[builds["1.1"]["O2"]])
     assert cal.shared_dropped == 0 and cal.false_positives > 0 and not cal.passed
+
+
+# ----------------------------------------------------------- one sidecar per architecture
+
+def _two_arch_rule(tmp, prints, order=("thumb", "x86-64"), arches=None):
+    """A rule listing a sidecar for each architecture (the same evidence, labelled twice)."""
+    rules = tmp / "rules"
+    rules.mkdir(exist_ok=True)
+    blocks = []
+    for arch in (arches or order):
+        other = fprint.FunctionPrints.from_bytes(prints.to_bytes())
+        other.arch = arch
+        name = f"lib-{len(blocks)}-{arch}.fnprint"
+        sha = other.write(rules / name)
+        blocks.append({"file": name, "sha256": sha, "versions": prints.versions,
+                       "calibration": prints.meta})
+    (rules / "lib.yaml").write_text(yaml.safe_dump({
+        "id": "test/lib", "component": {"path_globs": ["**/lib"], "ships_as": "lib"},
+        "upstream": {"name": "lib", "purl": "pkg:generic/lib", "license": "MIT",
+                     "cpe_status": "none-found: test rule",
+                     "source": {"kind": "git", "url": "https://example.invalid/lib", "ref": "v1"}},
+        "identity": {"binary_functions": blocks}}))
+    return rules
+
+
+def test_a_rule_may_list_one_sidecar_per_architecture(two_releases, tmp_path, capsys):
+    from gangmu.cli import main
+    builds, _ = two_releases
+    prints, _ = calibrate.calibrate(builds)
+    rules = _two_arch_rule(tmp_path, prints)
+    rule = next(iter(load_rules(rules, strict=True)))
+    assert [s.load().arch for s in rule.binary_function_specs()] == ["thumb", "x86-64"]
+    assert rule.binary_functions is rule.binary_function_specs()[0]
+    assert main(["rules", "lint", "--rules", str(rules)]) == 0
+
+
+def test_a_single_mapping_still_means_one_sidecar(two_releases, tmp_path):
+    builds, _ = two_releases
+    prints, cal = calibrate.calibrate(builds)
+    rule = next(iter(load_rules(_rule(tmp_path, prints, prints.meta), strict=True)))
+    assert len(rule.binary_function_specs()) == 1 and rule.binary_functions_more == ()
+
+
+def test_lint_refuses_two_sidecars_for_the_same_architecture(two_releases, tmp_path, capsys):
+    from gangmu.cli import main
+    builds, _ = two_releases
+    prints, _ = calibrate.calibrate(builds)
+    rules = _two_arch_rule(tmp_path, prints, arches=("thumb", "thumb"))
+    assert main(["rules", "lint", "--rules", str(rules)]) == 1
+    assert "one sidecar per architecture" in capsys.readouterr().out
+
+
+class _Sidecar:
+    """Just enough of FunctionPrints for binaries._by_functions."""
+    meta = {}
+
+    def __init__(self, arch, hit, calls):
+        self.arch, self.hit, self.calls, self.versions = arch, hit, calls, ["1", "2"]
+
+    def match(self, image, arch=None):
+        self.calls.append(self.arch)
+        return self.hit
+
+    def knows_strings(self):
+        return False
+
+
+def _by_functions(monkeypatch, sidecars, image_arch):
+    from gangmu import binaries
+    monkeypatch.setattr(fprint, "image_features", lambda data: ([{1, 2}], image_arch))
+    return binaries._by_functions(b"", [], [("Lib", "lib", s) for s in sidecars])
+
+
+@pytest.mark.parametrize("listed", [("thumb", "aarch64"), ("aarch64", "thumb")])
+def test_the_sidecar_built_for_the_images_cpu_is_tried_first(monkeypatch, listed):
+    """Constants differ between CPUs, so a sidecar for another architecture compares strings
+    only; whichever order the rule lists them in, the image's own architecture wins."""
+    calls = []
+    hit = ("2", 9, 10, 0.9, "")
+    found = _by_functions(monkeypatch, [_Sidecar(a, hit, calls) for a in listed], "aarch64")
+    assert calls == ["aarch64"] and len(found) == 1 and found[0].version == "2"
+
+
+def test_the_next_sidecar_is_tried_when_the_first_finds_nothing(monkeypatch):
+    calls = []
+    hit = ("2", 9, 10, 0.9, "")
+    found = _by_functions(monkeypatch, [_Sidecar("aarch64", None, calls),
+                                        _Sidecar("thumb", hit, calls)], "aarch64")
+    assert calls == ["aarch64", "thumb"] and len(found) == 1
+
+
+def test_one_library_is_reported_once_however_many_sidecars_match(monkeypatch):
+    calls = []
+    hit = ("2", 9, 10, 0.9, "")
+    found = _by_functions(monkeypatch, [_Sidecar("thumb", hit, calls),
+                                        _Sidecar("aarch64", hit, calls)], "riscv32")
+    assert len(found) == 1 and calls == ["thumb"]

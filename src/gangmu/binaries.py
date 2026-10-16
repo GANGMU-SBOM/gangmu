@@ -473,22 +473,31 @@ def _by_functions(data: bytes, known: Sequence[Embedded], prints: Sequence) -> L
     image = None
     arch = None
     found: List[Embedded] = []
-    for display, name, reference in prints:
-        if name in named:
+    done = set()
+    # A rule may list a sidecar per architecture. Try the one built for this image's CPU
+    # first: it compares constants as well as strings, the others strings only.
+    todo = list(prints)
+    for display, name, reference in todo:
+        if name in named or name in done:
             continue
         if image is None:
             image, arch = image_features(data)
-        hit = reference.match(image, arch=arch) if image else None
-        if hit:
-            version, matched, total, coverage, tied = hit
-            found.append(Embedded(
-                name, display, tied or version,       # a tie is a "low~high" span, as elsewhere
-                f"{matched} of {total} fingerprinted functions of {display} {version} "
-                f"({coverage:.0%})" + (f"; releases {tied} fit equally well" if tied else "")
-                + _architecture_note(reference, arch)
-                + _calibration_note(reference)
-                + _coverage_note(reference, coverage),
-                method="functions"))
+        candidates = sorted((p for p in todo if p[1] == name),
+                            key=lambda p: 0 if arch and p[2].arch == arch else 1)
+        for display, name, reference in candidates:
+            hit = reference.match(image, arch=arch) if image else None
+            if hit:
+                version, matched, total, coverage, tied = hit
+                found.append(Embedded(
+                    name, display, tied or version,       # a tie is a "low~high" span, as elsewhere
+                    f"{matched} of {total} fingerprinted functions of {display} {version} "
+                    f"({coverage:.0%})" + (f"; releases {tied} fit equally well" if tied else "")
+                    + _architecture_note(reference, arch)
+                    + _calibration_note(reference)
+                    + _coverage_note(reference, coverage),
+                    method="functions"))
+                done.add(name)
+                break
     return found
 
 

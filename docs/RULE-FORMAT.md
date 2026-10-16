@@ -97,6 +97,13 @@ identity:
       tie_share: 0.85                     #   Thumb image, and libc functions in a reference look like the
       version: 1                          #   library. The self-test shows the fingerprints work on builds
                                           #   the author made, not on a compiler or flags nobody tried.
+                                          # One sidecar per architecture: `binary_functions` may be a
+                                          #   list of these blocks instead of one. Each is built for its
+                                          #   own CPU (a Thumb build and an AArch64 build are different
+                                          #   evidence, because compilers derive different constants);
+                                          #   an image is matched against the sidecar built for its CPU
+                                          #   first, then the others by string literals only. Two
+                                          #   sidecars for the same architecture fail `gangmu rules lint`.
   functions:                              # tier 2b: identity AND version, function level
     file: lwip.fnsig                      # binary sidecar beside the rule; built with
     sha256: "6aa531...554a"               #   `gangmu rules functions <url> --tag ... --out`
