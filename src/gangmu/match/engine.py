@@ -27,7 +27,7 @@ comes from similarity alone.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from ..analysis import AnalysisStore
@@ -736,27 +736,34 @@ class MatchEngine:
 
     def _probe_version(self, directory: Path, rule: Rule,
                        evidence: List[Evidence], rel: str) -> Optional[str]:
+        bases = [(directory, rel)]
+        if directory.name.lower() in SOURCE_DIRECTORY_NAMES:
+            # The component was found at its ``src``, with the header that names
+            # the version beside it (LVGL's ``lvgl.h``, FreeRTOS's ``include/``).
+            bases.append((directory.parent, str(PurePosixPath(rel).parent)))
         for probe in rule.probes:
-            path = _locate(directory, probe.file, by_name=True)
-            if path is None:
-                continue
-            try:
-                text = path.read_text(encoding="utf-8", errors="replace")
-            except OSError:
-                continue
-            value = probe.apply(text)
-            if value:
-                evidence.append(Evidence(
-                    technique=Technique.SOURCE_CODE_ANALYSIS,
-                    confidence=VERSION_CONFIDENCE["probe"],
-                    summary=f"version {value} read from {probe.file}",
-                    locator=f"{rel}/{probe.file}",
-                ))
-                return value
+            for base, where in bases:
+                path = _locate(base, probe.file, by_name=True)
+                if path is None:
+                    continue
+                try:
+                    text = path.read_text(encoding="utf-8", errors="replace")
+                except OSError:
+                    continue
+                value = probe.apply(text)
+                if value:
+                    evidence.append(Evidence(
+                        technique=Technique.SOURCE_CODE_ANALYSIS,
+                        confidence=VERSION_CONFIDENCE["probe"],
+                        summary=f"version {value} read from {probe.file}",
+                        locator=f"{where}/{probe.file}",
+                    ))
+                    return value
         return None
 
 
 NESTED_LOOKUP_DEPTH = 2
+SOURCE_DIRECTORY_NAMES = frozenset({"src", "source", "lib", "library"})
 NAMED_LOOKUP_DEPTH = 4
 
 
