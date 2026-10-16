@@ -56,6 +56,8 @@ VERSION_CONFIDENCE = {
 SUBSET_MIN_FUNCTIONS = 40
 # Identity given to a weak resemblance that also defines the component's version.
 PROBE_CORROBORATED = 0.75
+# Said in the evidence and the table when the best match is at the edge of the record.
+EDGE_MARK = "this tree may be {side} than any release the rule records"
 SUBSET_MIN_SHARE = 0.90
 SUBSET_IDENTITY = 0.75      # below a full copy: most of the component is not here
 # A modified derivative (``functions.derivative``): at least this many of the
@@ -400,6 +402,21 @@ class MatchEngine:
             probed = self._probe_version(directory, rule, evidence, rel)
             if probed and version_source != "anchor":
                 version, version_source = probed, "probe"
+            elif (probed and probed != version and version is not None
+                  and not version.startswith("git-")
+                  and probed not in _recorded_versions(rule)):
+                # An anchor says the files are those of a release, not that the
+                # tree is that release: the next one may ship them unchanged. A
+                # version definition naming a release the rule does not record is
+                # news the anchor cannot contradict.
+                evidence.append(Evidence(
+                    technique=Technique.SOURCE_CODE_ANALYSIS,
+                    confidence=VERSION_CONFIDENCE["probe"],
+                    summary=(f"the anchored files are those of {version}, but the "
+                             f"tree's own version definition says {probed}, a "
+                             f"release rule {rule.id} does not record"),
+                    locator=rel))
+                version, version_source = probed, "probe"
             if probed and not demoted and 0.0 < identity < PROBE_CORROBORATED:
                 # What resembles the component only weakly (a vendor fork with most
                 # of its functions rewritten) and also defines the component's own
@@ -623,6 +640,15 @@ class MatchEngine:
                 confidence=VERSION_CONFIDENCE["functions"],
                 summary=verdict.detail,
                 locator=rel))
+        if verdict.edge:
+            side = "older" if verdict.edge == "oldest" else "newer"
+            evidence.append(Evidence(
+                technique=Technique.OTHER,
+                confidence=0.0,
+                summary=(f"{verdict.best} is the {verdict.edge} release rule {rule.id} "
+                         f"records and {verdict.changed} of its functions are missing or "
+                         f"altered: {EDGE_MARK.format(side=side)}"),
+                locator=rel))
         return identity, (verdict.label if verdict.best else None), verdict
 
     def _by_subset(self, signature, present, rel: str, evidence: List[Evidence]):
@@ -732,6 +758,14 @@ class MatchEngine:
 
 NESTED_LOOKUP_DEPTH = 2
 NAMED_LOOKUP_DEPTH = 4
+
+
+def _recorded_versions(rule: Rule) -> set:
+    """Every release the rule has a hash or function set for."""
+    out = {v for anchor in rule.anchors for v in anchor.sha256}
+    if rule.functions is not None:
+        out.update(rule.functions.versions)
+    return out
 
 
 def _locate(directory: Path, relpath: str, by_name: bool = False) -> Optional[Path]:

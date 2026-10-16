@@ -1,3 +1,4 @@
+import re
 import shutil
 
 from gangmu.rules.loader import load_rules
@@ -218,6 +219,39 @@ def test_an_anchor_shared_by_releases_does_not_pin_the_first_of_them(
     assert any("3 releases ship it unchanged" in e.summary for e in finding.evidence)
 
 
+def test_a_version_definition_naming_an_unrecorded_release_beats_the_anchor(
+        upstream_dir, rules_dir, tmp_path):
+    """Zephyr's Mbed TLS: library/version_features.c is the same in 4.1.0 and
+    4.1.1, the rule recorded 4.1.0, and build_info.h said 4.1.1."""
+    tree = _pristine(upstream_dir, tmp_path)
+    header = tree / "include" / "tinynet" / "version.h"
+    header.write_text(re.sub(r"(REVISION\s+)2", r"\g<1>9", header.read_text()))
+    finding = next(f for f in _scan(tmp_path / "pristine", rules_dir).findings
+                   if f.upstream_name == "tinynet")
+    assert finding.version == "1.4.9"
+    assert finding.version_source == "probe"
+    assert any("does not record" in e.summary for e in finding.evidence)
+
+
+def test_a_version_definition_naming_a_recorded_release_does_not_beat_the_anchor(
+        upstream_dir, rules_dir, tmp_path):
+    """Three Mbed TLS tags did not bump their header: the anchor is the better witness."""
+    import yaml
+    rules = tmp_path / "two"
+    shutil.copytree(rules_dir, rules)
+    path = next(rules.glob("*.yaml"))
+    rule = yaml.safe_load(path.read_text(encoding="utf-8"))
+    rule["identity"]["anchors"][0]["sha256"]["1.4.1"] = "0" * 64
+    path.write_text(yaml.safe_dump(rule), encoding="utf-8")
+    tree = _pristine(upstream_dir, tmp_path)
+    header = tree / "include" / "tinynet" / "version.h"
+    header.write_text(re.sub(r"(REVISION\s+)2", r"\g<1>1", header.read_text()))
+    finding = next(f for f in _scan(tmp_path / "pristine", rules).findings
+                   if f.upstream_name == "tinynet")
+    assert finding.version == "1.4.2"
+    assert finding.version_source == "anchor"
+
+
 def test_a_rule_file_one_directory_down_is_found(tmp_path):
     """BTstack ships lwIP as ``lwip/core/src/include/lwip/init.h``: every path the
     rule records is one directory deeper than the rule says."""
@@ -300,3 +334,30 @@ def test_a_file_name_shared_by_two_nested_files_is_not_guessed(tmp_path):
     (tmp_path / "b" / "inc" / "version.h").unlink()
     assert _locate(tmp_path, "include/version.h", by_name=True) == tmp_path / "a/inc/version.h"
     assert _locate(tmp_path, "include/version.h") is None      # anchors never match by name
+
+
+def test_a_tree_nearest_the_oldest_recorded_release_is_flagged_as_possibly_older(
+        upstream_dir, rules_dir, tmp_path):
+    """ESP8266's libsodium is 1.0.12; the rule records 1.0.17 and later, and the
+    nearest of those was reported as the version with nothing to say it might be
+    older than all of them."""
+    from gangmu.fnsig import FunctionSignature, infer_version
+
+    def fn(n):
+        return n * 7919 + 13
+
+    shared = [fn(i) for i in range(40)]
+    old_only = [fn(100 + i) for i in range(10)]
+    new_only = [fn(200 + i) for i in range(10)]
+    sig = FunctionSignature(
+        versions=["1.0.17", "1.0.18"],
+        hashes=shared + old_only + new_only,
+        bitmaps=[0b11] * 40 + [0b01] * 10 + [0b10] * 10,
+        flags=[1] * 60)
+    # A tree with only some of 1.0.17's own functions and many unrecorded ones.
+    present = set(shared[:10]) | set(old_only[:4]) | {fn(900 + i) for i in range(60)}
+    verdict = infer_version(sig, present)
+    assert verdict.best == "1.0.17" and verdict.edge == "oldest"
+    # The same tree with every recorded function of 1.0.17 present is not flagged.
+    whole = set(shared) | set(old_only)
+    assert infer_version(sig, whole).edge == ""

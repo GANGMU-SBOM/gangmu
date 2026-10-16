@@ -33,3 +33,7 @@ gangmu scan /tmp/gangmu-disguise/firmware --app-name demo-firmware --app-version
 ```
 
 The serial number and timestamp differ between runs.
+
+These files were generated with gangmu 0.6.x and rule pack 2026.10.6. A current
+release writes more fields (for example licence observations and more evidence
+entries), so a fresh run will not match them byte for byte.
