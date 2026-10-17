@@ -282,3 +282,27 @@ def test_one_library_is_reported_once_however_many_sidecars_match(monkeypatch):
     found = _by_functions(monkeypatch, [_Sidecar("thumb", hit, calls),
                                         _Sidecar("aarch64", hit, calls)], "riscv32")
     assert len(found) == 1 and calls == ["thumb"]
+
+
+class _CrossSidecar(_Sidecar):
+    def __init__(self):
+        super().__init__("thumb", ("3.1.0", 20, 40, 0.5, ""), [])
+        self.versions = ["2.16.12", "2.28.0", "3.1.0", "3.6.2"]
+
+    def knows_strings(self):
+        return True
+
+
+def test_a_cross_architecture_match_names_the_library_and_every_release_of_the_rule(monkeypatch):
+    """Strings from a Thumb reference against a RISC-V image named one wrong release (Mbed TLS
+    2.28.2 as 3.1.0, confidence 0.60); only the library is claimed, the version is the rule's
+    whole range and the evidence says why."""
+    found = _by_functions(monkeypatch, [_CrossSidecar()], "riscv32")
+    assert len(found) == 1 and found[0].version == "2.16.12~3.6.2"
+    assert "not narrowed" in found[0].banner and "only string literals" in found[0].banner
+    assert "3.1.0" not in found[0].banner
+
+
+def test_the_images_own_architecture_still_names_a_single_release(monkeypatch):
+    found = _by_functions(monkeypatch, [_CrossSidecar()], "thumb")
+    assert found[0].version == "3.1.0"
