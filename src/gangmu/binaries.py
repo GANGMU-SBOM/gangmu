@@ -502,6 +502,7 @@ def _by_functions(data: bytes, known: Sequence[Embedded], prints: Sequence) -> L
                     + ("; the version is not narrowed: all releases the rule covers are listed"
                        if _compared_by_strings(reference, arch) and len(reference.versions) > 1
                        else (f"; releases {tied} fit equally well" if tied else ""))
+                    + _newest_note(reference, version, tied)
                     + _architecture_note(reference, arch)
                     + _calibration_note(reference)
                     + _coverage_note(reference, coverage),
@@ -522,6 +523,18 @@ def _coverage_note(prints, coverage: float) -> str:
         return ""
     return (f"; low coverage: the release is the nearest of the {len(prints.versions)} "
             "fingerprinted ones and may not be the one in the image")
+
+
+def _newest_note(prints, version: str, tied: str) -> str:
+    """The answer reaches the newest release the fingerprints were made from: a later one
+    would be reported as this, since nothing newer can be told apart."""
+    if len(prints.versions) < 2:
+        return ""
+    top = tied.split("~")[-1] if tied else version
+    if top != prints.versions[-1]:
+        return ""
+    return (f"; {top} is the newest fingerprinted release, so the image may be a later one "
+            "that the fingerprints do not cover")
 
 
 def _compared_by_strings(prints, arch: Optional[str]) -> bool:
