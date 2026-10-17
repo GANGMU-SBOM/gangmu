@@ -420,11 +420,14 @@ class MatchEngine:
                 version, version_source = probed, "probe"
             elif (probed and probed != version and version is not None
                   and not version.startswith("git-")
+                  and not version.startswith(probed + ".")
                   and probed not in _recorded_versions(rule)):
                 # An anchor says the files are those of a release, not that the
                 # tree is that release: the next one may ship them unchanged. A
                 # version definition naming a release the rule does not record is
-                # news the anchor cannot contradict.
+                # news the anchor cannot contradict. (A definition that only gives
+                # major.minor, like littlefs's 0x00020009, is a prefix of the anchor's
+                # release, not a different one.)
                 evidence.append(Evidence(
                     technique=Technique.SOURCE_CODE_ANALYSIS,
                     confidence=VERSION_CONFIDENCE["probe"],

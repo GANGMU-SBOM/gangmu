@@ -252,6 +252,24 @@ def test_a_version_definition_naming_a_recorded_release_does_not_beat_the_anchor
     assert finding.version == "1.4.2"
     assert finding.version_source == "anchor"
 
+def test_a_version_definition_that_is_a_prefix_of_the_anchor_release_does_not_beat_it(
+        upstream_dir, rules_dir, tmp_path):
+    """littlefs's lfs.h only gives 0x00020009 (2.9) in the 2.9.1 tree: 2.9 is not a
+    release the rule records, but it is the anchor release's own major.minor."""
+    import yaml
+    rules = tmp_path / "short"
+    shutil.copytree(rules_dir, rules)
+    path = next(rules.glob("*.yaml"))
+    rule = yaml.safe_load(path.read_text(encoding="utf-8"))
+    rule["version"]["probes"][0]["template"] = "{major}.{minor}"
+    path.write_text(yaml.safe_dump(rule), encoding="utf-8")
+    _pristine(upstream_dir, tmp_path)
+    finding = next(f for f in _scan(tmp_path / "pristine", rules).findings
+                   if f.upstream_name == "tinynet")
+    assert finding.version == "1.4.2"
+    assert finding.version_source == "anchor"
+
+
 def test_a_probe_header_beside_the_src_directory_is_read(rules_dir, tmp_path):
     """LVGL is found at ``lvgl/src`` (which has its own, versionless ``lvgl.h``)
     and FreeRTOS at ``freertos/src``; the header naming the version sits beside it."""
