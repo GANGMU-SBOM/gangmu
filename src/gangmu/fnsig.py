@@ -43,9 +43,12 @@ the ends of a very long release history.
 from __future__ import annotations
 
 import hashlib
+import operator
 import struct
+import sys
 from array import array
 from bisect import bisect_left
+from itertools import islice
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import (Dict, FrozenSet, Iterable, List, MutableSequence, Optional, Sequence,
@@ -141,16 +144,31 @@ class FunctionSignature:
             (length,) = struct.unpack_from("<H", raw, pos); pos += 2
             versions.append(raw[pos:pos + length].decode("utf-8")); pos += length
         (n,) = struct.unpack_from("<I", raw, pos); pos += 4
-        hashes, bitmaps, flags = array("Q"), array("Q"), array("B")
-        for _ in range(n):
-            h, b, f = struct.unpack_from("<QQB", raw, pos); pos += 17
-            hashes.append(h); bitmaps.append(b); flags.append(f)
+        # Whole tables at once, in C: a record-by-record unpack_from loop was most
+        # of the time it took to load a rule base.
+        end = pos + 17 * n
+        if len(raw) < end:
+            raise struct.error("function signature truncated")
+        if n:
+            h, b, f = zip(*struct.iter_unpack("<QQB", raw[pos:end]))
+            hashes, bitmaps, flags = array("Q", h), array("Q", b), array("B", f)
+        else:
+            hashes, bitmaps, flags = array("Q"), array("Q"), array("B")
+        pos = end
         abstract, abstract_bits = array("Q"), array("Q")
         if pos < len(raw):
             (m,) = struct.unpack_from("<I", raw, pos); pos += 4
-            for _ in range(m):
-                h, b = struct.unpack_from("<QQ", raw, pos); pos += 16
-                abstract.append(h); abstract_bits.append(b)
+            end = pos + 16 * m
+            if len(raw) < end:
+                raise struct.error("function signature truncated")
+            if array("Q").itemsize == 8:
+                pairs = array("Q")
+                pairs.frombytes(raw[pos:end])
+                if sys.byteorder != "little":
+                    pairs.byteswap()
+            else:                                       # pragma: no cover
+                pairs = array("Q", (v for (v,) in struct.iter_unpack("<Q", raw[pos:end])))
+            abstract, abstract_bits = pairs[0::2], pairs[1::2]
         return cls(versions=versions, hashes=hashes, bitmaps=bitmaps, flags=flags,
                    abstract_hashes=abstract, abstract_bitmaps=abstract_bits)
 
@@ -280,7 +298,7 @@ def _packed(code: str, values: Iterable[int]) -> "array":
 
 
 def _ascending(values: Sequence[int]) -> Sequence[int]:
-    if all(a <= b for a, b in zip(values, values[1:])):   # as stored, normally
+    if all(map(operator.le, values, islice(values, 1, None))):   # as stored, normally
         return values
     return array("Q", sorted(values))
 

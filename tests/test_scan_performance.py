@@ -198,3 +198,66 @@ def test_warm_memory_gets_more_room_than_cold_memory():
     assert problems("cold", 140.0)      # past 1.35x
     assert not problems("warm", 155.0)  # still inside 1.6x
     assert problems("warm", 170.0)      # past 1.6x
+
+
+# ---------------------------------------------------- sketch pre-check, rule-base setup
+
+def test_the_sketch_pre_check_is_sound_on_every_directory(tmp_path, upstream_dir):
+    # True must mean "the exact sketch shares nothing"; it may never hide a hit.
+    import random as _random
+    synthetic_tree(tmp_path / "sdk", seed=5, components=6, files_per_component=8)
+    shutil.copytree(upstream_dir, tmp_path / "sdk" / "components" / "tinynet")
+    root = (tmp_path / "sdk").resolve()
+    rng = _random.Random(11)
+    with AnalysisStore(root, 16, 8) as store:
+        dirs = sorted(p for p in root.rglob("*") if p.is_dir())
+        prints = [print_from_store(store, d, INCLUDE + ["**/*.c", "**/*.h"], [], 16, 8)
+                  for d in dirs]
+        for dp in prints:
+            exact = set(dp.signature(16, 8, 256).values)
+            pool = sorted(exact) + [rng.getrandbits(64) for _ in range(64)]
+            for values in (frozenset(rng.sample(pool, min(len(pool), 8))) for _ in range(20)):
+                fresh = print_from_store(store, dp.root, INCLUDE + ["**/*.c", "**/*.h"], [], 16, 8)
+                if fresh.sketch_cannot_share(values, 16, 8, 256):
+                    assert values.isdisjoint(exact), dp.root
+
+
+@needs_rules
+def test_the_sketch_pre_check_changes_no_decision(tmp_path, upstream_dir, monkeypatch):
+    # Same findings and the same rules checked with the pre-check as with the exact
+    # sketch alone, on a tree the real rule base mostly does not match.
+    from gangmu import dirprint
+    synthetic_tree(tmp_path / "sdk", seed=2, components=10, files_per_component=6)
+    shutil.copytree(upstream_dir, tmp_path / "sdk" / "components" / "tinynet")
+    base = load_rules(REPO_RULES)
+
+    def run():
+        stats = {}
+        result = scan(tmp_path / "sdk", base, options=ScanOptions(stats=stats))
+        return [f.to_dict() for f in result.findings], result.unidentified, \
+            (stats["rule_checks"], stats["rule_checks_skipped"])
+
+    quick = run()
+    monkeypatch.setattr(dirprint.DirectoryPrint, "sketch_cannot_share",
+                        lambda self, *a, **k: False)
+    assert run() == quick
+
+
+def test_repeated_matches_the_comprehension_it_replaced():
+    import random as _random
+    from gangmu.match.engine import _repeated
+    rng = _random.Random(3)
+    for n in (0, 1, 2, 50, 5000):
+        values = [rng.randrange(n // 2 + 1) for _ in range(n)]
+        ordered = sorted(values)
+        expected = {a for a, b in zip(ordered, ordered[1:]) if a == b}
+        assert _repeated(iter(values)) == expected, n
+
+
+def test_ascending_returns_sorted_input_unchanged_and_sorts_the_rest():
+    from array import array
+    from gangmu.fnsig import _ascending
+    ordered = array("Q", [1, 2, 2, 9])
+    assert _ascending(ordered) is ordered
+    assert list(_ascending(array("Q", [3, 1, 2]))) == [1, 2, 3]
+    assert list(_ascending(array("Q"))) == []

@@ -4,6 +4,8 @@ from array import array
 
 from gangmu.fnsig import FunctionSignature, intersects
 
+from community import REPO_RULES, needs_rules
+
 
 def _sig():
     return FunctionSignature.build([
@@ -99,3 +101,64 @@ def test_derivative_needs_enough_identical_functions_and_share():
     own = range(1000, 1400)
     assert _derivative(range(1000, 1100), set(range(1000, 1100)))[0] is None
     assert _derivative(own, set(own) | set(range(5000, 9000)))[0] is None
+
+
+def _decode_reference(raw):
+    """The record-by-record decoder the table-at-once one replaced."""
+    import struct
+    pos = 5
+    (count,) = struct.unpack_from("<H", raw, pos); pos += 2
+    versions = []
+    for _ in range(count):
+        (length,) = struct.unpack_from("<H", raw, pos); pos += 2
+        versions.append(raw[pos:pos + length].decode("utf-8")); pos += length
+    (n,) = struct.unpack_from("<I", raw, pos); pos += 4
+    rows = []
+    for _ in range(n):
+        rows.append(struct.unpack_from("<QQB", raw, pos)); pos += 17
+    abstract = []
+    if pos < len(raw):
+        (m,) = struct.unpack_from("<I", raw, pos); pos += 4
+        for _ in range(m):
+            abstract.append(struct.unpack_from("<QQ", raw, pos)); pos += 16
+    return versions, rows, abstract
+
+
+def _as_reference(sig):
+    return (list(sig.versions), list(zip(sig.hashes, sig.bitmaps, sig.flags)),
+            list(zip(sig.abstract_hashes, sig.abstract_bitmaps)))
+
+
+def test_decoding_matches_the_record_by_record_reference():
+    import random
+    rng = random.Random(9)
+    releases = [(f"{i}.0", {rng.getrandbits(64) for _ in range(300)},
+                 {rng.getrandbits(64) for _ in range(200)}) for i in range(5)]
+    sig = FunctionSignature.build(releases)
+    raw = sig.to_bytes()
+    assert _as_reference(FunctionSignature.from_bytes(raw)) == _decode_reference(raw)
+    empty = FunctionSignature.build([("1.0", set(), set())]).to_bytes()
+    assert _as_reference(FunctionSignature.from_bytes(empty)) == _decode_reference(empty)
+
+
+def test_a_truncated_signature_is_an_error_not_a_short_one():
+    import struct
+    import pytest
+    raw = _sig().to_bytes()
+    with pytest.raises(struct.error):
+        FunctionSignature.from_bytes(raw[:-5])
+
+
+@needs_rules
+def test_every_installed_sidecar_decodes_as_the_reference_does():
+    from pathlib import Path
+    from gangmu.rules.loader import load_rules
+    seen = 0
+    for rule in load_rules(REPO_RULES):
+        spec = rule.functions
+        if spec is None or spec.format == "fnprint":
+            continue
+        raw = (Path(spec.base_dir or ".") / spec.file).read_bytes()
+        assert _as_reference(FunctionSignature.from_bytes(raw)) == _decode_reference(raw), spec.file
+        seen += 1
+    assert seen > 10

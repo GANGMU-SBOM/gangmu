@@ -26,7 +26,9 @@ comes from similarity alone.
 
 from __future__ import annotations
 
+import operator
 from dataclasses import dataclass, field
+from itertools import chain, compress, islice
 from pathlib import Path, PurePosixPath
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -187,9 +189,11 @@ class MatchEngine:
             values = self._sketch_index.get(rule.id) if self._sketch_index else None
             if values is None:
                 return True
-            sketch = dp.signature(spec.signature.k, spec.signature.window,
-                                  spec.signature.size)
-            if not values.isdisjoint(sketch.values):
+            k, window, size = (spec.signature.k, spec.signature.window,
+                               spec.signature.size)
+            if dp.sketch_cannot_share(values, k, window, size):
+                return False
+            if not values.isdisjoint(dp.signature(k, window, size).values):
                 return True
         return False
 
@@ -279,9 +283,9 @@ class MatchEngine:
         # rule" is "repeated in the concatenation". Sorting one flat list and
         # comparing neighbours needs a fraction of the memory a counting dict
         # does, which matters once the rule base runs to hundreds of rules.
-        shared = _repeated(h for exact, _ in contributors for h in exact)
-        abstract_shared = _repeated(h for _, abstract in contributors
-                                    for h in abstract)
+        shared = _repeated(chain.from_iterable(exact for exact, _ in contributors))
+        abstract_shared = _repeated(chain.from_iterable(
+            abstract for _, abstract in contributors))
         marked = 0
         for _, signature in specs:
             if shared:
@@ -856,7 +860,9 @@ def _repeated(values) -> set:
             arr.sort()
             return set(arr[1:][arr[1:] == arr[:-1]].tolist())
     ordered.sort()
-    return {a for a, b in zip(ordered, ordered[1:]) if a == b}
+    # Neighbours compared in C; a Python-level comprehension was most of the cost.
+    later = islice(ordered, 1, None)
+    return set(compress(islice(ordered, 1, None), map(operator.eq, ordered, later)))
 
 
 def spec_k(rule: Rule) -> int:

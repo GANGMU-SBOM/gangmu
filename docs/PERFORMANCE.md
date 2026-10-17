@@ -52,6 +52,8 @@
 | 一个进程池覆盖整次扫描，一次性批量预取 | 以前每个目录各起一个进程池，小组件低于并行阈值时只能串行 |
 | 分词改用 `findall`，k-gram 循环内联，窗口最小值改用 C 层的 `min` | 不装 numpy 的纯 Python 路径也更快，输出逐值不变 |
 | 可选 numpy 向量路径（`pip install gangmu-sbom[fast]`） | 滚动哈希和 splitmix 用 uint64 向量运算，回绕算术与 Python 的 mod 2⁶⁴ 完全一致，测试会逐值比对两条路径 |
+| 规则预筛先查“各文件保存的最小指纹的并集”（每个目录只算一次），全不相交就直接跳过，只有相交时才算精确草图 | 预筛以前对每个目录、每组 glob 都要合并并选出最小的 256 个值；目录草图的每个值都在某个文件保存的最小值里，所以跳过的规则和以前完全相同 |
+| 函数签名文件整表解码（`struct.iter_unpack`、`array.frombytes`），规则间重复哈希和有序性检查改在 C 层比较 | 加载规则库、做代码切分是每次扫描的固定开销，热扫描时尤其明显 |
 
 numpy 只在需要时才导入。默认安装不带 numpy，内存不会因此增加；装了 `[fast]` 以后，扫描很小的树时进程内存会多出约 10 MB，这是导入 numpy 本身的开销。
 
@@ -105,6 +107,8 @@ The main changes:
 * the rule prefilter;
 * `gangmu vuln` streams a full NVD mirror (plain or `.json.xz`) and keeps only records naming the SBOM's products: 200.8 s / 3.9 GB → 8.9 s / 25 MB;
 * an optional numpy path that is checked value for value against the pure-Python one.
+* the prefilter first tests a rule's sketch values against the union of the files' stored bottom values (formed once per directory) and builds the exact sketch only when they meet; every sketch value is among those, so exactly the same rules are skipped;
+* function-signature sidecars are decoded table at once, and the rule-base segmentation compares neighbours in C. Together these cut the synthetic benchmark by about 20% cold and warm, with every counter and finding unchanged.
 
 `gangmu perf` reproduces these numbers. In CI, `--check benchmarks/perf-baseline.json` fails a pull request in any of these cases:
 * its findings change;
