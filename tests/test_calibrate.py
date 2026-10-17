@@ -306,3 +306,13 @@ def test_a_cross_architecture_match_names_the_library_and_every_release_of_the_r
 def test_the_images_own_architecture_still_names_a_single_release(monkeypatch):
     found = _by_functions(monkeypatch, [_CrossSidecar()], "thumb")
     assert found[0].version == "3.1.0"
+
+
+def test_an_answer_at_the_newest_fingerprinted_release_says_a_later_one_may_be_present(monkeypatch):
+    calls = []
+    sidecar = _Sidecar("aarch64", ("2", 9, 10, 0.9, ""), calls)        # versions "1", "2"
+    found = _by_functions(monkeypatch, [sidecar], "aarch64")
+    assert "newest fingerprinted release" in found[0].banner
+    older = _Sidecar("aarch64", ("1", 9, 10, 0.9, ""), [])
+    found = _by_functions(monkeypatch, [older], "aarch64")
+    assert "newest fingerprinted release" not in found[0].banner
