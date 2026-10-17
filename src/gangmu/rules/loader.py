@@ -17,6 +17,7 @@ import yaml
 
 from ..core.globbing import matches_suffix
 from ..core.packs import RuleRoot, check_manifest, read_manifest
+from ..core.yamlfast import safe_load
 from .schema import Rule, RuleError, rule_from_dict
 
 
@@ -89,7 +90,7 @@ def build_index(root: Path) -> Dict[str, int]:
             continue
         data = path.read_bytes()
         try:
-            raw = yaml.safe_load(data.decode("utf-8"))
+            raw = safe_load(data.decode("utf-8"))
             if raw is None or json.loads(json.dumps(raw)) != raw:
                 raise ValueError("not JSON-stable")
         except (yaml.YAMLError, ValueError, TypeError):
@@ -128,7 +129,7 @@ def load_rules(root: Path, strict: bool = False) -> RuleBase:
                     entry.get("sha256") == hashlib.sha256(data).hexdigest():
                 raw = entry["raw"]
             else:
-                raw = yaml.safe_load(data.decode("utf-8"))
+                raw = safe_load(data.decode("utf-8"))
         except (yaml.YAMLError, UnicodeDecodeError) as exc:
             msg = f"{rel}: YAML parse error: {exc}"
             if strict:
@@ -154,8 +155,8 @@ def load_rules(root: Path, strict: bool = False) -> RuleBase:
             rule.functions.base_dir = str(path.parent)
         if rule.binary_strings is not None:
             rule.binary_strings.base_dir = str(path.parent)
-        if rule.binary_functions is not None:
-            rule.binary_functions.base_dir = str(path.parent)
+        for spec in rule.binary_function_specs():
+            spec.base_dir = str(path.parent)
         seen[rule.id] = rel
         base.rules.append(rule)
     return base

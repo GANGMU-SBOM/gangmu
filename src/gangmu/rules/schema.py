@@ -140,7 +140,14 @@ class VersionProbe:
             m = re.search(pattern, text)
             if not m:
                 return None
-            values[name] = m.group(1) if m.groups() else m.group(0)
+            value = m.group(1) if m.groups() else m.group(0)
+            if name.startswith("hex_"):
+                # littlefs packs 2.10 into ``0x0002000a``.
+                name, value = name[4:], str(int(value, 16))
+            elif name.startswith("dash_"):
+                # Zephyr's ``EXTRAVERSION = rc2``: ``-rc2``, or nothing when empty.
+                name, value = name[5:], f"-{value}" if value else ""
+            values[name] = value
         try:
             return self.template.format(**values)
         except KeyError:
@@ -229,12 +236,21 @@ class Rule:
     binary_functions: Optional[FunctionSpec] = None
     """Per-function fingerprints (strings and constants a function uses) for finding the
     component's functions inside compiled images (``fprint.py``)."""
+    binary_functions_more: Tuple[FunctionSpec, ...] = ()
+    """Further ``binary_functions`` sidecars, one per architecture (the rule lists them
+    after the first); use :meth:`binary_function_specs` for all of them."""
     """String-constant signature for identifying the component inside compiled images
     (``binsig.py``); same sidecar format as ``functions``."""
     thresholds: Dict[str, float] = field(default_factory=lambda: dict(DEFAULT_THRESHOLDS))
     probes: Tuple[VersionProbe, ...] = ()
 
     confidence_ceiling: float = 0.95
+
+    def binary_function_specs(self) -> Tuple[FunctionSpec, ...]:
+        """Every ``binary_functions`` sidecar of the rule, the first one first."""
+        if self.binary_functions is None:
+            return ()
+        return (self.binary_functions,) + tuple(self.binary_functions_more)
 
     @property
     def specificity(self) -> int:
@@ -323,6 +339,26 @@ def _parse_rule_support(raw: Any, source_path: Any) -> Optional[Support]:
         return parse_support(raw, f"{source_path}: upstream.support")
     except SupportError as exc:
         raise RuleError(str(exc)) from None
+
+
+def _binary_functions_spec(raw_bf: Any, source_path: str) -> "FunctionSpec":
+    if not isinstance(raw_bf, Mapping):
+        raise RuleError(f"{source_path}: identity.binary_functions must be a mapping or a "
+                        f"list of mappings")
+    digest = str(_req(raw_bf, "sha256", source_path))
+    if not re.fullmatch(r"[0-9a-f]{64}", digest):
+        raise RuleError(f"{source_path}: identity.binary_functions.sha256 must be "
+                        f"64 hex chars")
+    calibration = raw_bf.get("calibration")
+    if not isinstance(calibration, Mapping) or calibration.get("passed") is not True:
+        raise RuleError(
+            f"{source_path}: identity.binary_functions needs the `calibration` block "
+            f"that `gangmu rules binary-prints` prints, and its self-test must have "
+            f"passed. A fingerprint nobody tested across builds is not evidence.")
+    return FunctionSpec(
+        file=str(_req(raw_bf, "file", source_path)), sha256=digest, format="fnprint",
+        versions=_tuple(raw_bf.get("versions")), count=int(raw_bf.get("count", 0)),
+        calibration=json.loads(json.dumps(calibration)))
 
 
 def _tuple(value: Any) -> Tuple[str, ...]:
@@ -445,23 +481,12 @@ def rule_from_dict(data: Mapping[str, Any], source_path: str = "") -> Rule:
             file=str(_req(raw_bs, "file", source_path)), sha256=digest,
             versions=_tuple(raw_bs.get("versions")), count=int(raw_bs.get("count", 0)))
 
-    bf_spec: Optional[FunctionSpec] = None
+    # One mapping, or a list of them with one sidecar per architecture the references were
+    # built for (a Thumb build and an AArch64 build of one library are different evidence).
     raw_bf = identity.get("binary_functions")
-    if raw_bf:
-        digest = str(_req(raw_bf, "sha256", source_path))
-        if not re.fullmatch(r"[0-9a-f]{64}", digest):
-            raise RuleError(f"{source_path}: identity.binary_functions.sha256 must be "
-                            f"64 hex chars")
-        calibration = raw_bf.get("calibration")
-        if not isinstance(calibration, Mapping) or calibration.get("passed") is not True:
-            raise RuleError(
-                f"{source_path}: identity.binary_functions needs the `calibration` block "
-                f"that `gangmu rules binary-prints` prints, and its self-test must have "
-                f"passed. A fingerprint nobody tested across builds is not evidence.")
-        bf_spec = FunctionSpec(
-            file=str(_req(raw_bf, "file", source_path)), sha256=digest, format="fnprint",
-            versions=_tuple(raw_bf.get("versions")), count=int(raw_bf.get("count", 0)),
-            calibration=json.loads(json.dumps(calibration)))
+    raw_bfs = raw_bf if isinstance(raw_bf, list) else ([raw_bf] if raw_bf else [])
+    bf_specs = [_binary_functions_spec(item, source_path) for item in raw_bfs]
+    bf_spec: Optional[FunctionSpec] = bf_specs[0] if bf_specs else None
 
     if not anchors and sig_spec is None and fn_spec is None and bs_spec is None \
             and bf_spec is None:
@@ -555,6 +580,7 @@ def rule_from_dict(data: Mapping[str, Any], source_path: str = "") -> Rule:
         functions=fn_spec,
         binary_strings=bs_spec,
         binary_functions=bf_spec,
+        binary_functions_more=tuple(bf_specs[1:]),
         thresholds=thresholds,
         probes=tuple(probes),
         confidence_ceiling=ceiling,

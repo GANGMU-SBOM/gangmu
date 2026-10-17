@@ -179,7 +179,7 @@ def _runtime_from_rule(entry: Any, where: str) -> Runtime:
         try:
             re.compile(pat.encode("ascii"))
         except (re.error, UnicodeEncodeError) as exc:
-            raise AibomRuleError(f"{where}: pattern {pat!r} is not a usable ASCII regex: {exc}")
+            raise AibomRuleError(f"{where}: pattern {pat!r} is not a usable ASCII regex: {exc}") from exc
     return Runtime(str(entry["key"]).strip(), str(entry["name"]).strip(),
                    (_B + "(?:" + "|".join(patterns) + ")",))
 

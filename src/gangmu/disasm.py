@@ -26,6 +26,9 @@ from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 from . import xtensa
+from .pe import IMAGE_SCN_MEM_EXECUTE as PE_EXECUTE
+from .macho import MachoInfo
+from .pe import PeInfo
 from .elf import EM_386, EM_ARM, EM_RISCV, EM_X86_64, SHF_EXECINSTR, SHT_PROGBITS, ElfInfo
 
 try:                                      # an optional dependency
@@ -40,7 +43,10 @@ _PADDING = frozenset(("nop", "c.nop", "unimp", "c.unimp", "udf"))
 JUMP_REACH = 512                          # a forward jump this close stays inside the function
 EM_AARCH64 = 183
 EM_XTENSA = 94
-ARCHES = ("thumb", "arm", "aarch64", "riscv32", "riscv64", "x86", "x86-64")
+EM_MIPS = 8
+MAX_PE_FUNCTION = 1 << 20
+ARCHES = ("thumb", "arm", "aarch64", "riscv32", "riscv64", "x86", "x86-64", "mips32",
+          "mips32be")
 
 
 def available() -> bool:
@@ -183,6 +189,42 @@ def _riscv_call(insn) -> Optional[int]:
     return insn.address + off
 
 
+def _mips_start(prev, insn) -> bool:
+    return insn.mnemonic == "addiu" and insn.op_str.replace(" ", "").startswith("$sp,$sp,-") \
+        and prev in ("end", "gap")
+
+
+def _mips_call(insn) -> Optional[int]:
+    return _imm(insn.op_str) if insn.mnemonic in ("jal", "bal") else None
+
+
+def _mips_end(insn) -> bool:
+    return insn.mnemonic == "jr" and insn.op_str.strip() == "$ra"
+
+
+def _mips_flow(insn):
+    """Branches and returns of a MIPS instruction as Capstone prints them (it resolves a
+    branch to an absolute address): ``("cond", target)``, ``("jump", target)``,
+    ``("ret", None)`` for ``jr $ra``. Calls and indirect jumps are not listed."""
+    m = insn.mnemonic
+    last = insn.op_str.split(",")[-1].strip()
+    if m == "jr":
+        return ("ret", None) if last == "$ra" else None
+    if m in ("j", "b"):
+        target = _imm(last)
+        return ("jump", target) if target is not None else None
+    if m.startswith("b") and m not in ("break", "bal", "bgezal", "bltzal", "bgezall",
+                                       "bltzall"):
+        target = _imm(last)
+        return ("cond", target) if target is not None else None
+    return None
+
+
+def _mips_branches(mnemonic: str) -> bool:
+    """Whether an instruction has a delay slot: the next instruction belongs to it."""
+    return (mnemonic[0] in "bj" and mnemonic != "break") if mnemonic else False
+
+
 def _x86_end(insn) -> bool:
     return insn.mnemonic in ("ret", "retf", "jmp", "ud2", "hlt")
 
@@ -237,6 +279,7 @@ class _Arch:
     end: Callable
     align: int
     flow: Optional[Callable] = None     # branch and return decoder; enables the closure rule
+    delay_slot: bool = False            # the instruction after a branch still belongs to it
 
 
 def _arch(name: str) -> Optional[_Arch]:
@@ -253,10 +296,17 @@ def _arch(name: str) -> Optional[_Arch]:
                          _riscv_start, _riscv_call, _riscv_end, 2, _riscv_flow),
         "riscv64": _Arch(c.CS_ARCH_RISCV, c.CS_MODE_RISCV64 | c.CS_MODE_RISCVC,
                          _riscv_start, _riscv_call, _riscv_end, 2, _riscv_flow),
+        "mips32": _Arch(c.CS_ARCH_MIPS, c.CS_MODE_MIPS32 | c.CS_MODE_LITTLE_ENDIAN,
+                        _mips_start, _mips_call, _mips_end, 4, _mips_flow, True),
+        "mips32be": _Arch(c.CS_ARCH_MIPS, c.CS_MODE_MIPS32 | c.CS_MODE_BIG_ENDIAN,
+                          _mips_start, _mips_call, _mips_end, 4, _mips_flow, True),
         "x86": _Arch(c.CS_ARCH_X86, c.CS_MODE_32, _x86_start, _x86_call, _x86_end, 1),
         "x86-64": _Arch(c.CS_ARCH_X86, c.CS_MODE_64, _x86_start, _x86_call, _x86_end, 1),
     }
     return table.get(name)
+
+
+MIPS_ASE_COMPRESSED = 0x04000000 | 0x02000000     # EF_MIPS_ARCH_ASE_M16 | _MICROMIPS
 
 
 def arch_of_elf(info: ElfInfo) -> Optional[str]:
@@ -265,6 +315,10 @@ def arch_of_elf(info: ElfInfo) -> Optional[str]:
         return "xtensa"                   # no Capstone: see xtensa.py
     if info.machine == EM_ARM:
         return "thumb" if info.entry & 1 else "arm"
+    if info.machine == EM_MIPS:
+        if info.flags & MIPS_ASE_COMPRESSED:
+            return None                   # MIPS16e / microMIPS: a different instruction set
+        return None if info.bits != 32 else ("mips32" if info.little else "mips32be")
     return {EM_AARCH64: "aarch64", EM_X86_64: "x86-64", EM_386: "x86",
             EM_RISCV: "riscv64" if info.bits == 64 else "riscv32"}.get(info.machine)
 
@@ -292,12 +346,14 @@ def _scan(spec, code: bytes, base: int, inside: bool = False):
     expected = base
     pending = 0                   # farthest forward target of a conditional branch
     closed = False                # a return or jump ended the function and nothing jumps past it
+    slot = False                  # this instruction is a branch's delay slot
     for insn in _decode(spec, code, base):
         if insn.mnemonic == "db":
             prev = "gap"
             expected = insn.address + insn.size
             continue
-        if closed and insn.mnemonic not in _PADDING:
+        in_slot, slot = slot, spec.delay_slot and _mips_branches(insn.mnemonic)
+        if closed and not in_slot and insn.mnemonic not in _PADDING:
             # Leaf functions have no prologue to recognise. What follows the end of a
             # function, once no branch reaches past it, is the next function.
             prologues.add(insn.address)
@@ -406,7 +462,10 @@ def recover_elf(data: bytes, info: ElfInfo) -> Optional[Recovery]:
     """Functions of an ELF: its symbols, plus whatever the sweep finds between them."""
     arch = arch_of_elf(info)
     if arch is None:
-        return Recovery("unsupported", note=f"no decoder for ELF machine {info.machine}")
+        return Recovery("unsupported", note=f"no decoder for ELF machine {info.machine}"
+                        + (" (MIPS16e or microMIPS code)"
+                           if info.machine == EM_MIPS and info.flags & MIPS_ASE_COMPRESSED
+                           else ""))
     if capstone is None:
         return None
     mask = ~1 if arch == "thumb" else ~0          # a Thumb symbol's bit 0 is not an address
@@ -429,6 +488,111 @@ def recover_elf(data: bytes, info: ElfInfo) -> Optional[Recovery]:
     functions = sorted(found.values(), key=lambda f: f.address)
     # symbol sizes are exact; a swept size is only the gap to the next start
     return Recovery(arch, functions)
+
+
+def recover_pe(data: bytes, info: "PeInfo") -> Optional[Recovery]:
+    """Functions of a Windows PE image (x86 or x64).
+
+    An x64 image lists every function that has unwind data in its exception table with an
+    exact start and end, which a sweep can only estimate; the sweep then covers the leaf
+    functions that have none, and x86 images, which carry no such table."""
+    arch = {"x86": "x86", "x86_64": "x86-64", "arm": "arm", "thumb": "thumb",
+            "armnt": "thumb", "aarch64": "aarch64"}.get(info.machine)
+    if arch is None:
+        return Recovery("unsupported", note=f"no decoder for PE machine {info.machine}"
+                        + (" (Windows CE)" if info.is_windows_ce else ""))
+    if capstone is None:
+        return None
+    base = info.image_base
+    found: Dict[int, Function] = {}
+    if arch == "x86-64" and info.exception_rva and info.exception_size:
+        off = info.rva_to_offset(info.exception_rva)
+        table = data[off:off + info.exception_size] if off is not None else b""
+        for i in range(0, len(table) - 11, 12):
+            begin, end, unwind = struct.unpack_from("<III", table, i)
+            if not begin < end or end - begin > MAX_PE_FUNCTION:
+                continue
+            uoff = info.rva_to_offset(unwind & ~3)
+            if uoff is not None and uoff < len(data) and data[uoff] >> 3 & 4:
+                continue                          # UNW_FLAG_CHAININFO: a fragment, not a start
+            found[base + begin] = Function(base + begin, end - begin, "", "unwind")
+    elif arch == "aarch64" and info.exception_rva and info.exception_size:
+        # ARM64: 8-byte entries, the begin RVA and either packed unwind data (low two bits set,
+        # the length in words in bits 2-12) or the RVA of an .xdata record (length in words
+        # in the low 18 bits of its first word)
+        off = info.rva_to_offset(info.exception_rva)
+        table = data[off:off + info.exception_size] if off is not None else b""
+        for i in range(0, len(table) - 7, 8):
+            begin, unwind = struct.unpack_from("<II", table, i)
+            if unwind & 3:
+                length = (unwind >> 2 & 0x7FF) * 4
+            else:
+                uoff = info.rva_to_offset(unwind)
+                if uoff is None or uoff + 4 > len(data):
+                    continue
+                length = (struct.unpack_from("<I", data, uoff)[0] & 0x3FFFF) * 4
+            if begin and 0 < length <= MAX_PE_FUNCTION:
+                found[base + begin] = Function(base + begin, length, "", "unwind")
+    elif info.machine == "arm" and info.exception_rva and info.exception_size:
+        # Windows CE on ARM: 20-byte entries, begin and end as absolute addresses
+        off = info.rva_to_offset(info.exception_rva)
+        table = data[off:off + info.exception_size] if off is not None else b""
+        code = [(base + s.vaddr, base + s.vaddr + s.vsize) for s in info.sections
+                if s.flags & PE_EXECUTE]
+        for i in range(0, len(table) - 19, 20):
+            begin, end = struct.unpack_from("<II", table, i)
+            if begin < end and end - begin <= MAX_PE_FUNCTION and any(
+                    lo <= begin and end <= hi for lo, hi in code):
+                found[begin] = Function(begin, end - begin, "", "unwind")
+    entry = base + info.entry_rva if info.entry_rva else 0
+    if arch == "thumb":
+        entry &= ~1                           # bit 0 marks Thumb state, it is not an address
+    for sec in info.sections:
+        if not sec.flags & PE_EXECUTE:
+            continue
+        blob = info.section_bytes(data, sec.name) if sec.name else b""
+        if not blob:
+            continue
+        start = base + sec.vaddr
+        seeds = [entry] + list(found)
+        for a, size in _sized(sweep(blob, start, arch, seeds), start + len(blob)):
+            if a not in found:
+                found[a] = Function(a, size, "", "entry" if a == entry else "disassembly")
+    return Recovery(arch, sorted(found.values(), key=lambda f: f.address))
+
+
+def recover_macho(data: bytes, info: "MachoInfo") -> Optional[Recovery]:
+    """Functions of a Mach-O image (x86, x86-64, ARM64).
+
+    ``LC_FUNCTION_STARTS`` lists every function the linker placed, even in a stripped binary,
+    so a sweep is only the fallback for an image without it (or for one the symbols and
+    the entry point leave uncovered)."""
+    arch = {"x86": "x86", "x86_64": "x86-64", "aarch64": "aarch64"}.get(info.cpu)
+    if arch is None:
+        return Recovery("unsupported", note=f"no decoder for Mach-O CPU {info.cpu}")
+    if capstone is None:
+        return None
+    code = [s for s in info.sections if s.executable and not s.zerofill and s.size]
+    found: Dict[int, Function] = {}
+    for a, name in info.functions:
+        found[a] = Function(a, 0, name, "symbol")
+    for a in info.starts:
+        found.setdefault(a, Function(a, 0, "", "function-starts"))
+    if info.entry:
+        found.setdefault(info.entry, Function(info.entry, 0, "", "entry"))
+    image = info.image(data)
+    out: List[Function] = []
+    for sec in code:
+        blob = image[sec.offset:sec.offset + sec.size]
+        lo, hi = sec.addr, sec.addr + len(blob)
+        starts = sorted(a for a in found if lo <= a < hi)
+        if not info.starts:               # nothing authoritative: let the sweep find the rest
+            starts = sorted(set(starts) | set(sweep(blob, lo, arch, starts)))
+        for a, size in _sized(starts, hi):
+            known = found.get(a)
+            out.append(Function(a, size, known.name if known else "",
+                                known.source if known else "disassembly"))
+    return Recovery(arch, out)
 
 
 def cortex_m_base(image: bytes) -> Optional[int]:

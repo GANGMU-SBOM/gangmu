@@ -178,6 +178,65 @@ def cmd_scan(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_merge(args: argparse.Namespace) -> int:
+    """Join CycloneDX documents (ours, the vendor's, a Yocto or Conan SBOM) into one."""
+    from .sbom.merge import MergeError, merge_boms
+    documents = []
+    for path in args.files:
+        try:
+            documents.append((Path(path).name,
+                              json.loads(Path(path).read_text(encoding="utf-8"))))
+        except (OSError, ValueError) as exc:
+            print(f"error: {path}: {exc}", file=sys.stderr)
+            return 2
+    try:
+        merged, report = merge_boms(documents)
+    except MergeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    _write(json.dumps(merged, indent=2, ensure_ascii=False), args.output)
+    print(f"merged {report.inputs} documents: {report.components_in} components in, "
+          f"{report.components_out} out ({report.duplicates} duplicates joined), "
+          f"{report.vulnerabilities_out} vulnerabilities", file=sys.stderr)
+    for name, versions in report.disagreements:
+        print(f"  disagreement: {name} is {' and '.join(versions)}", file=sys.stderr)
+    for text in report.state_conflicts:
+        print(f"  vulnerability state: {text} (kept the more cautious)", file=sys.stderr)
+    if report.dangling_dependencies:
+        print(f"  {report.dangling_dependencies} dependency references pointed at "
+              "components no document lists and were dropped", file=sys.stderr)
+    return 1 if args.fail_on_disagreement and (
+        report.disagreements or report.state_conflicts) else 0
+
+
+def cmd_license_check(args: argparse.Namespace) -> int:
+    """Triage the licences in a CycloneDX SBOM: copyleft, possible incompatibilities, gaps."""
+    from .licensecheck import check_licenses, render
+    try:
+        bom = json.loads(Path(args.sbom).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        print(f"error: {args.sbom}: {exc}", file=sys.stderr)
+        return 2
+    if not isinstance(bom, dict) or bom.get("bomFormat") != "CycloneDX":
+        print(f"error: {args.sbom}: not a CycloneDX JSON document", file=sys.stderr)
+        return 2
+    report = check_licenses(bom)
+    if args.format == "json":
+        print(json.dumps({
+            "counts": report.counts, "copyleft": report.copyleft, "network": report.network,
+            "possibleConflicts": [{"a": a, "b": b, "why": w}
+                                  for a, b, w in report.possible_conflicts],
+            "noLicence": report.unlicensed,
+            "prebuiltBinariesWithoutLicence": report.unlicensed_files},
+            indent=2, ensure_ascii=False))
+    else:
+        print(render(report))
+    failing = {"copyleft": bool(report.copyleft or report.network),
+               "incompatible": bool(report.possible_conflicts),
+               "unlicensed": bool(report.unlicensed or report.unlicensed_files)}
+    return 1 if any(failing[k] for k in args.fail_on) else 0
+
+
 def cmd_diff(args: argparse.Namespace) -> int:
     """Compare two CycloneDX files, e.g. ours against the vendor's own SBOM."""
     def load(path: str) -> dict:
@@ -212,8 +271,8 @@ def cmd_diff(args: argparse.Namespace) -> int:
     print(f"only on the right  : {len(only_b)}" + (f"  {only_b}" if only_b else ""))
     if version_mismatch:
         print("\nversion disagreements:")
-        for name, va, vb in version_mismatch:
-            print(f"  {name}: left={va} right={vb}")
+        for name, left_versions, right_versions in version_mismatch:
+            print(f"  {name}: left={left_versions} right={right_versions}")
     recall = len(both) / len(names_b) if names_b else 1.0
     print(f"\nrecall against right: {recall:.2%}")
     if args.fail_under is not None and recall < args.fail_under:
@@ -289,16 +348,16 @@ def cmd_cra_check(args: argparse.Namespace) -> int:
 def cmd_report(args: argparse.Namespace) -> int:
     config = _config(args)
     if args.regime == "cn-miit":
-        draft = draft_miit_report(
+        miit = draft_miit_report(
             config, args.advisory, vex=_load_json(args.vex, "VEX"),
             found_at=args.aware_at, impact=args.summary or "",
             scope=args.scope or "", measures=args.corrective_measure or "",
             stage="report" if args.stage == "early-warning" else "update")
-        _write(json.dumps(draft.to_dict(), indent=2, ensure_ascii=False)
-               if args.format == "json" else draft.to_markdown(), args.output)
-        if draft.missing:
-            print(f"{len(draft.missing)} 个必填字段尚未填写："
-                  + "、".join(f.label for f in draft.missing), file=sys.stderr)
+        _write(json.dumps(miit.to_dict(), indent=2, ensure_ascii=False)
+               if args.format == "json" else miit.to_markdown(), args.output)
+        if miit.missing:
+            print(f"{len(miit.missing)} 个必填字段尚未填写："
+                  + "、".join(f.label for f in miit.missing), file=sys.stderr)
             return 1
         return 0
 
@@ -569,7 +628,7 @@ def build_parser() -> argparse.ArgumentParser:
                           "other. Build for the architecture you will scan, with only the "
                           "library's own code linked in (no libc)")
     rbp.add_argument("--negative", action="append",
-                     help="an ELF of unrelated firmware that must match nothing; repeatable")
+                     help="an ELF or PE of unrelated firmware that must match nothing; repeatable. Reference functions it also contains (a bundled xxHash, say) are left out of the fingerprints, unless that is most of the library")
     rbp.add_argument("--out", required=True, help="path for the .fnprint sidecar")
     rbp.set_defaults(func=cmd_rules_binary_prints)
 
@@ -606,7 +665,9 @@ def build_parser() -> argparse.ArgumentParser:
                          "references come from --corpus, images from this one, and only "
                          "string literals are compared")
     be.add_argument("--min-features", type=int, default=2)
-    be.add_argument("--tie-share", type=float, default=0.85)
+    be.add_argument("--tie-share", type=float, default=None,
+                    help="score releases by the share of matched functions they explain "
+                         "(the older rule) instead of by contradiction")
     be.add_argument("--loo", action="store_true",
                     help="also choose the thresholds with one library held out, per library")
     be.add_argument("--no-cache", action="store_true", help="re-extract every feature")
@@ -721,6 +782,28 @@ def build_parser() -> argparse.ArgumentParser:
                    help="JSON {\"CVE-...\": [\"function\", ...]} naming the "
                         "vulnerable functions; without it they are guessed from "
                         "the advisory text. Repeatable")
+    v.add_argument("--config", action="append", metavar="FILE",
+                   help="with --source: the build's configuration, a Kconfig answer file "
+                        "(sdkconfig, .config) or a C header (mbedtls_config.h, "
+                        "sdkconfig.h). Branches it rules out are not counted, "
+                        "and a function only in such a branch is absent. "
+                        "Default: the sdkconfig/.config and sdkconfig.h/"
+                        "autoconf.h found under --source. Repeatable")
+    v.add_argument("--compile-db", metavar="FILE",
+                   help="with --source: compile_commands.json of the real build. "
+                        "A .c/.cpp file it does not list was not compiled, so "
+                        "functions only defined there are absent; each compiled "
+                        "file's own -D/-U flags are applied to its #if. Ignored "
+                        "(with a note) when it names none of the tree's files")
+    v.add_argument("--define", "-D", action="append", metavar="NAME[=VALUE]",
+                   help="with --source: a macro the build defines on its "
+                        "command line; repeatable")
+    v.add_argument("--assume-undefined-off", action="store_true",
+                   help="with --source: treat a macro that nothing in the tree, "
+                        "--config or --define mentions as off. Right when the "
+                        "product's config header is named with --config (Mbed "
+                        "TLS mbedtls_config.h); wrong when the toolchain "
+                        "defines it")
     v.add_argument("--reachability-vex", action="store_true",
                    help="with --source: mark findings whose function is absent or "
                         "unreferenced not_affected (code_not_present / "
@@ -973,6 +1056,25 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("right")
     d.add_argument("--fail-under", type=float)
     d.set_defaults(func=cmd_diff)
+
+    mg = sub.add_parser("merge", help="join CycloneDX documents (ours, the vendor's, "
+                                      "a Yocto or Conan SBOM) into one")
+    mg.add_argument("files", nargs="+", metavar="FILE",
+                    help="CycloneDX JSON documents; the first wins on every field it has")
+    mg.add_argument("--output", "-o", help="write the merged document here (default stdout)")
+    mg.add_argument("--fail-on-disagreement", action="store_true",
+                    help="exit 1 when documents give one component different versions or "
+                         "one vulnerability different states")
+    mg.set_defaults(func=cmd_merge)
+
+    lc = sub.add_parser("license-check", help="triage the licences in a CycloneDX SBOM "
+                                              "(copyleft, possible incompatibilities, gaps)")
+    lc.add_argument("sbom", help="CycloneDX JSON document")
+    lc.add_argument("--format", choices=["text", "json"], default="text")
+    lc.add_argument("--fail-on", action="append", default=[],
+                    choices=["copyleft", "incompatible", "unlicensed"],
+                    help="exit 1 when this is found (repeatable)")
+    lc.set_defaults(func=cmd_license_check)
 
     register_commands(sub)
     return p

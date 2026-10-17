@@ -316,6 +316,8 @@ class AnalysisStore:
     def _stat_lookup(self, rels: List[str]) -> Dict[str, Tuple[int, int, str]]:
         base = str(self.root)
         out: Dict[str, Tuple[int, int, str]] = {}
+        if self._db is None:
+            return out
         try:
             cur = self._db.cursor()
             for i in range(0, len(rels), 500):
@@ -356,8 +358,10 @@ class AnalysisStore:
         pool = self._executor() if len(payload) >= PARALLEL_FILE_THRESHOLD else None
         if pool is not None:
             # Largest first, so one big file does not finish the batch alone.
-            payload.sort(key=lambda p: -(self.index.stat(wanted[p[1]]).st_size
-                                         if self.index.stat(wanted[p[1]]) else 0))
+            def size_of(p: tuple) -> int:
+                st = self.index.stat(wanted[p[1]])
+                return -(st.st_size if st else 0)
+            payload.sort(key=size_of)
             results = pool.map(_analyse_path, payload,
                                chunksize=max(1, len(payload) // (self.jobs * 8)))
         else:
@@ -379,6 +383,8 @@ class AnalysisStore:
                 pass
 
     def _blob_lookup(self, shas: List[str]):
+        if self._db is None:
+            return
         try:
             cur = self._db.cursor()
             for i in range(0, len(shas), 500):

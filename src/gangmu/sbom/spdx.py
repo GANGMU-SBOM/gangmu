@@ -15,6 +15,7 @@ from .. import __version__
 from ..licenses import differs, observed_ids, spdx_license_declared
 from ..model import Finding, ScanResult
 from ..support import describe as describe_support
+from ..binaries import describe_binary
 from ..core import repro
 
 _SAFE = re.compile(r"[^A-Za-z0-9.\-]+")
@@ -97,7 +98,7 @@ def to_spdx(result: ScanResult, app_name: str = "firmware",
             timestamp: Optional[str] = None,
             namespace: Optional[str] = None) -> Dict[str, Any]:
     root_id = _spdx_id("Package", app_name)
-    packages = [{
+    packages: List[Dict[str, Any]] = [{
         "SPDXID": root_id,
         "name": app_name,
         "versionInfo": app_version or "NOASSERTION",
@@ -107,12 +108,12 @@ def to_spdx(result: ScanResult, app_name: str = "firmware",
         "licenseDeclared": "NOASSERTION",
         "copyrightText": "NOASSERTION",
     }]
-    relationships = [{
+    relationships: List[Dict[str, Any]] = [{
         "spdxElementId": "SPDXRef-DOCUMENT",
         "relationshipType": "DESCRIBES",
         "relatedSpdxElement": root_id,
     }]
-    by_name = {}
+    by_name: Dict[str, List[str]] = {}
     for finding in result.findings:
         pkg = _package(finding)
         packages.append(pkg)
@@ -134,14 +135,14 @@ def to_spdx(result: ScanResult, app_name: str = "firmware",
             "licenseDeclared": "NOASSERTION",
             "copyrightText": "NOASSERTION",
             "checksums": [{"algorithm": "SHA256", "checksumValue": blob.sha256}],
-            "comment": ("prebuilt " + blob.kind + ", no source available"
-                        + (f"; embeds {', '.join((e.display_name + ' ' + e.version).strip() for e in blob.embedded)}"
-                           if blob.embedded else "")),
+            "comment": describe_binary(blob),
         }
         packages.append(pkg)
-        relationships.append({"spdxElementId": root_id,
-                              "relationshipType": "CONTAINS",
-                              "relatedSpdxElement": pkg["SPDXID"]})
+        # A binary found inside another file is contained by that file, not by the product.
+        relationships.append({
+            "spdxElementId": _spdx_id("Binary", blob.container) if blob.container else root_id,
+            "relationshipType": "CONTAINS",
+            "relatedSpdxElement": pkg["SPDXID"]})
     # Declared dependencies (OpenHarmony bundle.json), where both ends were found.
     for finding, pkg in zip(result.findings, packages[1:]):
         for name in finding.depends_on:

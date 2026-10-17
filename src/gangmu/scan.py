@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from .build.facts import BuildFacts
 from .licenses import observe
@@ -56,7 +56,7 @@ def scan(root: Path, rulebase: RuleBase,
     return result
 
 
-def _store_params(rulebase: RuleBase):
+def _store_params(rulebase: RuleBase) -> Tuple[int, int]:
     """The (k, window) most rules use; any rule using others falls back to its
     own directory prints, which is correct and merely slower."""
     counts: Dict[tuple, int] = {}
@@ -82,7 +82,8 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
     # package declares only the wrapper's tag, and the rule base is what says
     # which upstream release is inside it.
     extra = {d.directory for d in declarations
-             if d.present and not d.manifest_only and d.directory != root and root in d.directory.parents
+             if d.directory is not None and not d.manifest_only and d.directory != root
+             and root in d.directory.parents
              and not (build_facts and build_facts.compiled
                       and not build_facts.sources_under(d.directory))}
     roots = sorted(set(roots) | extra)
@@ -141,13 +142,14 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
     findings.sort(key=lambda f: (-f.confidence, f.directory))
     binaries = []
     if options.binaries:
-        facts_map = build_facts is not None and build_facts.have_link_map
+        facts_map = build_facts if build_facts is not None and build_facts.have_link_map \
+            else None
         binaries = collect_binaries(
-            root, build_facts.linked_archives if facts_map else None,
+            root, facts_map.linked_archives if facts_map else None,
             _string_signatures(rulebase), _function_prints(rulebase),
-            build_facts.link_map_stem if facts_map else "")
+            facts_map.link_map_stem if facts_map else "")
         findings.extend(_binary_findings(binaries, rulebase))
-        unlinked = sum(1 for b in binaries if b.linked is False)
+        unlinked = sum(1 for b in binaries if b.linked is False and b.container is None)
         if unlinked:
             notes.append(
                 f"{unlinked} prebuilt binar(ies) in the tree are not named by the link map; "
@@ -172,7 +174,7 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
     stamp_support({r.id: r for r in rulebase}, options.support or [],
                             findings, possible, not_built)
     if options.support is not None and findings:
-        gaps = sum(1 for f in findings if f.support.status == "unknown")
+        gaps = sum(1 for f in findings if f.support is not None and f.support.status == "unknown")
         if gaps:
             notes.append(f"{gaps} of {len(findings)} component(s) have no support "
                          "status in the rules or the --support file; the SBOM says "
@@ -238,6 +240,12 @@ def _apply_kconfig(findings: List[Finding], rulebase: RuleBase,
 BINARY_IDENTITY = 0.70      # a banner proves the library is inside, not that it is unmodified
 BINARY_VERSION = 0.60
 BINARY_SYMBOLS_IDENTITY = 0.65   # an exported API names the library, but every release exports it
+BINARY_METADATA = 0.90      # the toolchain recorded the dependency list on purpose (Go, Rust)
+BINARY_IMPORT_IDENTITY = 0.50    # an import is a run-time dependency, not code inside the file
+BINARY_SIDECAR = 0.85       # a .deps.json is exact but a separate file, so it can be stale
+BINARY_ASSEMBLY = 0.50      # a .NET assembly named like a NuGet package; nobody confirmed it
+METADATA_METHODS = ("go-buildinfo", "cargo-auditable")
+WEAK_DEPENDENCY_METHODS = ("imports", "dotnet-reference")   # needed at run time, release unknown
 
 
 def _string_signatures(rulebase: RuleBase):
@@ -246,11 +254,39 @@ def _string_signatures(rulebase: RuleBase):
 
 
 def _function_prints(rulebase: RuleBase):
-    return [(r.upstream_name, _norm(r.ships_as or r.upstream_name), r.binary_functions.load())
-            for r in rulebase if r.binary_functions is not None]
+    # a rule may carry one sidecar per architecture; the matcher tries the one built for the
+    # image's CPU first (binaries._by_functions)
+    return [(r.upstream_name, _norm(r.ships_as or r.upstream_name), spec.load())
+            for r in rulebase for spec in r.binary_function_specs()]
 
 
 def _binary_summary(emb, version: Optional[str]) -> str:
+    if emb.method in METADATA_METHODS:
+        return (f"{emb.banner}: the toolchain recorded this dependency list in the binary, so it "
+                "is the version the build resolved" + (
+                    "; a replace directive means the code compiled in is not that release"
+                    if emb.modified else
+                    "; a patch applied after resolution would not show here"))
+    if emb.method == "deps-json":
+        return (f"{emb.banner}: listed in the program's .deps.json, which the .NET SDK writes at "
+                "build time with the package versions it restored; it is a separate file, so it "
+                "can differ from the DLLs actually shipped")
+    if emb.method == "dotnet-reference":
+        return (f"{emb.banner}: this assembly refers to it, so it is needed at run time, but "
+                "the package and release cannot be named from a reference, because an assembly "
+                "version often stays the same across package releases")
+    if emb.method == "dotnet-assembly":
+        return (f"{emb.banner}; the name and version are the author's own text and nothing here "
+                "shows the file was published as that NuGet package, so a reviewer should "
+                "confirm before treating it as one")
+    if emb.method == "version-info":
+        return (f"the Windows version resource of this binary states {emb.banner}; its author "
+                "wrote that text, so it names the library but can be stale or copied by a "
+                "wrapper, and it is not proof of an unmodified copy")
+    if emb.method == "imports":
+        return (f"{emb.banner}: this binary needs the library at run time, but the library "
+                "is a separate file and not part of this one, and a DLL name never says "
+                "which release is installed")
     if emb.method == "functions":
         return (f"{emb.banner} were matched by the strings and constants they use; the "
                 "library is inside this binary, but a modified function can keep both, so "
@@ -274,14 +310,27 @@ def _binary_findings(binaries, rulebase: RuleBase) -> List[Finding]:
         for emb in blob.embedded:
             if emb.vendor_component:
                 continue                      # a vendor's own component: no upstream to name
-            rule = _rule_by_name(rulebase, emb.display_name)
+            exact = emb.method in METADATA_METHODS
+            rule = None if emb.purl else _rule_by_name(rulebase, emb.display_name)
             known = KNOWN.get(emb.name)
             version = emb.version or None         # "": found by API symbols, no release
-            purl = (rule.purl_with_version(version) if rule
-                    else f"pkg:generic/{emb.name}"
-                    + (f"@{version}" if version and "~" not in version else ""))
-            cpe = (rule.cpe_with_version(version) if rule
-                   else _spliced(known[1], version) if known else None)
+            purl = emb.purl or (rule.purl_with_version(version) if rule
+                                else f"pkg:generic/{emb.name}"
+                                + (f"@{version}" if version and "~" not in version else ""))
+            cpe = emb.cpe or (rule.cpe_with_version(version) if rule
+                              else _spliced(known[1], version) if known else None)
+            if exact and version:
+                identity = version_conf = BINARY_METADATA
+            elif emb.method in WEAK_DEPENDENCY_METHODS:
+                identity, version_conf = BINARY_IMPORT_IDENTITY, 0.0
+            elif emb.method == "deps-json":
+                identity = version_conf = BINARY_SIDECAR
+            elif emb.method == "dotnet-assembly":
+                identity = version_conf = BINARY_ASSEMBLY
+            elif version:
+                identity, version_conf = BINARY_IDENTITY, BINARY_VERSION
+            else:
+                identity, version_conf = BINARY_SYMBOLS_IDENTITY, 0.0
             out.append(Finding(
                 directory=blob.path,
                 rule_id=f"binary/{emb.name}",
@@ -290,13 +339,18 @@ def _binary_findings(binaries, rulebase: RuleBase) -> List[Finding]:
                 homepage=rule.homepage if rule else None,
                 declared_license=rule.license if rule else None,
                 version=version,
-                version_source="binary-string" if version else "unknown",
-                identity_confidence=BINARY_IDENTITY if version else BINARY_SYMBOLS_IDENTITY,
-                version_confidence=BINARY_VERSION if version else 0.0,
+                version_source=("binary-metadata" if exact else
+                                "binary-sidecar" if emb.method == "deps-json" else
+                                "binary-version-info" if emb.method == "version-info" else
+                                "binary-string" if version else "unknown"),
+                identity_confidence=identity,
+                version_confidence=version_conf,
+                vendor_patched=emb.modified,
+                patch_hint="go.mod replace directive" if emb.modified else None,
                 supplier=rule.supplier if rule else None,
                 evidence=[Evidence(
                     technique=Technique.OTHER,
-                    confidence=BINARY_IDENTITY if version else BINARY_SYMBOLS_IDENTITY,
+                    confidence=identity,
                     summary=_binary_summary(emb, version),
                     locator=blob.path)],
                 content_hash=blob.sha256,
@@ -320,7 +374,7 @@ def _apply_declarations(root: Path, findings: List[Finding], rulebase: RuleBase,
     by_dir = {f.directory: f for f in findings}
     out = list(findings)
     for decl in declarations:
-        if not decl.present:
+        if decl.directory is None:
             notes.append(f"{decl.ecosystem}: package {decl.name}"
                          + (f" {decl.version}" if decl.version else "")
                          + f" is selected in {decl.source} but not downloaded; "
@@ -467,12 +521,18 @@ def _declaration_summary(decl: Declaration) -> str:
     if decl.ecosystem in ("buildroot", "openwrt"):
         return (f"{decl.ecosystem} package {what} is selected in {decl.source}; "
                 "the recipe pins this upstream version")
+    if decl.ecosystem in ("dpkg", "opkg", "apk"):
+        return (decl.description if decl.description and not decl.version_is_upstream
+                else f"{decl.ecosystem} package {what} is installed per {decl.source}")
     if decl.ecosystem == "yocto":
         return (f"Yocto: {decl.source} lists {what}"
                 + (f" ({decl.description})" if decl.description else ""))
-    if decl.ecosystem in ("conan", "bazel"):
+    if decl.ecosystem in ("conan", "bazel", "cmake", "vcpkg", "meson", "cargo"):
         return (decl.description if decl.description and not decl.version
                 else f"{decl.ecosystem} dependency {what} declared in {decl.source}")
+    if decl.ecosystem in ("stm32cube", "cmsis-pack"):
+        return (decl.description if decl.description and not decl.version
+                else f"{decl.supplier} package {what} states its own release in {decl.source}")
     if decl.ecosystem == "platformio":
         return (decl.description if decl.manifest_only and decl.description
                 else f"PlatformIO library {what} installed per {decl.source}")

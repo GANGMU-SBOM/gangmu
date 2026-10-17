@@ -31,6 +31,7 @@ import os
 import random
 import resource
 import shutil
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -93,7 +94,7 @@ def synthetic_tree(dest: Path, seed: int = 0, components: int = 48,
             write_component(path / "third_party" / f"lib_{c:03d}",
                             max(4, files_per_component // 2))
         made.append(path)
-    for i, source in enumerate(embed):
+    for _i, source in enumerate(embed):
         shutil.copytree(source, dest / "vendor" / Path(source).name)
         stats["components"] += 1
     return stats
@@ -178,24 +179,30 @@ def scaled_rulebase(base: RuleBase, factor: int) -> RuleBase:
 
 # ------------------------------------------------------------------ measuring
 
-def calibrate(rounds: int = 3) -> float:
+def calibrate(rounds: int = 9) -> float:
     """Seconds for a fixed, single-core analysis workload on this machine.
 
     Scan times are reported divided by this, so a regression check compares
     "how many calibration units a scan costs" rather than raw seconds that a
     faster or busier runner would move.
+
+    The median of several rounds, not the fastest: the fastest round is a lucky
+    moment (a clock that has just ramped up, a neighbour that happens to be idle)
+    that the scans, which run for seconds, never see, and dividing by it makes a
+    scan look dearer than it is. On a quiet machine the median of nine rounds
+    varies about 9% between calls, a single call's fastest of three about 28%.
     """
     from ..analysis import analyse_bytes
     rng = random.Random(1234)
     words = [_word(rng) for _ in range(300)]
     corpus = [_c_file(rng, words, 12).encode() for _ in range(40)]
-    best = float("inf")
+    times = []
     for _ in range(rounds):
         t0 = time.perf_counter()
         for data in corpus:
             analyse_bytes(data, 16, 8)
-        best = min(best, time.perf_counter() - t0)
-    return best
+        times.append(time.perf_counter() - t0)
+    return statistics.median(times)
 
 
 def measure_in_child(root: Path, rules_dirs: Sequence[Path], jobs: int = 1,
@@ -260,8 +267,10 @@ def numpy_available() -> bool:
 def run_suite(root: Path, rules_dirs: Sequence[Path], jobs: int = 1,
               scales: Sequence[int] = (1,), warm: bool = True) -> Dict[str, Any]:
     """Cold scan, warm rescan, and the rule-count curve, each in its own process."""
-    out: Dict[str, Any] = {"jobs": jobs, "numpy": numpy_available(),
-                           "calibration_s": round(calibrate(), 4), "runs": []}
+    # Measured before and after the scans and averaged: the scans take seconds, so a runner
+    # that slows down (or speeds up) part way through moves the calibration with them.
+    before = calibrate()
+    out: Dict[str, Any] = {"jobs": jobs, "numpy": numpy_available(), "runs": []}
     with tempfile.TemporaryDirectory(prefix="gangmu-perf-cache-") as cache:
         for scale in scales:
             cold = measure_in_child(root, rules_dirs, jobs=jobs, scale=scale,
@@ -275,6 +284,9 @@ def run_suite(root: Path, rules_dirs: Sequence[Path], jobs: int = 1,
                 again["mode"] = "warm"
                 again["scale"] = scale
                 out["runs"].append(again)
+    after = calibrate()
+    out["calibration_s"] = round((before + after) / 2, 4)
+    out["calibration_drift"] = round(max(before, after) / min(before, after), 2)
     for run in out["runs"]:
         run["scan_units"] = round(run["scan_s"] / out["calibration_s"], 2)
     return out

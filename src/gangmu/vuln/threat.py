@@ -119,8 +119,8 @@ def fetch_threat(db: Path, get: ByteGetter = _http_bytes,
     if not n:
         raise ValueError("the EPSS feed held no scores")
     buf = io.BytesIO()
-    with lzma.open(buf, "wt", encoding="utf-8") as fh:
-        fh.write(text)
+    with lzma.open(buf, "wb") as fh:
+        fh.write(text.encode("utf-8"))
     _replace(base / EPSS_FILE, buf.getvalue())
     log(f"EPSS: {n} scores")
     return len(rows), n

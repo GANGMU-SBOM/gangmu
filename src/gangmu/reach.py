@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from .functions import extract_functions
+from .ifdef import Macros, strip_inactive
 from .normalize import tokenize
 
 SOURCE_SUFFIXES = (".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".inc")
@@ -49,8 +50,12 @@ class Graph:
     edges: Dict[str, Set[str]] = field(default_factory=dict)     # name -> names
     roots_by_file: Dict[str, Set[str]] = field(default_factory=dict)
     file_scope: Dict[str, Set[str]] = field(default_factory=dict)  # file -> names
+    compiled_out: Dict[str, Set[str]] = field(default_factory=dict)  # name -> files
     files: int = 0
     unreadable: int = 0
+    inactive_lines: int = 0      # lines the build configuration rules out
+    uncompiled_files: int = 0    # source files the compile database does not list
+    compile_db_used: bool = False
 
     def functions_in(self, directory: str) -> Set[str]:
         prefix = _prefix(directory)
@@ -93,9 +98,55 @@ def _macros(data: bytes) -> Dict[str, Set[str]]:
     return out
 
 
-def build_graph(root: Path) -> Graph:
-    """Parse every C/C++ source under ``root`` once."""
+_TRANSLATION_UNITS = (".c", ".cc", ".cpp", ".cxx")
+
+
+class _Compiled:
+    """Which source files a compile database says were built, with their flags."""
+
+    def __init__(self, db, root: Path):
+        self.by_path: Dict[str, Sequence[str]] = {}
+        for entry in db.entries:
+            self.by_path.setdefault(entry.source.as_posix(), entry.arguments)
+        self.root = root.resolve()
+        self.active = True
+        self._derived: Dict[Tuple[str, ...], Macros] = {}
+
+    def lookup(self, path: Path) -> Optional[Sequence[str]]:
+        key = path.resolve().as_posix()
+        if key in self.by_path:
+            return self.by_path[key]
+        rel = "/" + path.resolve().relative_to(self.root).as_posix()
+        for known, args in self.by_path.items():       # built elsewhere, same tree
+            if known.endswith(rel):
+                return args
+        return None
+
+    def usable(self, root: Path) -> bool:
+        """False when the database names none of this tree's sources, e.g. it
+        was written on another machine with a different layout."""
+        return any(self.lookup(p) is not None for p in iter_source(root)
+                   if p.suffix in _TRANSLATION_UNITS)
+
+
+def build_graph(root: Path, macros_known: Optional[Macros] = None,
+                compile_db=None) -> Graph:
+    """Parse every C/C++ source under ``root`` once.
+
+    With ``macros_known`` (the build's configuration), branches the
+    configuration rules out are left out of the graph, and a function that
+    exists only in such a branch is listed in ``compiled_out``.
+
+    With ``compile_db`` (a :class:`~gangmu.build.compile_db.CompileDB`), a
+    translation unit the build did not compile is left out the same way, and
+    each compiled one is read with its own ``-D``/``-U`` flags.
+    """
+    compiled = _Compiled(compile_db, root) if compile_db is not None else None
+    if compiled is not None and not compiled.usable(root):
+        compiled = None
     graph = Graph()
+    graph.compile_db_used = compiled is not None
+    graph.compile_db_used = compiled is not None
     macros: Dict[str, Set[str]] = {}
     bodies: Dict[str, List[Tuple[str, frozenset]]] = {}      # file -> (name, refs)
     scope_tokens: Dict[str, Set[str]] = {}
@@ -110,6 +161,25 @@ def build_graph(root: Path) -> Graph:
             graph.unreadable += 1
             continue
         graph.files += 1
+        file_macros = macros_known
+        if compiled is not None and path.suffix in _TRANSLATION_UNITS:
+            args = compiled.lookup(path)
+            if args is None:
+                graph.uncompiled_files += 1
+                for fn in extract_functions(data, with_refs=False, min_tokens=1):
+                    graph.compiled_out.setdefault(fn.name, set()).add(rel)
+                continue
+            file_macros = (macros_known or Macros()).derive(args)
+            if file_macros is macros_known and macros_known is None:
+                file_macros = None
+        if file_macros is not None:
+            live, dead = strip_inactive(data, file_macros)
+            if dead:
+                graph.inactive_lines += dead
+                full = {f.name for f in extract_functions(data, with_refs=False, min_tokens=1)}
+                data = live
+                for name in full - {f.name for f in extract_functions(data, with_refs=False, min_tokens=1)}:
+                    graph.compiled_out.setdefault(name, set()).add(rel)
         for name, ids in _macros(data).items():
             macros.setdefault(name, set()).update(ids)
         toks = tokenize(data)
@@ -146,7 +216,7 @@ def build_graph(root: Path) -> Graph:
                 todo.extend(macros[ref])
         return seen & names
 
-    for rel, items in bodies.items():
+    for _rel, items in bodies.items():
         for name, refs in items:
             graph.edges.setdefault(name, set()).update(expand(refs) - {name})
     for rel, loose in scope_tokens.items():
@@ -185,7 +255,7 @@ def _reached(graph: Graph, directory: str) -> Tuple[Dict[str, Optional[str]], Se
     for name, files in graph.defined.items():
         if any(not _inside(f, prefix) for f in files) or _ENTRY_NAME.match(name):
             seed(name)
-    for rel, names in graph.file_scope.items():
+    for _rel, names in graph.file_scope.items():
         for name in names:
             seed(name)                # an address taken in a table: assume used
     outside = set(parent)
@@ -200,8 +270,11 @@ def _reached(graph: Graph, directory: str) -> Tuple[Dict[str, Optional[str]], Se
 
 def _path(parent: Dict[str, Optional[str]], name: str) -> List[str]:
     chain = [name]
-    while parent.get(chain[-1]) is not None and len(chain) < 12:
-        chain.append(parent[chain[-1]])
+    while len(chain) < 12:
+        up = parent.get(chain[-1])
+        if up is None:
+            break
+        chain.append(up)
     return list(reversed(chain))
 
 
@@ -225,6 +298,15 @@ def assess(graph: Graph, directory: str, symbols: Sequence[str],
     present = [s for s in symbols if s in inside]
     absent = [s for s in symbols if s not in inside]
     if not present:
+        prefix = _prefix(directory)
+        off = [s for s in absent
+               if any(_inside(f, prefix) for f in graph.compiled_out.get(s, ()))]
+        if off:
+            return Reach("absent",
+                         f"{', '.join(off[:4])} is in the source under "
+                         f"{directory or '.'} but the build does not compile it "
+                         f"(configuration or compile database)",
+                         list(symbols), basis=basis)
         if basis == "curated":
             return Reach("absent",
                          f"{', '.join(absent[:4])} is not defined anywhere under "

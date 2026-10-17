@@ -36,11 +36,13 @@ import hashlib
 import json
 import struct
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple, cast
 
 from . import disasm, xtensa
 from .binsig import MIN_LEN, _wanted
 from .elf import ElfInfo
+from .macho import MachoInfo, parse_macho
+from .pe import PeInfo, parse_pe
 
 MIN_FEATURES = 2          # fewer than this is not a fingerprint (3 left half of zlib out)
 MAX_FEATURES = 64         # per reference function
@@ -50,6 +52,9 @@ MIN_COVERAGE = 0.12       # share of the best release's fingerprintable function
 #                         unrelated library through in 1920 negative pairs on RISC-V)
 TIE_SHARE = 0.85         # releases scoring within this share of the best are reported as a span
 #                         (0.95 asserted a wrong release in 3 of 48 real builds, 0.85 in none)
+CONTRA_FULL = 4.0         # features at which a matched print counts in full as evidence
+CONTRA_SPAN = 2.0         # weighted contradictions a release may trail the best by and stay in the span
+UNKNOWN_STRINGS = 0xFFFF             # log-likelihood a release may trail the best and still be in the span
 UNKNOWN_STRINGS = 0xFFFF  # a sidecar made before features told strings from constants
 MAX_DF = 40               # a feature in more reference functions than this says nothing
 MAX_STRING = 512
@@ -74,6 +79,7 @@ class Memory:
 
     regions: List[Tuple[int, bytes]] = field(default_factory=list)
     ranges: List[Tuple[int, int]] = field(default_factory=list)   # allocated, no bytes (.bss)
+    gp: Optional[int] = None    # MIPS global pointer: where ``$gp``-relative loads start from
 
     def is_address(self, value: int) -> bool:
         """Inside the image or its zero-initialised data: a pointer, not a constant."""
@@ -103,15 +109,44 @@ class Memory:
 
 
 def memory_from_elf(data: bytes, info: ElfInfo) -> Memory:
+    # (a shared object is linked at 0; only in an object file does address 0 mean "unplaced")
+    placed = lambda s: s.addr or not info.relocatable
     regions = [(s.addr, data[s.offset:s.offset + s.size]) for s in info.sections
-               if s.flags & 2 and s.type == 1 and s.addr and s.size]      # SHF_ALLOC, PROGBITS
+               if s.flags & 2 and s.type == 1 and placed(s) and s.size]   # SHF_ALLOC, PROGBITS
     bss = [(s.addr, s.addr + s.size) for s in info.sections
-           if s.flags & 2 and s.type == 8 and s.addr and s.size]          # SHT_NOBITS
+           if s.flags & 2 and s.type == 8 and placed(s) and s.size]       # SHT_NOBITS
+    mem = Memory(regions, bss)
+    if info.machine == disasm.EM_MIPS:
+        got = next((sec for sec in info.sections if sec.name == ".got"), None)
+        if got is not None:
+            mem.gp = got.addr + 0x7FF0      # the o32 ABI's value of _gp
+        elif info.got:
+            mem.gp = info.got + 0x7FF0      # no section table: DT_PLTGOT
+    return mem
+
+
+def memory_from_pe(data: bytes, info: "PeInfo") -> Memory:
+    """The sections of a PE image at their preferred load addresses."""
+    regions = []
+    for sec in info.sections:
+        blob = info.section_bytes(data, sec.name)
+        if blob:
+            regions.append((info.image_base + sec.vaddr, blob))
+    return Memory(regions)
+
+
+def memory_from_macho(data: bytes, info: "MachoInfo") -> Memory:
+    """The sections of a Mach-O image at their linked addresses."""
+    image = info.image(data)
+    regions = [(s.addr, image[s.offset:s.offset + s.size]) for s in info.sections
+               if not s.zerofill and s.size and s.offset]
+    bss = [(s.addr, s.addr + s.size) for s in info.sections if s.zerofill and s.size]
     return Memory(regions, bss)
 
 
 # ------------------------------------------------------------------ features
 
+MIPS_GP_WINDOW = 8        # instructions within which a PIC prologue adds $t9 to a built value
 SMALL_NEGATIVE = 0x1000   # a value this close below 2**bits is a small negative number
 
 _SIMPLE = {0xFF, 0xFFFF, 0xFFFFFF, 0xFFFFFFFF, 0x7FFFFFFF, 0x80000000, 0x7FFFFFFFFFFFFFFF}
@@ -171,13 +206,16 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
     if arch == "xtensa":
         xtensa.features(code, address, mem.read, emit)
         return out
+    assert spec is not None     # only xtensa has none, and it returned above
     md = disasm.capstone.Cs(spec.cs_arch, spec.cs_mode)
     md.detail = True
     md.skipdata = True
     md.skipdata_setup = ("db", None, None)
     building: Dict[int, int] = {}         # AArch64: register -> constant being built
     low: Dict[int, int] = {}              # ARM: register -> movw half
-    regs: Dict[int, int] = {}             # RISC-V: register -> known value
+    regs: Dict[int, int] = {}             # RISC-V, MIPS: register -> known value
+    held: Dict[int, List[int]] = {}       # MIPS: register -> [value, age] of a built value,
+    #                                       emitted unless a $t9 addition shows it is _gp_disp
     cs = disasm.capstone
     for insn in md.disasm(code, address):
         m = insn.mnemonic
@@ -225,6 +263,80 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
                 continue
             elif names and ops[0].type == cs.CS_OP_REG:
                 regs.pop(ops[0].reg, None)
+        elif arch in ("mips32", "mips32be"):
+            # lui + addiu/ori build a constant or an address; a load through $gp reads a GOT
+            # entry (a page address in the file) that an addiu then completes.
+            t9_sum = m == "addu" and len(ops) == 3 and "t9" in (
+                insn.reg_name(ops[1].reg), insn.reg_name(ops[2].reg))
+            for held_reg in list(held):
+                if t9_sum and held_reg in (ops[1].reg, ops[2].reg):
+                    del held[held_reg]       # lui+addiu then + $t9 is _gp_disp: it moves with
+                    continue                 # the layout, so it is not a constant of the code
+                held[held_reg][1] += 1
+                if held[held_reg][1] > MIPS_GP_WINDOW:
+                    emit(held.pop(held_reg)[0])
+            if m in ("j", "jal", "jr", "jalr", "b", "bal") or (m[0] == "b" and m != "break"):
+                continue
+            if not ops or ops[0].type != cs.CS_OP_REG:
+                continue
+            rt = ops[0].reg
+            if m == "lui" and len(ops) == 2:
+                regs[rt] = (ops[1].imm << 16) & 0xFFFFFFFF
+            elif m in ("addiu", "ori") and len(ops) == 3 and ops[2].type == cs.CS_OP_IMM:
+                src = ops[1].reg
+                name = insn.reg_name(src)
+                if name == "zero":
+                    base_value: Optional[int] = 0
+                elif name == "gp" and mem.gp is not None:
+                    base_value = mem.gp
+                else:
+                    base_value = regs.get(src)
+                if base_value is None:
+                    emit(ops[2].imm & 0xFFFFFFFF if m == "ori" else ops[2].imm)
+                    regs.pop(rt, None)
+                else:
+                    value = (base_value + ops[2].imm if m == "addiu"
+                             else base_value | (ops[2].imm & 0xFFFF)) & 0xFFFFFFFF
+                    if rt in held:
+                        emit(held[rt][0])
+                    held[rt] = [value, 0]
+                    regs[rt] = value
+            elif m == "addu" and len(ops) == 3 and ops[1].type == ops[2].type == cs.CS_OP_REG:
+                # position-independent code computes $gp as _gp_disp + $t9, and $t9 holds
+                # the function's own address on entry
+                first, second = ops[1].reg, ops[2].reg
+                if insn.reg_name(second) == "t9" and first in regs:
+                    regs[rt] = (regs[first] + address) & 0xFFFFFFFF
+                elif insn.reg_name(first) == "t9" and second in regs:
+                    regs[rt] = (regs[second] + address) & 0xFFFFFFFF
+                else:
+                    regs.pop(rt, None)
+            elif m == "move" and len(ops) == 2 and ops[1].type == cs.CS_OP_REG:
+                if ops[1].reg in regs:
+                    regs[rt] = regs[ops[1].reg]
+                else:
+                    regs.pop(rt, None)
+            elif m in ("lw", "sw", "lh", "lhu", "lb", "lbu", "sh", "sb") and len(ops) == 2 \
+                    and ops[1].type == cs.CS_OP_MEM:
+                base = ops[1].mem.base
+                disp = ops[1].mem.disp
+                value = None
+                if base and insn.reg_name(base) == "gp" and mem.gp is not None:
+                    value = mem.gp
+                elif base in regs:
+                    value = regs[base]
+                if m == "lw" and value is not None and value == mem.gp:
+                    # a load through $gp reads a GOT entry, which holds an address in the file
+                    word = mem.read((value + disp) & 0xFFFFFFFF, 4)
+                    if word:
+                        regs[rt] = struct.unpack(">I" if arch == "mips32be" else "<I", word)[0]
+                        continue
+                elif value is not None:
+                    emit((value + disp) & 0xFFFFFFFF)
+                if m[0] == "l":
+                    regs.pop(rt, None)
+            else:
+                regs.pop(rt, None)
         elif arch == "aarch64":
             # A constant is built from movz/movk (flushed once the run of movk ends) and an
             # address from adrp + add or an adrp-relative load.
@@ -233,7 +345,7 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
                 building[ops[0].reg] = ((building[ops[0].reg] & ~(0xFFFF << shift))
                                         | (ops[1].imm & 0xFFFF) << shift)
                 continue
-            for reg, value in building.items():
+            for _reg, value in building.items():
                 emit(value)
             building.clear()
             if m == "adrp" and len(ops) == 2:
@@ -273,6 +385,8 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
                         emit(op.mem.disp)
     for value in building.values():
         emit(value)
+    for value, _age in held.values():
+        emit(value)
     return out
 
 
@@ -294,13 +408,19 @@ def image_features(data: bytes, arch: Optional[str] = None, base: Optional[int] 
             info.functions = []
         rec = disasm.recover_elf(data, info)
         mem = memory_from_elf(data, info)
+    elif (macho_info := parse_macho(data)) is not None:
+        rec = disasm.recover_macho(data, macho_info)
+        mem = memory_from_macho(data, macho_info)
+    elif (pe_info := parse_pe(data)) is not None:
+        rec = disasm.recover_pe(data, pe_info)
+        mem = memory_from_pe(data, pe_info)
     else:
         rec = disasm.recover_raw(data, arch, base)
         start = base if base is not None else disasm.cortex_m_base(data)
         mem = Memory([(start, data)] if start is not None else [])
     if rec is None or not rec.functions or not mem.regions:
         return [], None
-    found = []
+    found: List[Set[int]] = []
     for f in rec.functions:
         feats = function_features(mem, rec.arch, f.address, f.size)
         if len(feats) >= (MIN_FEATURES if min_features is None else min_features):
@@ -314,6 +434,35 @@ def image_function_features(data: bytes, arch: Optional[str] = None,
                             ignore_symbols: bool = False) -> List[Set[int]]:
     """:func:`image_features` without the architecture."""
     return image_features(data, arch, base, min_features, ignore_symbols)[0]
+
+
+def split_shared(sets: Sequence[Set[int]], images: Sequence[Sequence[Set[int]]],
+                 floor: Optional[int] = None) -> Tuple[List[Set[int]], int]:
+    """(*sets* without those that some function in *images* already holds, how many).
+
+    A reference function that another program contains by the matching rule (``match``) is
+    code the library shares with it: a bundled xxHash, a copied hash or compression
+    routine. Matching it says "xxHash is here", not which library, so a reference made of
+    such functions names the wrong library (lz4 and zstd both bundle xxHash and matched each
+    other's executables on nothing else). *images* are the feature sets of programs that
+    do not contain the library."""
+    k = MIN_FEATURES if floor is None else floor
+    inverted: Dict[int, List[int]] = {}
+    flat = [feats for image in images for feats in image]
+    for n, feats in enumerate(flat):
+        for f in feats:
+            inverted.setdefault(f, []).append(n)
+    kept: List[Set[int]] = []
+    for feats in sets:
+        votes: Dict[int, int] = {}
+        for f in feats:
+            for n in inverted.get(f, ()):
+                votes[n] = votes.get(n, 0) + 1
+        size = len(feats)
+        if any(h >= min(k, size) and h >= MIN_CONTAINMENT * size for h in votes.values()):
+            continue
+        kept.append(feats)
+    return kept, len(sets) - len(kept)
 
 
 # ------------------------------------------------------------------ reference prints
@@ -438,19 +587,22 @@ class FunctionPrints:
               ) -> Optional[Tuple[str, int, int, float, str]]:
         """(best version, matched, of, coverage, tied range or ""), or None.
 
+        Releases are scored by contradiction (see :meth:`_contradiction`). Passing
+        *tie_share* selects the older score, the share of matched functions a release
+        explains, with releases within that share of the best reported as the span.
+
         *arch*: what the image was decoded as. When it differs from what the references were
         built for, only string literals are compared: the constants a compiler derives
         differ between architectures, and on a Cortex-M3 reference against rv32imac and
         AArch64 images they were the source of every wrong release
         (docs/BINARY-VALIDATION.md). Fewer functions are recognised, none wrongly."""
         floor = MIN_FEATURES if min_features is None else min_features
-        share = TIE_SHARE if tie_share is None else tie_share
         by_string = bool(arch and self.arch and arch != self.arch and self.knows_strings())
         index = self.index(by_string)
         matched: Set[int] = set()
         for feats in image:
             if by_string:
-                feats = getattr(feats, "strings", None) or ()
+                feats = cast(Set[int], getattr(feats, "strings", None) or set())
                 if len(feats) < floor:
                     continue
             votes: Dict[int, int] = {}
@@ -463,6 +615,8 @@ class FunctionPrints:
                     matched.add(i)
         if len(matched) < MIN_MATCHES:
             return None
+        if tie_share is None:
+            return self._contradiction(matched, by_string, floor)
         scores, owns = [], []
         for v in range(len(self.versions)):
             own = {i for i, (bits, _) in enumerate(self.functions)
@@ -482,7 +636,39 @@ class FunctionPrints:
         coverage = len(own & matched) / len(own) if own else 0.0
         if coverage < MIN_COVERAGE or len(own & matched) < MIN_MATCHES:
             return None
-        tied = [i for i, s in enumerate(scores) if s >= best * share]
+        tied = [i for i, s in enumerate(scores) if s >= best * tie_share]
+        low, high = self.versions[min(tied)], self.versions[max(tied)]
+        return (self.versions[index_best], len(own & matched), len(own), coverage,
+                "" if low == high else f"{low}~{high}")
+
+    def _contradiction(self, matched: Set[int], by_string: bool, floor: int):
+        """Release scores by the weighted count of matched prints the release lacks.
+
+        The share-explained score treats the 3rd contradiction among 20 matches like the
+        30th among 200 and counts a two-feature print, which is a subset of many unrelated
+        functions, as much as a fifty-feature one. Here each matched print the release
+        does not contain costs its weight (CONTRA_FULL features and more: 1), and a
+        release is in the span when it trails the best by at most CONTRA_SPAN.
+        """
+        n = len(self.versions)
+        usable = [i for i in range(len(self.functions))
+                  if not by_string or self.strings[i] >= floor]
+        usable_set = set(usable)
+
+        def weight(i: int) -> float:
+            size = self.strings[i] if by_string else len(self.functions[i][1])
+            return min(1.0, max(size - 1, 1) / (CONTRA_FULL - 1))
+
+        owns = [{i for i in usable if self.functions[i][0] >> v & 1} for v in range(n)]
+        hits = matched & usable_set
+        scores = [-sum(weight(i) for i in hits - own) for own in owns]
+        best = max(scores)
+        index_best = scores.index(best)
+        own = owns[index_best]
+        coverage = len(own & matched) / len(own) if own else 0.0
+        if coverage < MIN_COVERAGE or len(own & matched) < MIN_MATCHES:
+            return None
+        tied = [i for i, sc in enumerate(scores) if sc >= best - CONTRA_SPAN]
         low, high = self.versions[min(tied)], self.versions[max(tied)]
         return (self.versions[index_best], len(own & matched), len(own), coverage,
                 "" if low == high else f"{low}~{high}")

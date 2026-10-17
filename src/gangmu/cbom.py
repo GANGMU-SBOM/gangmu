@@ -292,7 +292,7 @@ def _algo_from_rule(entry: object, where: str) -> Algo:
         try:
             re.compile(pat.encode("ascii"))
         except (re.error, UnicodeEncodeError) as exc:
-            raise CbomRuleError(f"{where}: pattern {pat!r} is not a usable ASCII regex: {exc}")
+            raise CbomRuleError(f"{where}: pattern {pat!r} is not a usable ASCII regex: {exc}") from exc
         wrapped.append(pat)
     return Algo(key, str(entry["name"]), str(entry["primitive"]), str(entry["quantum"]),
                 (_B + "(?:" + "|".join(wrapped) + ")",), str(entry.get("note") or ""))

@@ -84,7 +84,7 @@ def sign_file(path: Path, key_path: Path, out: Optional[Path] = None,
     try:
         private = serialization.load_pem_private_key(Path(key_path).read_bytes(), None)
     except (ValueError, TypeError) as exc:
-        raise SigningError(f"{key_path}: not a usable unencrypted PEM private key: {exc}")
+        raise SigningError(f"{key_path}: not a usable unencrypted PEM private key: {exc}") from exc
     if not isinstance(private, ed25519.Ed25519PrivateKey):
         raise SigningError(f"{key_path}: not an Ed25519 key")
     raw = _raw_public(private.public_key(), serialization)

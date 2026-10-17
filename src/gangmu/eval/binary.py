@@ -25,7 +25,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 GRID = [(k, t) for k in (2, 3) for t in (0.95, 0.9, 0.85, 0.8)]
 OUTCOMES = ("exact", "range", "wrong", "none")
@@ -66,7 +66,7 @@ class Cell:
 @dataclass
 class Report:
     min_features: int
-    tie_share: float
+    tie_share: Optional[float]     # None: the default contradiction score
     cells: List[Cell] = field(default_factory=list)
     negatives: List[Tuple[str, str, str]] = field(default_factory=list)   # (prints of, image of, hit)
     negative_total: int = 0
@@ -166,7 +166,7 @@ def _classify(hit, tags: Sequence[str], truth: str) -> Tuple[str, str]:
     return ("range" if truth in span else "wrong"), tied
 
 
-def _prints_for(corpus: Corpus, lib: str, ref_opt: str, k: int):
+def _prints_for(corpus: Corpus, lib: str, ref_opt: str, k: int) -> Tuple[Any, List[str]]:
     from ..fprint import FunctionPrints
     tags = [t for t in corpus.releases[lib] if ref_opt in corpus.builds[lib][t]]
     if len(tags) < 2:
@@ -176,14 +176,14 @@ def _prints_for(corpus: Corpus, lib: str, ref_opt: str, k: int):
         arch=corpus.arch), tags
 
 
-def evaluate(corpus: Corpus, min_features: int = 2, tie_share: float = 0.85,
+def evaluate(corpus: Corpus, min_features: int = 2, tie_share: Optional[float] = None,
              images: Optional[Corpus] = None) -> Report:
     """Score *corpus*. With *images* (a corpus of the same libraries built for another
     architecture) the references come from *corpus* and the images from *images*, which
     is how a rule author's references meet firmware for a different CPU."""
     report = Report(min_features, tie_share)
     target = images or corpus
-    prints: Dict[Tuple[str, str], object] = {}
+    prints: Dict[Tuple[str, str], Tuple[Any, List[str]]] = {}
     for lib in corpus.builds:
         if lib not in target.builds:
             continue
@@ -202,12 +202,12 @@ def evaluate(corpus: Corpus, min_features: int = 2, tie_share: float = 0.85,
                     outcome, reported = _classify(hit, tags, tag)
                     report.cells.append(Cell(lib, ref_opt, img_opt, tag, outcome, reported,
                                              hit[3] if hit else 0.0, hit[1] if hit else 0))
-    for (lib, ref_opt), (built, _) in prints.items():
+    for (lib, _ref_opt), (built, _) in prints.items():
         for other in target.builds:
             if other == lib:
                 continue
-            for tag, per_opt in target.builds[other].items():
-                for img_opt, build in per_opt.items():
+            for _tag, per_opt in target.builds[other].items():
+                for _img_opt, build in per_opt.items():
                     report.negative_total += 1
                     hit = built.match(_filter(build.img, min_features), min_features, tie_share,
                                       target.arch)
@@ -255,7 +255,8 @@ def leave_one_library_out(corpus: Corpus, grid: Sequence[Tuple[int, float]] = GR
 
 def format_report(report: Report) -> str:
     libs = sorted({c.lib for c in report.cells})
-    lines = [f"min_features={report.min_features} tie_share={report.tie_share}",
+    scoring = "contradiction" if report.tie_share is None else f"tie_share={report.tie_share}"
+    lines = [f"min_features={report.min_features} {scoring}",
              f"{'library':<12}" + "".join(f"{o:>7}" for o in OUTCOMES)]
     for lib in libs:
         lines.append(f"{lib:<12}" + "".join(f"{report.counts(lib)[o]:>7}" for o in OUTCOMES))

@@ -177,10 +177,10 @@ def find_evidence(directory: Path, terms: Sequence[Terms],
                 cand.by_reference.extend(refs)
                 cand.by_name.extend(named)
     out: Dict[str, List[Candidate]] = {}
-    for rule_id, per_rule in merged.items():
-        for cand in per_rule.values():
+    for rule_id, candidates in merged.items():
+        for cand in candidates.values():
             cand.by_reference.sort()
             cand.by_name.sort()
-        out[rule_id] = sorted(per_rule.values(), key=lambda c: (
+        out[rule_id] = sorted(candidates.values(), key=lambda c: (
             -len(c.by_reference), -len(c.by_name), c.cpe_key))
     return out

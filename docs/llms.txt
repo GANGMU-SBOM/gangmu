@@ -11,7 +11,7 @@ Key facts:
 - Rules never guess a CPE; PURL/OSV is a first-class matching channel. CI re-derives every rule's evidence from the upstream release it names.
 - Works offline: vulnerability matching reads local NVD / OSV / CNNVD / CNVD directories; `gangmu vuln-fetch` is the separate online step that fills them.
 - Also lists the cryptographic algorithms in a firmware (`gangmu cbom`, CycloneDX 1.6 CBOM, with a post-quantum migration summary) and its machine-learning models and inference runtimes (`gangmu aibom`); both match names and file signatures, not behaviour.
-- Does not do deep binary analysis (only banners and exported symbols in prebuilt libraries and firmware images), security testing, legal conclusions or submission to official platforms (the ENISA Single Reporting Platform has no API at first release).
+- Does not do deep binary analysis (only banners, exported symbols and toolchain-recorded dependency lists in prebuilt libraries, firmware images and Windows executables), security testing, legal conclusions or submission to official platforms (the ENISA Single Reporting Platform has no API at first release).
 
 ## Docs
 
@@ -49,6 +49,9 @@ Key facts:
 
 - [gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules): the free community rule base (CDLA-Permissive-2.0), installed as the `gangmu-rules` package; add or fix general-component rules there. Vendor-specific rules are part of the commercial edition
 - [gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench): reproducible identification accuracy on real upstream releases
+- [gangmu-cbom-rules](https://github.com/GANGMU-SBOM/gangmu-cbom-rules): CBOM rule pack (algorithm table and library capability tables), loaded with `gangmu cbom --rules`; not on PyPI yet
+- [gangmu-aibom-rules](https://github.com/GANGMU-SBOM/gangmu-aibom-rules): AIBOM rule pack (model formats and inference runtimes), loaded with `gangmu aibom --rules`; not on PyPI yet
+- [gangmu-action](https://github.com/GANGMU-SBOM/gangmu-action): GitHub Action producing SBOM, CBOM and a post-quantum summary in one step
 
 ## Optional
 

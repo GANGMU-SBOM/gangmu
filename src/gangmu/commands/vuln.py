@@ -7,6 +7,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import List, Tuple
 
 from ..core.packs import default_roots
 from ..vuln.model import VexState
@@ -114,11 +115,11 @@ def cmd_vuln(args: argparse.Namespace) -> int:
           file=sys.stderr)
 
     if args.format == "table":
-        rows = [("STATE", "ID", "SEV", "COMPONENT", "VERSION", "VIA", "WHY")]
+        rows: List[Tuple[str, ...]] = [("STATE", "ID", "SEV", "COMPONENT", "VERSION", "VIA", "WHY")]
         if threat:
             rows[0] = rows[0][:3] + ("KEV", "EPSS") + rows[0][3:]
         for m in matches:
-            row = (m.state.value, m.advisory.id[:20],
+            row: Tuple[str, ...] = (m.state.value, m.advisory.id[:20],
                    (m.advisory.severity or "-")[:8], m.component[:18],
                    (m.version or "-")[:14], m.channel, m.detail[:58])
             if threat:
@@ -321,6 +322,33 @@ def _fix_from_advisory(cve: str, db: Path):
     return "", []
 
 
+def _build_macros(args: argparse.Namespace, root: Path):
+    """The configuration to evaluate ``#if`` with, or None when none was given."""
+    from ..build.kconfig import find_kconfig, read_kconfig
+    from ..ifdef import Macros, collect_tree_defines, find_config_headers
+    paths = [Path(p) for p in (args.config or [])]
+    headers = [p for p in paths if p.suffix in (".h", ".hpp", ".hh")]
+    paths = [p for p in paths if p not in headers]
+    if not args.config:
+        found = find_kconfig(root)
+        paths = [found] if found else []
+        headers = find_config_headers(root)
+    defines = list(args.define or [])
+    if not (paths or headers or defines or args.assume_undefined_off):
+        return None
+    macros = Macros(assume_undefined=args.assume_undefined_off)
+    for path in paths:
+        try:
+            macros.add_kconfig(read_kconfig(path).values)
+        except OSError as exc:
+            print(f"warning: cannot read --config {path}: {exc}", file=sys.stderr)
+    for item in defines:
+        name, _, text = item.partition("=")
+        macros.define(name, text if "=" in item else "1")
+    collect_tree_defines(root, macros, headers)
+    return macros
+
+
 def _apply_reachability(args: argparse.Namespace, matches) -> int:
     from ..reach import assess, build_graph, load_symbols, mine_symbols
     root = Path(args.source)
@@ -334,9 +362,26 @@ def _apply_reachability(args: argparse.Namespace, matches) -> int:
         except (OSError, ValueError) as exc:
             print(f"error: cannot read --symbols {path}: {exc}", file=sys.stderr)
             return 2
-    graph = build_graph(root)
+    macros = _build_macros(args, root)
+    db = None
+    if args.compile_db:
+        from ..build.compile_db import load_compile_db
+        try:
+            db = load_compile_db(Path(args.compile_db))
+        except (OSError, ValueError) as exc:
+            print(f"error: cannot read --compile-db {args.compile_db}: {exc}",
+                  file=sys.stderr)
+            return 2
+    graph = build_graph(root, macros, db)
+    if db is not None and not graph.compile_db_used:
+        print("reachability: --compile-db names none of the files under --source; "
+              "ignored", file=sys.stderr)
     print(f"reachability: read {graph.files} source file(s), "
           f"{len(graph.defined)} function(s)", file=sys.stderr)
+    if graph.inactive_lines or graph.uncompiled_files:
+        print(f"reachability: the build rules out {graph.inactive_lines} line(s) and "
+              f"{graph.uncompiled_files} uncompiled file(s); {len(graph.compiled_out)} "
+              f"function(s) compiled out", file=sys.stderr)
     cache: dict = {}
     tally: dict = {}
     for match in matches:

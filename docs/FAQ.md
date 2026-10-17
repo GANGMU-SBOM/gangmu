@@ -46,11 +46,11 @@ TIVER（ICSE 2025）。
 
 ## 支持哪些芯片 SDK，包括哪些国产芯片？
 
-免费的 [gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules) 现有 80 条规则（Zephyr 及其 HAL、通用开源组件）。主要覆盖：
+免费的 [gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules) 现有 98 条规则（Zephyr 及其 HAL、通用开源组件）。主要覆盖：
 
 - **Zephyr**：Mbed TLS 4.1、TF-PSA-Crypto、hostap（wpa_supplicant / hostapd）、FatFs、littlefs、MCUboot、nanopb、zcbor、uOSCORE/uEDHOC；
 - **国产与亚太芯片 HAL**（取自 Zephyr 4.4 的锁定提交）：兆易创新 GD32、博流智能 BL60x/BL70x、沁恒 CH32、
-  思澈科技 SiFli、泰凌微 TLSR9、瑞昱 Ameba/Bee；
+  思澈科技 SiFli、泰凌微 TLSR9、瑞昱 Ameba/Bee；另有 STM32、NXP、Nordic、TI、Renesas、Silicon Labs、Infineon 的 Zephyr HAL 模块；
 
 厂商专属的固件库规则（芯片原厂 SDK、fork 组件）属于商业版规则包，需要请联系我们，见 [EDITIONS.md](EDITIONS.md)。
 - **通用组件**：lwIP、cJSON、OpenSSL、GmSSL、铜锁、Mbed TLS、TF-PSA-Crypto、FatFs、littlefs、LVGL、libcoap、TinyCrypt、nghttp2、libwebsockets、Paho MQTT C、OpenThread、AWS IoT Device SDK，以及 FreeRTOS、RT-Thread、TencentOS-tiny、AliOS Things、LiteOS-M / LiteOS-A / LiteOS 5.x 内核（按标志文件定位，博流、沁恒、联盛德、乐鑫 7 个 SDK 里的 14 份内核副本、12 份 Mbed TLS/FatFs/littlefs 副本全部找到）。
@@ -121,16 +121,16 @@ CRA（Regulation (EU) 2024/2847）Annex I Part II(1) 要求制造商用通用的
 
 乐鑫的 esp-idf-sbom 只覆盖 ESP-IDF，纲目把它的 `sbom.yml` 当作一等输入。
 ONEKEY、Finite State 等固件二进制分析产品面向没有源码的场景。纲目需要源码或构建过程，
-只对预编译库和固件镜像（`.a`/`.lib`/`.so`/`.elf`/`.axf`/`.bin`）读版本横幅与导出符号，不做反汇编和函数级比对；换来的是能区分「编译了但没链接」的代码、能给出厂商 fork 的祖先版本，
+只对预编译库和固件镜像（`.a`/`.lib`/`.so`/`.elf`/`.axf`/`.bin`）读版本横幅与导出符号，对 Windows 的 `.exe`/`.dll` 还读 PE 结构、Go 和 Rust 工具链写下的依赖清单与 .NET 元数据（见 [BINARY-SBOM.md](BINARY-SBOM.md)），不做函数级比对；换来的是能区分「编译了但没链接」的代码、能给出厂商 fork 的祖先版本，
 以及一份任何人都能复核的开放规则库。
 
 ## 纲目不做什么？
 
-- 不做深度二进制分析（只读横幅和导出符号）；
+- 不做深度二进制分析（只读横幅、导出符号和工具链写下的依赖清单）；
 - 不做安全测试或渗透测试；
 - 不替你下法律结论；
 - 不替代 ENISA 或工信部的官方报送平台；
-- 不猜 CPE：免费规则库 80 条里 40 条带 CPE，新增的都附有 NVD 里的 CVE 作为证据（`cpe_evidence`）；另外 40 条写明了没有 CPE 的原因。PURL 和 OSV 是一等匹配通道。
+- 不猜 CPE：免费规则库 98 条里 53 条带 CPE，新增的都附有 NVD 里的 CVE 作为证据（`cpe_evidence`）；另外 45 条写明了没有 CPE 的原因。PURL 和 OSV 是一等匹配通道。
 
 ## 怎么贡献一条规则？
 
@@ -187,7 +187,7 @@ ONEKEY、Finite State 等固件二进制分析产品面向没有源码的场景�
    "name": "支持哪些芯片 SDK，包括哪些国产芯片？",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "免费的 gangmu-rules 现有 80 条规则（Zephyr 及其 HAL、通用开源组件）。主要覆盖："
+    "text": "免费的 gangmu-rules 现有 98 条规则（Zephyr 及其 HAL、通用开源组件）。主要覆盖："
    }
   },
   {
@@ -259,7 +259,7 @@ ONEKEY、Finite State 等固件二进制分析产品面向没有源码的场景�
    "name": "和 esp-idf-sbom、二进制分析工具有什么区别？",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "乐鑫的 esp-idf-sbom 只覆盖 ESP-IDF，纲目把它的 sbom.yml 当作一等输入。 ONEKEY、Finite State 等固件二进制分析产品面向没有源码的场景。纲目需要源码或构建过程， 只对预编译库和固件镜像（.a/.lib/.so/.elf/.axf/.bin）读版本横幅与导出符号，不做反汇编和函数级比对；换来的是能区分「编译了但没链接」的代码、能给出厂商 fork 的祖先版本， 以及一份任何人都能复核的开放规则库。"
+    "text": "乐鑫的 esp-idf-sbom 只覆盖 ESP-IDF，纲目把它的 sbom.yml 当作一等输入。 ONEKEY、Finite State 等固件二进制分析产品面向没有源码的场景。纲目需要源码或构建过程， 只对预编译库和固件镜像（.a/.lib/.so/.elf/.axf/.bin）读版本横幅与导出符号，对 Windows 的 .exe/.dll 还读 PE 结构、Go 和 Rust 工具链写下的依赖清单与 .NET 元数据，不做函数级比对；换来的是能区分「编译了但没链接」的代码、能给出厂商 fork 的祖先版本， 以及一份任何人都能复核的开放规则库。"
    }
   },
   {
@@ -267,7 +267,7 @@ ONEKEY、Finite State 等固件二进制分析产品面向没有源码的场景�
    "name": "纲目不做什么？",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "- 不做深度二进制分析（只读横幅和导出符号）； - 不做安全测试或渗透测试； - 不替你下法律结论； - 不替代 ENISA 或工信部的官方报送平台； - 不猜 CPE：免费规则库 80 条里 40 条带 CPE，新增的都附有 NVD 里的 CVE 作为证据（cpe_evidence）；另外 40 条写明了没有 CPE 的原因。PURL 和 OSV 是一等匹配通道。"
+    "text": "- 不做深度二进制分析（只读横幅、导出符号和工具链写下的依赖清单）； - 不做安全测试或渗透测试； - 不替你下法律结论； - 不替代 ENISA 或工信部的官方报送平台； - 不猜 CPE：免费规则库 98 条里 53 条带 CPE，新增的都附有 NVD 里的 CVE 作为证据（cpe_evidence）；另外 45 条写明了没有 CPE 的原因。PURL 和 OSV 是一等匹配通道。"
    }
   },
   {

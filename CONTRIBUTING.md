@@ -21,6 +21,7 @@ git clone https://github.com/GANGMU-SBOM/gangmu-rules
 pip install -e ./gangmu-rules -e ".[dev]"
 pytest -q
 ruff check src tests      # unused and undefined names; CI runs it too
+pip install mypy types-PyYAML && mypy   # type check; CI runs it too
 ```
 
 The test suite needs no network: most tests build their rule from the fixture

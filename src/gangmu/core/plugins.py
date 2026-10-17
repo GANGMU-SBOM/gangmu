@@ -18,7 +18,7 @@ never be able to take the open-source commands down with it.
 from __future__ import annotations
 
 import sys
-from typing import List
+from typing import Any, List, cast
 
 COMMAND_GROUP = "gangmu.commands"
 
@@ -28,7 +28,7 @@ def entry_points(group: str) -> List:
     eps = _all()
     if hasattr(eps, "select"):
         return list(eps.select(group=group))
-    return list(eps.get(group, []))         # Python 3.9
+    return list(cast(Any, eps).get(group, []))   # Python 3.9
 
 
 def register_commands(subparsers) -> None:

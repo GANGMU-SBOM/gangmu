@@ -29,7 +29,7 @@ from __future__ import annotations
 import operator
 from dataclasses import dataclass, field
 from itertools import chain, compress, islice
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from ..analysis import AnalysisStore
@@ -50,11 +50,16 @@ VERSION_CONFIDENCE = {
     "probe": 0.85,
     "functions": 0.88,
     "signature-reference": 0.70,
+    "anchor-shared": 0.88,      # a file several releases share: a span, not a point
 }
 
 # A partial copy (``functions.subset``) is accepted when at least this many of its
 # functions are the component's and at least this share of its functions are.
 SUBSET_MIN_FUNCTIONS = 40
+# Identity given to a weak resemblance that also defines the component's version.
+PROBE_CORROBORATED = 0.75
+# Said in the evidence and the table when the best match is at the edge of the record.
+EDGE_MARK = "this tree may be {side} than any release the rule records"
 SUBSET_MIN_SHARE = 0.90
 SUBSET_IDENTITY = 0.75      # below a full copy: most of the component is not here
 # A modified derivative (``functions.derivative``): at least this many of the
@@ -314,10 +319,19 @@ class MatchEngine:
         version_source: Optional[str] = None
 
         # --- tier 1: anchor hashes -------------------------------------
-        anchor_hit = self._check_anchors(directory, rule, evidence)
-        if anchor_hit:
+        anchor_versions = self._check_anchors(directory, rule, evidence)
+        anchor_hit = bool(anchor_versions)
+        shared: List[str] = []
+        if anchor_versions:
             identity = max(identity, 0.98)
-            version, version_source = anchor_hit, "anchor"
+            if len(anchor_versions) == 1:
+                version, version_source = anchor_versions[0], "anchor"
+            else:
+                # Releases that ship the file unchanged cannot be told apart by
+                # it. Pinning the first would report 1.4.3 for a 1.4.4 tree, so
+                # the version is settled below by a probe or the functions, or
+                # else reported as the span.
+                shared = anchor_versions
 
         # --- tier 2a: function containment (preferred) ------------------
         # CENTRIS: a component is identified by how much of its own application
@@ -369,10 +383,12 @@ class MatchEngine:
         # anchor can match a directory that is not this component at all. When
         # the two disagree the tree wins: a single shared header is much weaker
         # evidence than the shape of several hundred files.
+        demoted = False
         if anchor_hit and similarity is not None:
             if similarity < rule.thresholds["floor"]:
                 return None
             if similarity < rule.thresholds["weak"]:
+                demoted = True
                 identity = min(identity, 0.50)
                 version, version_source = None, None
                 evidence.append(Evidence(
@@ -388,8 +404,58 @@ class MatchEngine:
         # --- tier 3: version probes ------------------------------------
         if identity > 0.0:
             probed = self._probe_version(directory, rule, evidence, rel)
-            if probed and version_source != "anchor":
+            narrowed = (_narrow_range(rule, version, probed)
+                        if probed and version_source == "functions" and version
+                        else None)
+            if narrowed:
+                evidence.append(Evidence(
+                    technique=Technique.SOURCE_CODE_ANALYSIS,
+                    confidence=VERSION_CONFIDENCE["probe"],
+                    summary=(f"the functions span {version}; the tree's own version "
+                             f"definition says {probed}, which narrows it to "
+                             f"{narrowed}"),
+                    locator=rel))
+                version = narrowed
+            elif (probed and version_source == "functions" and version
+                  and all(part.startswith(probed + ".")
+                          for part in version.split("~"))):
+                pass        # the functions already name the release more exactly
+            elif probed and version_source != "anchor":
                 version, version_source = probed, "probe"
+            elif (probed and probed != version and version is not None
+                  and not version.startswith("git-")
+                  and not version.startswith(probed + ".")
+                  and probed not in _recorded_versions(rule)):
+                # An anchor says the files are those of a release, not that the
+                # tree is that release: the next one may ship them unchanged. A
+                # version definition naming a release the rule does not record is
+                # news the anchor cannot contradict. (A definition that only gives
+                # major.minor, like littlefs's 0x00020009, is a prefix of the anchor's
+                # release, not a different one.)
+                evidence.append(Evidence(
+                    technique=Technique.SOURCE_CODE_ANALYSIS,
+                    confidence=VERSION_CONFIDENCE["probe"],
+                    summary=(f"the anchored files are those of {version}, but the "
+                             f"tree's own version definition says {probed}, a "
+                             f"release rule {rule.id} does not record"),
+                    locator=rel))
+                version, version_source = probed, "probe"
+            if probed and not demoted and 0.0 < identity < PROBE_CORROBORATED:
+                # What resembles the component only weakly (a vendor fork with most
+                # of its functions rewritten) and also defines the component's own
+                # version macro, which no other code does, is the component.
+                identity = PROBE_CORROBORATED
+                evidence.append(Evidence(
+                    technique=Technique.SOURCE_CODE_ANALYSIS,
+                    confidence=PROBE_CORROBORATED,
+                    summary=(f"a weak resemblance to {rule.upstream_name} is "
+                             f"corroborated by its version definition ({probed})"),
+                    locator=rel))
+
+        if shared and version_source != "manifest":
+            if version not in shared:
+                version, version_source = f"{shared[0]}~{shared[-1]}", "anchor-shared"
+                version_range = None
 
         # --- vendor manifest -------------------------------------------
         if manifest and identity > 0.0:
@@ -470,27 +536,32 @@ class MatchEngine:
         )
 
     def _check_anchors(self, directory: Path, rule: Rule,
-                       evidence: List[Evidence]) -> Optional[str]:
+                       evidence: List[Evidence]) -> List[str]:
+        """Every release whose recorded hash the first matching anchor file has."""
         for anchor in rule.anchors:
-            path = directory / anchor.path
-            if not path.is_file():
+            path = _locate(directory, anchor.path)
+            if path is None:
                 continue
             try:
                 digest = sha256_file(path)
             except OSError:
                 continue
-            for ver, expected in anchor.sha256.items():
-                if digest == expected:
-                    evidence.append(Evidence(
-                        technique=Technique.HASH_COMPARISON,
-                        confidence=VERSION_CONFIDENCE["anchor"],
-                        summary=(f"{anchor.path} matches, byte for byte, the hash "
-                                 f"rule {rule.id} records for "
-                                 f"{rule.upstream_name} {ver}"),
-                        locator=f"{directory.name}/{anchor.path}",
-                    ))
-                    return ver
-        return None
+            versions = [ver for ver, expected in anchor.sha256.items()
+                        if digest == expected]
+            if versions:
+                which = (versions[0] if len(versions) == 1 else
+                         f"{versions[0]} to {versions[-1]} alike "
+                         f"({len(versions)} releases ship it unchanged)")
+                evidence.append(Evidence(
+                    technique=Technique.HASH_COMPARISON,
+                    confidence=VERSION_CONFIDENCE["anchor"],
+                    summary=(f"{anchor.path} matches, byte for byte, the hash "
+                             f"rule {rule.id} records for "
+                             f"{rule.upstream_name} {which}"),
+                    locator=f"{directory.name}/{anchor.path}",
+                ))
+                return versions
+        return []
 
     def _content_hash(self, directory: Path, rule: Rule) -> Optional[str]:
         include = rule.include or DEFAULT_INCLUDE
@@ -592,6 +663,15 @@ class MatchEngine:
                 confidence=VERSION_CONFIDENCE["functions"],
                 summary=verdict.detail,
                 locator=rel))
+        if verdict.edge:
+            side = "older" if verdict.edge == "oldest" else "newer"
+            evidence.append(Evidence(
+                technique=Technique.OTHER,
+                confidence=0.0,
+                summary=(f"{verdict.best} is the {verdict.edge} release rule {rule.id} "
+                         f"records and {verdict.changed} of its functions are missing or "
+                         f"altered: {EDGE_MARK.format(side=side)}"),
+                locator=rel))
         return identity, (verdict.label if verdict.best else None), verdict
 
     def _by_subset(self, signature, present, rel: str, evidence: List[Evidence]):
@@ -679,24 +759,94 @@ class MatchEngine:
 
     def _probe_version(self, directory: Path, rule: Rule,
                        evidence: List[Evidence], rel: str) -> Optional[str]:
+        bases = [(directory, rel)]
+        if directory.name.lower() in SOURCE_DIRECTORY_NAMES:
+            # The component was found at its ``src``, with the header that names
+            # the version beside it (LVGL's ``lvgl.h``, FreeRTOS's ``include/``).
+            bases.append((directory.parent, str(PurePosixPath(rel).parent)))
         for probe in rule.probes:
-            path = directory / probe.file
-            if not path.is_file():
-                continue
-            try:
-                text = path.read_text(encoding="utf-8", errors="replace")
-            except OSError:
-                continue
-            value = probe.apply(text)
-            if value:
-                evidence.append(Evidence(
-                    technique=Technique.SOURCE_CODE_ANALYSIS,
-                    confidence=VERSION_CONFIDENCE["probe"],
-                    summary=f"version {value} read from {probe.file}",
-                    locator=f"{rel}/{probe.file}",
-                ))
-                return value
+            for base, where in bases:
+                path = _locate(base, probe.file, by_name=True)
+                if path is None:
+                    continue
+                try:
+                    text = path.read_text(encoding="utf-8", errors="replace")
+                except OSError:
+                    continue
+                value = probe.apply(text)
+                if value:
+                    evidence.append(Evidence(
+                        technique=Technique.SOURCE_CODE_ANALYSIS,
+                        confidence=VERSION_CONFIDENCE["probe"],
+                        summary=f"version {value} read from {probe.file}",
+                        locator=f"{where}/{probe.file}",
+                    ))
+                    return value
         return None
+
+
+NESTED_LOOKUP_DEPTH = 2
+SOURCE_DIRECTORY_NAMES = frozenset({"src", "source", "lib", "library"})
+NAMED_LOOKUP_DEPTH = 4
+
+
+def _narrow_range(rule: Rule, version: str, probed: str) -> Optional[str]:
+    """The part of a ``low~high`` span a version definition leaves standing.
+
+    A header that carries only major.minor (littlefs's ``LFS_VERSION`` is 2.10 for
+    2.10.0 to 2.10.2) cannot name a release, but it can say which of the releases
+    the functions span the tree belongs to.
+    """
+    if "~" not in version or rule.functions is None:
+        return None
+    low, _, high = version.partition("~")
+    recorded = list(rule.functions.versions)
+    if low not in recorded or high not in recorded:
+        return None
+    span = recorded[recorded.index(low):recorded.index(high) + 1]
+    kept = [v for v in span if v == probed or v.startswith(probed + ".")]
+    if not kept or len(kept) == len(span):
+        return None
+    return kept[0] if len(kept) == 1 else f"{kept[0]}~{kept[-1]}"
+
+
+def _recorded_versions(rule: Rule) -> set:
+    """Every release the rule has a hash or function set for."""
+    out = {v for anchor in rule.anchors for v in anchor.sha256}
+    if rule.functions is not None:
+        out.update(rule.functions.versions)
+    return out
+
+
+def _locate(directory: Path, relpath: str, by_name: bool = False) -> Optional[Path]:
+    """The file a rule names, at its path or else one nested level or two below.
+
+    A vendor that wraps a library in an extra directory (lwIP's ``core/`` in
+    BTstack's copy, so ``core/src/include/lwip/init.h``) moves every path a rule
+    records. The file is accepted from below only when exactly one candidate
+    exists; two are ambiguous, and nothing is guessed.
+    """
+    path = directory / relpath
+    if path.is_file():
+        return path
+    found = _unique_glob(directory, relpath, NESTED_LOOKUP_DEPTH)
+    if found is None and by_name:
+        found = _unique_glob(directory, Path(relpath).name, NAMED_LOOKUP_DEPTH, deep=True)
+    return found
+
+
+def _unique_glob(directory: Path, tail: str, depth: int, deep: bool = False) -> Optional[Path]:
+    """The one file ``<directory>/<up to depth levels>/<tail>``, else ``None``."""
+    found = []
+    for level in range(1, depth + 1):
+        pattern = "/".join(["*"] * level) + "/" + tail
+        try:
+            found += [p for p in directory.glob(pattern) if p.is_file()]
+        except (OSError, ValueError):
+            return None
+        if found and not deep:
+            break
+    return found[0] if len(found) == 1 else None
 
 
 def _repeated(values) -> set:

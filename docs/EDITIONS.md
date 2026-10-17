@@ -19,10 +19,11 @@ gangmu 的核心能力全部开源，并会一直开源：识别引擎、构建�
 
 | 能力 | 说明 |
 | --- | --- |
-| 免费规则库 gangmu-rules | 被各家 SDK 拷贝最多的上游组件（lwIP、Mbed TLS、FreeRTOS、LVGL 等）、Zephyr 及其 HAL 和社区贡献的规则，每条都能从上游复现 |
+| 免费规则库 gangmu-rules | 被各家 SDK 拷贝最多的上游组件（lwIP、Mbed TLS、FreeRTOS、LVGL 等）、Zephyr 及其 HAL 模块和社区贡献的规则（现有 98 条），每条都能从上游复现 |
 | 函数级识别引擎 | 多版本函数签名、自适应版本区间、厂商修改检测 |
+| 合并与许可证分诊 | `gangmu merge`（合并多份 CycloneDX：本工具的、供应商的、Yocto 或 Conan 的）、`gangmu license-check`（copyleft、可能不兼容的组合、缺许可证的组件） |
 | 构建期采集 | `compile_commands.json`、链接 map、IAR / Keil / CCS 工程、编译器包装器 |
-| 生态声明直读 | RT-Thread、OpenHarmony、ESP-IDF 的组件声明 |
+| 生态声明直读 | RT-Thread、OpenHarmony、ESP-IDF、CMake / vcpkg / Meson / Cargo、STM32Cube / CMSIS-Pack、dpkg / opkg / apk 包数据库的声明 |
 | SBOM 输出与评分 | CycloneDX 1.6、SPDX 2.3 与 3.0.1，NTIA 2021 与 CISA 2026 最小要素评分；组件维护状态与停止支持日期字段 |
 | 漏洞比对 | 本地 NVD / OSV / 国内漏洞库目录，输出 CycloneDX VEX、OpenVEX、CSAF 2.0 VEX |
 | CRA 自查与技术文档包 | `cra-check`、`evidence` |
@@ -38,13 +39,16 @@ gangmu 的核心能力全部开源，并会一直开源：识别引擎、构建�
 | --- | --- |
 | **漏洞持续监测** | NVD、GHSA、OSV、CNNVD、CNVD 多源合并去重，新漏洞出现时按产品型号推送；VEX 判定由专人复核并留痕 |
 | **报送工作台** | CRA 24 小时 / 72 小时 / 14 天与工信部 2 日四条时限并行跟踪；版本级 SBOM 归档，十年留存；审批与留痕 |
-| **商业版规则包** | 芯片原厂与厂商专属的固件库、fork 组件规则，按需订阅，装上后自动叠加在免费规则库之上 |
+| **商业版规则包** | 芯片原厂与厂商专属的固件库、fork 组件规则，放在私有仓库 gangmu-rules-pro 里，按公司分包、各自授权，规则 id 与免费库一致，装上后自动叠加在免费规则库之上 |
 | **合规策略包** | 维护好的法规与标准映射，如 NIST IR 8547 的算法过渡期限，随法规更新，仓库 gangmu-policy-pro |
 | **规则库企业服务** | 离线镜像、带响应时限的规则更新、为您自有 BSP 和私有 SDK 建立的私有规则 |
 | **中欧双重报送台账** | 同一事件同时触发两套义务时的流程、审批与记录 |
 | **芯片原厂规则包认证** | 为原厂出具可交付给下游客户的官方组件清单规则包 |
 | **私有化部署** | 内网交付、信创环境适配、与现有 CI 和制品库集成 |
 | **技术支持与集成** | 构建系统接入、规则编写培训、合规流程咨询 |
+
+商业版的内容放在私有仓库里：规则包在 gangmu-rules-pro（每家公司一个规则包，各有一个 `gangmu.rule_packs` 入口点，按公司单独授权），
+合规策略包在 gangmu-policy-pro，授权校验与企业服务在 gangmu-enterprise。开源的 gangmu、gangmu-rules、gangmu-bench 等仓库不依赖它们，没有装也能完整使用。
 
 ## 我们不做的事
 
@@ -69,7 +73,7 @@ gangmu 的核心能力全部开源，并会一直开源：识别引擎、构建�
 gangmu's core is open source and will stay that way: the identification engine,
 build-time collection, SBOM output, vulnerability matching, the benchmark, the
 reporting drafts and the free rule base gangmu-rules (general open-source
-components, Zephyr and its HALs, community contributions) are all free to use,
+components, Zephyr and its HAL modules, community contributions) are all free to use,
 modify and redistribute.
 
 The rule base comes in two parts. The free gangmu-rules holds the general
@@ -87,6 +91,8 @@ calls, or need delivery **inside an air-gapped or domestic-IT environment**:
 - **Dual-obligation register** for incidents that trigger both the EU and the Chinese duty.
 - **Silicon-vendor rule-pack certification.**
 - **On-premises deployment**, integration and support.
+
+The commercial content lives in private repositories: the rule packs in gangmu-rules-pro (one pack per company, each with its own `gangmu.rule_packs` entry point and licence), the policy packs in gangmu-policy-pro, and licensing and enterprise services in gangmu-enterprise. The open repositories (gangmu, gangmu-rules, gangmu-bench and the others) do not depend on them.
 
 Not offered in either edition: legal conclusions, security testing, or a
 replacement for the official reporting platforms.

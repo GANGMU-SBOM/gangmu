@@ -45,9 +45,9 @@ from a different release by 0.06; function level separates them by 0.25.
 
 ## Which SDKs and chips are covered?
 
-The free rule base ([gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules)) has 80 rules.
+The free rule base ([gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules)) has 98 rules.
 
-Covered: Zephyr (Mbed TLS 4.1, TF-PSA-Crypto, hostap, FatFs, littlefs, MCUboot, nanopb, zcbor, uOSCORE/uEDHOC) and its HALs for Chinese and APAC silicon from Zephyr 4.4 (GigaDevice GD32, Bouffalo Lab, WCH CH32, SiFli, Telink, Realtek); and the general components lwIP, cJSON, OpenSSL, GmSSL, Tongsuo, Mbed TLS, TF-PSA-Crypto, FatFs, littlefs, LVGL, libcoap, TinyCrypt, nghttp2, libwebsockets, Paho MQTT C, OpenThread, the AWS IoT Device SDK, FreeType, libjpeg-turbo, giflib, Opus and OpenAMP, plus the FreeRTOS, RT-Thread, TencentOS-tiny, AliOS Things and LiteOS (M, A, 5.x) kernels (found by marker files wherever a vendor put them).
+Covered: Zephyr (Mbed TLS 4.1, TF-PSA-Crypto, hostap, FatFs, littlefs, MCUboot, nanopb, zcbor, uOSCORE/uEDHOC) and its HALs for Chinese and APAC silicon from Zephyr 4.4 (GigaDevice GD32, Bouffalo Lab, WCH CH32, SiFli, Telink, Realtek, plus the STM32, NXP, Nordic, TI, Renesas, Silicon Labs and Infineon HAL modules); and the general components lwIP, cJSON, OpenSSL, GmSSL, Tongsuo, Mbed TLS, TF-PSA-Crypto, FatFs, littlefs, LVGL, libcoap, TinyCrypt, nghttp2, libwebsockets, Paho MQTT C, OpenThread, the AWS IoT Device SDK, FreeType, libjpeg-turbo, giflib, Opus and OpenAMP, plus the FreeRTOS, RT-Thread, TencentOS-tiny, AliOS Things and LiteOS (M, A, 5.x) kernels (found by marker files wherever a vendor put them).
 
 Vendor-specific firmware-library rules (chip-vendor SDKs and forks) belong to the commercial rule packs; contact us, see [EDITIONS.md](EDITIONS.md).
 
@@ -85,9 +85,9 @@ CNNVD/CNVD data has to be exported from those platforms yourself.
 
 ## What does it not do?
 
-No deep binary analysis (banners and exported symbols only), no security testing, no legal conclusions, no submission to
-official platforms, and no guessed CPEs (35 of 92 rules carry one, new ones citing
-the NVD records that prove it; the other 57 say why not; PURL and OSV are first-class channels).
+No deep binary analysis (banners, exported symbols and the dependency lists toolchains write on purpose), no security testing, no legal conclusions, no submission to
+official platforms, and no guessed CPEs (53 of 98 rules carry one, new ones citing
+the NVD records that prove it; the other 45 say why not; PURL and OSV are first-class channels).
 
 ## How do I add a rule?
 
@@ -146,7 +146,7 @@ run the process long term. See [EDITIONS.md](EDITIONS.md).
    "name": "Which SDKs and chips are covered?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "The free rule base (gangmu-rules) has 80 rules."
+    "text": "The free rule base (gangmu-rules) has 98 rules."
    }
   },
   {
@@ -178,7 +178,7 @@ run the process long term. See [EDITIONS.md](EDITIONS.md).
    "name": "What does it not do?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "No deep binary analysis (banners and exported symbols only), no security testing, no legal conclusions, no submission to official platforms, and no guessed CPEs (35 of 92 rules carry one, new ones citing the NVD records that prove it; the other 57 say why not; PURL and OSV are first-class channels)."
+    "text": "No deep binary analysis (banners, exported symbols and the dependency lists toolchains write on purpose), no security testing, no legal conclusions, no submission to official platforms, and no guessed CPEs (53 of 98 rules carry one, new ones citing the NVD records that prove it; the other 45 say why not; PURL and OSV are first-class channels)."
    }
   },
   {

@@ -38,6 +38,19 @@ TARGETS = {
                           "-fno-asynchronous-unwind-tables"],
                 "ld": "fw-aarch64.ld", "start": "start-aarch64.c", "include": [],
                 "link": ["-static", "-no-pie"]},
+    # clang with lld, so no MIPS GCC is needed; the stub headers in mips-include declare
+    # just what the libraries call (nothing is linked, the images are never run). -G0 keeps
+    # data out of the $gp-relative small-data area.
+    "mipsel": {"cc": "clang", "strip": "llvm-strip",
+               "flags": ["--target=mipsel-linux-gnu", "-ffreestanding", "-fno-pic",
+                         "-mno-abicalls", "-G0", "-fuse-ld=lld"],
+               "ld": "fw-mips.ld", "start": "start-mips.c", "link": ["-static", "-no-pie"],
+               "include": [str(HERE / "mips-include")]},
+    "mips": {"cc": "clang", "strip": "llvm-strip",
+             "flags": ["--target=mips-linux-gnu", "-ffreestanding", "-fno-pic",
+                       "-mno-abicalls", "-G0", "-fuse-ld=lld"],
+             "ld": "fw-mips.ld", "start": "start-mips.c", "link": ["-static", "-no-pie"],
+             "include": [str(HERE / "mips-include")]},
     # Espressif's crosstool-NG toolchain must be on PATH (idf_tools.py install xtensa-esp32-elf).
     # -mtext-section-literals keeps each function's literal pool beside it, in .text.
     "xtensa": {"cc": "xtensa-esp32-elf-gcc", "strip": "xtensa-esp32-elf-strip",
@@ -75,7 +88,8 @@ def build(lib: str, spec: dict, tag: str, root: Path, opt: str, out: Path,
     # Shipped firmware is built without assert(): each one leaves its expression, file name
     # and line number in the image, features a real image does not have (found when the
     # references for littlefs matched none of the same functions in Zephyr's build).
-    flags = [*t["flags"], f"-{opt}", "-fno-tree-loop-distribute-patterns", "-w"] \
+    gcc_only = [] if "clang" in t["cc"] else ["-fno-tree-loop-distribute-patterns"]
+    flags = [*t["flags"], f"-{opt}", *gcc_only, "-w"] \
         + ([] if asserts else ["-DNDEBUG", "-DLFS_NO_ASSERT"]) \
         + [f"-I{root / i}" for i in spec.get("include", ["."])] \
         + [f"-I{d}" for d in t["include"]] + [f"-D{d}" for d in spec.get("defines", [])]

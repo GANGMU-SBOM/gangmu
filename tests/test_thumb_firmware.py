@@ -94,7 +94,7 @@ def _score(truth, found):
 def test_stripped_elf_and_raw_bin_recover_the_functions_the_symbols_name(firmware, opt):
     full, stripped, binary = firmware[opt]
     truth = {a & ~1 for a, size, _ in parse_elf(full).functions if size}
-    for image, rec in ((stripped, disasm.recover_elf(stripped, parse_elf(stripped))),
+    for _image, rec in ((stripped, disasm.recover_elf(stripped, parse_elf(stripped))),
                        (binary, disasm.recover_raw(binary))):
         assert rec.arch == "thumb"
         recall, precision = _score(truth, {f.address for f in rec.functions})
