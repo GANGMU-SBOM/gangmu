@@ -247,9 +247,11 @@ class AnalysisStore:
 
     # ---- selection
     def select(self, directory: Path, include: Sequence[str],
-               exclude: Sequence[str]) -> Optional[List[str]]:
+               exclude: Sequence[str],
+               only: Optional[Sequence[str]] = None) -> Optional[List[str]]:
         """Root-relative files a print of *directory* covers, or None if the
-        directory is not under this store's root."""
+        directory is not under this store's root. With *only*, the print covers
+        those of its files alone (a component copied in among other files)."""
         try:
             rel_dir = directory.relative_to(self.root).as_posix()
         except ValueError:
@@ -257,7 +259,7 @@ class AnalysisStore:
         inc, exc = compile_any(include), compile_any(exclude)
         cut = 0 if rel_dir in ("", ".") else len(rel_dir) + 1
         out: List[str] = []
-        for rel in self.index.under(rel_dir):
+        for rel in sorted(only) if only is not None else self.index.under(rel_dir):
             sub = rel[cut:]
             if inc is None or not inc.match(sub):
                 continue
@@ -396,6 +398,34 @@ class AnalysisStore:
         except sqlite3.Error:
             return
 
+    def facts_lookup(self, shas: Sequence[str], kind: str) -> Dict[str, str]:
+        """Text a caller stored for these file hashes under *kind* (a version of
+        whatever it derived from the file): the per-file facts that need the source
+        again to recompute, such as the names of its functions."""
+        out: Dict[str, str] = {}
+        if self._db is None:
+            return out
+        try:
+            for i in range(0, len(shas), 500):
+                chunk = list(shas[i:i + 500])
+                marks = ",".join("?" * len(chunk))
+                out.update(self._db.execute(
+                    f"SELECT sha,data FROM facts WHERE kind=? AND sha IN ({marks})",
+                    [kind, *chunk]).fetchall())
+        except sqlite3.Error:
+            pass
+        return out
+
+    def facts_store(self, rows: Sequence[Tuple[str, str]], kind: str) -> None:
+        if not rows or self._db is None:
+            return
+        try:
+            with self._db:
+                self._db.executemany("INSERT OR REPLACE INTO facts VALUES (?,?,?)",
+                                     [(sha, kind, data) for sha, data in rows])
+        except sqlite3.Error:
+            pass
+
     def analysis(self, rel: str) -> FileAnalysis:
         sha = self._sha.get(rel)
         if not sha:
@@ -413,6 +443,8 @@ def _open_db(directory: Path) -> Optional[sqlite3.Connection]:
         db.execute("PRAGMA synchronous=NORMAL")
         db.execute("CREATE TABLE IF NOT EXISTS files "
                    "(sha TEXT, params TEXT, data BLOB, PRIMARY KEY (sha, params))")
+        db.execute("CREATE TABLE IF NOT EXISTS facts "
+                   "(sha TEXT, kind TEXT, data TEXT, PRIMARY KEY (sha, kind))")
         db.execute("CREATE TABLE IF NOT EXISTS stats "
                    "(path TEXT PRIMARY KEY, size INTEGER, mtime INTEGER, sha TEXT)")
         return db

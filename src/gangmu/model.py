@@ -88,6 +88,11 @@ class Finding:
     (FDA asks for both per SBOM component). ``unknown`` when no rule and no
     ``--support`` entry says; None only before a scan has stamped it."""
 
+    files: List[str] = field(default_factory=list)
+    """Root-relative files that are the component, when it was copied in as loose
+    files among others in ``directory`` rather than being the directory. Empty
+    when the whole directory is the component."""
+
     path_match: int = 0
     """2 = the directory is where the rule says the component lives, 1 = only the
     directory name agrees, 0 = neither. Ranked above rule specificity: a narrow
@@ -132,6 +137,9 @@ class ScanResult:
     possible: List[Finding] = field(default_factory=list)
     """Directories that resemble a known component but not well enough to assert
     it. Kept out of ``findings`` so no SBOM, VEX or CVE match is built on them."""
+    unknown: List[Any] = field(default_factory=list)
+    """Code that looks vendored and that no rule names (``gangmu.unknown.Unknown``),
+    with a name and version hint each. Leads for a new rule; not in the SBOM."""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -143,5 +151,6 @@ class ScanResult:
             "notBuilt": [f.to_dict() for f in self.not_built],
             "binaries": [b.to_dict() for b in self.binaries],
             "unidentified": self.unidentified,
+            "unknown": [u.to_dict() for u in self.unknown],
             "notes": self.notes,
         }

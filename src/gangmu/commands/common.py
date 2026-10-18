@@ -86,6 +86,8 @@ def _table(result: ScanResult) -> str:
             notes.append("not linked")
         if f.alternatives:
             notes.append(f"{len(f.alternatives)} alt")
+        if f.files:
+            notes.append(f"{len(f.files)} file(s) among others")
         rows.append((
             f"{f.confidence:.2f}",
             f.upstream_name[:28],
@@ -114,6 +116,13 @@ def _table(result: ScanResult) -> str:
         for f in result.possible:
             lines.append(f"  {f.identity_confidence:.2f}  {f.upstream_name}  "
                          f"{f.version or '-'}  {f.directory}")
+    if result.unknown:
+        lines.append("")
+        lines.append("UNKNOWN (looks vendored, no rule names it; not in the SBOM)")
+        for u in result.unknown:
+            where = u.directory if u.kind == "directory" else f"{len(u.files)} file(s) in {u.directory}"
+            lines.append(f"  {u.score:4.1f}  {u.name_hint or '?'}  {u.version_hint or '-'}  {where}"
+                         + (f"  (resembles {', '.join(u.resembles)})" if u.resembles else ""))
     tail = [
         "",
         f"{len(result.findings)} component(s) identified from "

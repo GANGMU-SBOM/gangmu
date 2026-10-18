@@ -17,11 +17,13 @@ from .discover import discover_roots, empty_submodules
 from .analysis import AnalysisStore
 from .fingerprint import DEFAULT_K, DEFAULT_WINDOW
 from .match.engine import MatchEngine, PrintCache
+from .match.loose import find_loose
 from .model import Evidence, Finding, ScanResult, Technique
 from .rules.loader import RuleBase
 from .rules.resolve import resolve
 from .rules.schema import Rule
 from .support import stamp as stamp_support
+from .unknown import discover_unknown
 from .core.cpe import escape_value, join_cpe, split_cpe
 
 DECLARED_CONFIDENCE = 0.90
@@ -39,6 +41,8 @@ class ScanOptions:
     binaries: bool = True           # inventory prebuilt .a/.lib/.so and read their banners
     declared: bool = True           # read RT-Thread / OpenHarmony declarations
     licenses: bool = True           # read SPDX headers and LICENSE files of what is identified
+    loose: bool = True              # identify components copied in as loose files among others
+    unknown: bool = True            # report code that looks vendored and that no rule names
     support: Optional[List[Any]] = None     # support.Override entries from --support
     kconfig: Optional[KconfigValues] = None  # sdkconfig / .config: drop components it turns off
     stats: Optional[Dict[str, int]] = None   # filled with work counters if given
@@ -114,15 +118,40 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
         findings, notes = _apply_declarations(root, findings, rulebase,
                                               declarations, build_facts)
 
+    absorbed: List[Tuple[str, List[str], str]] = []
+    if options.loose:
+        # What no directory explains: a component's files dropped in among the
+        # project's own (app/lwprintf.c beside app/main.c).
+        loose = find_loose(root, engine, store, findings,
+                           build_facts.compiled if build_facts and build_facts.compiled else None,
+                           asserted=options.possible_below, absorbed=absorbed)
+        # A resemblance at a directory gives way to the component's own files in it.
+        placed = {(f.rule_id, f.directory) for f in loose}
+        findings = [f for f in findings if f.identity_confidence >= options.possible_below
+                    or not any(rid == f.rule_id and _within(d, f.directory) for rid, d in placed)]
+        findings.extend(loose)
+        # A rule that lost a directory to another is no alternative to it once it
+        # has its own files there.
+        for f in findings:
+            f.alternatives = [a for a in f.alternatives if (a.rule_id, f.directory) not in placed]
+        if options.stats is not None:
+            options.stats["loose_findings"] = len(loose)
+
     # A directory inside an identified component is part of that component, not
     # a separate unknown. Reporting it would bury the unknowns that matter.
-    identified = [f.directory.rstrip('/') + '/' for f in findings]
+    identified = [f.directory.rstrip('/') + '/' for f in findings if not f.files]
     unidentified = [u for u in unidentified
                     if not any((u + '/').startswith(prefix) for prefix in identified)]
 
     if build_facts:
         for finding in findings:
             directory = root / finding.directory
+            if finding.files:
+                mine = {(root / f).resolve() for f in finding.files}
+                finding.compiled_files = len(mine & build_facts.compiled)
+                if build_facts.have_link_map:
+                    finding.linked = bool(mine & build_facts.linked)
+                continue
             compiled = build_facts.sources_under(directory)
             finding.compiled_files = len(compiled)
             if build_facts.have_link_map:
@@ -191,8 +220,21 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
                          "status in the rules or the --support file; the SBOM says "
                          "'unknown' for them. FDA asks for the level of support and "
                          "the end-of-support date of every component")
+    unknown = []
+    if options.unknown:
+        unknown = discover_unknown(
+            root, [(f.directory, f.files, f.upstream_name) for f in findings + not_built
+                   if not f.rule_id.startswith("binary/")] + absorbed,
+            [(f.directory, f.files, f.rule_id) for f in possible], store)
+        if unknown:
+            notes.append(
+                f"{len(unknown)} piece(s) of code look vendored but no rule names them "
+                f"(own licence, copyright holder, manifest or function prefix): "
+                + ", ".join(f"{u.name_hint or '?'} ({u.directory})" for u in unknown[:5])
+                + (f" and {len(unknown) - 5} more" if len(unknown) > 5 else "")
+                + ". They are not in the SBOM; see 'unknown' in the JSON output")
     return ScanResult(root=str(root), findings=findings, possible=possible,
-                      not_built=not_built,
+                      not_built=not_built, unknown=unknown,
                       binaries=binaries,
                       unidentified=sorted(unidentified),
                       rules_loaded=len(rulebase),
@@ -219,9 +261,17 @@ def _stamp_rule_packs(rulebase: RuleBase, *groups: List[Finding]) -> None:
                     item.rule_pack_version = known[1] or None
 
 
+def _within(path: str, directory: str) -> bool:
+    return directory in ("", ".") or path == directory or path.startswith(directory.rstrip("/") + "/")
+
+
 def _observe_licenses(root: Path, finding: Finding) -> None:
     directory = root / finding.directory
     if not directory.is_dir():
+        return
+    if finding.files:
+        # The directory's licence files and other sources are the project's.
+        finding.observed_licenses, _ = observe(directory, [root / f for f in finding.files])
         return
     headers, files = observe(directory)
     finding.observed_licenses = headers

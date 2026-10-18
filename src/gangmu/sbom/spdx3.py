@@ -83,6 +83,8 @@ def _comment(finding: Finding) -> str:
     lines = [
         f"identified by gangmu rule {finding.rule_id}",
         f"directory: {finding.directory}",
+        *([f"files (copied in among other files of the directory): "
+           f"{', '.join(finding.files)}"] if finding.files else []),
         f"identity confidence: {finding.identity_confidence:.3f}",
         f"version confidence: {finding.version_confidence:.3f}"
         f" (source: {finding.version_source or 'none'})",

@@ -20,7 +20,7 @@ import os
 import re
 from collections import Counter
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from .core.walk import NOT_CONTENT_DIRS
 
@@ -75,14 +75,23 @@ def detect_license_text(text: str) -> Optional[str]:
     return None
 
 
-def observe(directory: Path) -> Tuple[List[str], Dict[str, str]]:
+def observe(directory: Path, only: Optional[Sequence[Path]] = None
+            ) -> Tuple[List[str], Dict[str, str]]:
     """(SPDX identifiers from source headers, {top-level licence file: id}).
 
     Identifiers are ordered by how many files carry them, so the first one is the
-    licence most of the component is under.
+    licence most of the component is under. With *only*, just those files' headers
+    are read and no licence file is: the component is some files in the directory,
+    whose licence files are someone else's.
     """
     counts: Counter = Counter()
     files: Dict[str, str] = {}
+    if only is not None:
+        for path in only[:MAX_FILES]:
+            head = _head(Path(path))
+            if head is not None:
+                counts.update(set(parse_spdx_headers(head)))
+        return [expr for expr, _ in counts.most_common(8)], files
     seen = 0
     try:
         top = sorted(os.listdir(directory))
@@ -106,16 +115,20 @@ def observe(directory: Path) -> Tuple[List[str], Dict[str, str]]:
             seen += 1
             if seen > MAX_FILES:
                 break
-            try:
-                with open(os.path.join(base, name), "rb") as fh:
-                    head = fh.read(HEAD_BYTES).decode("utf-8", "replace")
-            except OSError:
-                continue
-            for expr in set(parse_spdx_headers(head)):
-                counts[expr] += 1
+            head = _head(Path(base) / name)
+            if head is not None:
+                counts.update(set(parse_spdx_headers(head)))
         if seen > MAX_FILES:
             break
     return [expr for expr, _ in counts.most_common(8)], files
+
+
+def _head(path: Path) -> Optional[str]:
+    try:
+        with open(path, "rb") as fh:
+            return fh.read(HEAD_BYTES).decode("utf-8", "replace")
+    except OSError:
+        return None
 
 
 def observed_license_ids(headers: Iterable[str], files: Dict[str, str]) -> List[str]:

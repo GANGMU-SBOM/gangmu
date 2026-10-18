@@ -199,6 +199,11 @@ the maintained regulatory packs (NIST IR 8547 and others) are the commercial gan
 | Zephyr and its HALs | Mbed TLS, hostap, MCUboot, nanopb, and the Bouffalo, WCH, SiFli, Telink, Realtek, GigaDevice, STM32, NXP, Nordic, TI, Renesas, Silicon Labs and Infineon HAL modules | Rules generated from Zephyr's pinned commits |
 | Kernels and libraries inside Chinese SDKs | FreeRTOS / RT-Thread / LiteOS / TencentOS-tiny / AliOS Things kernels, FreeType, Opus and others | Located by marker files, independent of directory names |
 
+Two things are found beyond what a directory says:
+
+- **Files copied in among the project's own** (`app/lwprintf.c` beside `app/main.c`). Every source file the scan has not explained is compared function by function with the rules; files of one directory that are nearly all one rule's code are put to the same tests as a directory. The table notes `N file(s) among others` and the SBOM lists them under `evidence.occurrences`. `--no-loose` turns it off.
+- **Vendored code no rule names** (`UNKNOWN` in the table, `unknown` in the JSON): directories and groups of files that carry their own licence, copyright holder, manifest or function prefix and do not include the project's headers, each with a name and version hint. They stay out of the SBOM; they are where a new rule is needed. `--no-unknown` turns it off.
+
 For what each Chinese ecosystem does and does not cover see [docs/CHINA.md](docs/CHINA.md); for what each release added see [docs/CHANGELOG.en.md](docs/CHANGELOG.en.md).
 
 

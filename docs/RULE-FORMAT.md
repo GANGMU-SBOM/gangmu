@@ -204,6 +204,37 @@ open a pull request. CI clones the release your rule names and recomputes
 everything; if it does not reproduce byte for byte, the pull request fails with
 the diff spelled out.
 
+### Draft rules from a list of upstream projects
+
+When the projects to cover come from elsewhere -- for instance an index of the
+public package registries that names the libraries their packages republish --
+put them in a JSON file and let gangmu build the drafts:
+
+```json
+{"candidates": [
+  {"name": "LwRB", "url": "https://github.com/MaJerle/lwrb", "license": "MIT",
+   "note": "republished by 3 packages on PlatformIO and RT-Thread"}
+]}
+```
+
+```bash
+gangmu rules import candidates.json --manifest candidates --out rules/generic
+gangmu rules lint --rules rules
+gangmu rules verify --rules rules --rule generic/lwrb
+```
+
+Only `url` (and an optional `subdir`) is taken from the file. gangmu lists the
+repository's release tags (pre-releases left out), fingerprints the latest
+release, builds the `.fnsig` from the most recent `--limit` releases (12) and
+pins `upstream.source.ref` to the latest tag, so `rules verify` reproduces the
+rule like any other. The rule describes the whole repository, ports and demo
+applications included, which vendors rarely copy whole, so it is marked
+`functions.subset`. An entry flagged `bundles` -- much of its code is also in
+other, unrelated packages, which it may bundle or which may bundle it -- is not:
+a rule that accepts partial copies would claim those packages' code. No CPE is
+guessed: the draft says `cpe_status: unverified ...` and `review.todo`; look one
+up (`gangmu rules cpe-evidence`) before merging.
+
 ## Conflict resolution
 
 Several rules may legitimately fire on one directory -- a generic "vendored

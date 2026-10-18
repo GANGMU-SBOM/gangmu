@@ -149,6 +149,8 @@ def cmd_scan(args: argparse.Namespace) -> int:
                               declared=not args.no_declared,
                               licenses=not args.no_licenses,
                               binaries=not args.no_binaries,
+                              loose=not args.no_loose,
+                              unknown=not args.no_unknown,
                               possible_below=0.0 if args.include_possible
                               else POSSIBLE_BELOW))
 
@@ -529,6 +531,13 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--min-confidence", type=float, default=0.35)
     s.add_argument("--no-binaries", action="store_true",
                    help="do not inventory prebuilt .a/.lib/.so files")
+    s.add_argument("--no-loose", action="store_true",
+                   help="do not look for components copied in as loose files among the "
+                        "project's own (app/lwprintf.c beside app/main.c); this reads "
+                        "every source file outside the components found")
+    s.add_argument("--no-unknown", action="store_true",
+                   help="do not look for vendored code no rule names (own licence, "
+                        "copyright holder, manifest or function prefix)")
     s.add_argument("--include-possible", action="store_true",
                    help="put weak identifications (identity below 0.60) into the "
                         "SBOM too, as earlier versions did")
@@ -570,16 +579,22 @@ def build_parser() -> argparse.ArgumentParser:
     ri = rsub.add_parser(
         "import",
         help="derive draft rules from a vendor SDK's own pins "
-             "(git submodules, or a west manifest)")
-    ri.add_argument("sdk_repo", help="SDK git URL, or a local clone")
-    ri.add_argument("--manifest", choices=["gitmodules", "west"],
+             "(git submodules, or a west manifest), or from a list of upstream "
+             "projects (candidates)")
+    ri.add_argument("sdk_repo", help="SDK git URL, or a local clone; with --manifest "
+                                     "candidates, the candidates JSON file")
+    ri.add_argument("--manifest", choices=["gitmodules", "west", "candidates"],
                     default="gitmodules",
-                    help="how the SDK pins its third-party code")
+                    help="how the SDK pins its third-party code; candidates: a JSON list "
+                         "of upstream repositories, each made a generic rule from its "
+                         "own release tags")
+    ri.add_argument("--limit", type=int, default=12,
+                    help="candidates: releases the function signature covers (default 12)")
     ri.add_argument("--manifest-file", help="west manifest name (default west.yml)")
     ri.add_argument("--group", action="append",
                     help="west group to re-enable, e.g. optional; repeatable")
-    ri.add_argument("--vendor", required=True)
-    ri.add_argument("--sdk", required=True)
+    ri.add_argument("--vendor", help="required for gitmodules and west")
+    ri.add_argument("--sdk", help="required for gitmodules and west")
     ri.add_argument("--sdk-version")
     ri.add_argument("--out", required=True, help="directory to write rules into")
     ri.add_argument("--only", action="append",

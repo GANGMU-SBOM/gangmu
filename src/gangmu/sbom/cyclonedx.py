@@ -179,6 +179,10 @@ def _component(finding: Finding) -> Dict[str, Any]:
     identity = _identity_entries(finding)
     if identity:
         comp["evidence"] = {"identity": identity}
+    if finding.files:
+        # Copied in as loose files among the project's own: the directory is not
+        # the component, these files are.
+        comp.setdefault("evidence", {})["occurrences"] = [{"location": f} for f in finding.files]
     comp["properties"] = _properties(finding)
     return comp
 
@@ -298,6 +302,11 @@ def to_cyclonedx(result: ScanResult, app_name: str = "firmware",
                              f"(identity {f.identity_confidence:.2f}, rule {f.rule_id})"
                              ).replace("  ", " ")}
                   for f in result.possible),
+                *({"name": "gangmu:unknownThirdParty",
+                   "value": (f"{u.name_hint or '?'} {u.version_hint or ''} at {u.directory}"
+                             + (f" ({len(u.files)} files)" if u.kind == "files" else "")
+                             + f" (score {u.score:.1f}; no rule names it)").replace("  ", " ")}
+                  for u in result.unknown),
             ],
         },
         "components": components,
@@ -322,24 +331,29 @@ def _dependency_graph(findings, components) -> List[Dict[str, Any]]:
     # One directory can hold several components (an OpenHarmony
     # README.OpenSource may declare more than one), so refs are kept per
     # directory as lists rather than one-to-one.
+    # A component that is some files of a directory (``files``) contains nothing,
+    # and is not part of a component found at that same directory: its files are
+    # the ones the other's signature did not claim.
     refs: Dict[str, List[str]] = {}
+    loose: Dict[str, List[str]] = {}
     for f, c in zip(findings, components):
-        refs.setdefault(f.directory.rstrip("/"), []).append(c["bom-ref"])
+        (loose if f.files else refs).setdefault(f.directory.rstrip("/"), []).append(c["bom-ref"])
 
-    parent: Dict[str, Optional[str]] = {}
-    for here in refs:
+    def enclosing(here: str) -> Optional[str]:
         best: Optional[str] = None
         for other in refs:
             if other == here or not (other == "." or here.startswith(other + "/")):
                 continue                           # "." is the scan root: it holds everything
             if best is None or len(other) > len(best):
                 best = other                       # the nearest enclosing one
-        parent[here] = best
+        return best
 
     children: Dict[str, List[str]] = {}
-    for here, enclosing in parent.items():
-        key = enclosing if enclosing is not None else "root-application"
-        children.setdefault(key, []).extend(refs[here])
+    for table in (refs, loose):
+        for here, held in table.items():
+            outer = enclosing(here)
+            children.setdefault(outer if outer is not None else "root-application",
+                                []).extend(held)
 
     # Declared dependencies (OpenHarmony bundle.json) are edges the directory
     # layout cannot show: hilog_lite sits in base/hiviewdfx and uses
@@ -353,7 +367,7 @@ def _dependency_graph(findings, components) -> List[Dict[str, Any]]:
               "dependsOn": sorted(children.get("root-application", []))}]
     for f, c in zip(findings, components):
         here = f.directory.rstrip("/")
-        depends = set(children.get(here, []))
+        depends = set() if f.files else set(children.get(here, []))
         missing = []
         for name in f.depends_on:
             refs_for = [r for r in by_name.get(name, []) if r != c["bom-ref"]]

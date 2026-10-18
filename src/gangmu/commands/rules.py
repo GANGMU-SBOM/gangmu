@@ -16,8 +16,9 @@ from ..dirprint import (DEFAULT_EXCLUDE, DEFAULT_INCLUDE, print_directory, sha25
 from ..fingerprint import ALGO
 from ..rules.schema import RuleError
 from ..core.globbing import matches_suffix
-from ..importers import (build_function_signature, dump_rule, import_gitmodules,
-                         import_west, list_tags, pick_releases, tag_to_version)
+from ..importers import (build_function_signature, dump_rule, import_candidates,
+                         import_gitmodules, import_west, list_tags, pick_releases,
+                         tag_to_version)
 from ..verify import verify_rule, verify_with_fetch
 
 from .common import (_resolve_jobs, _load_rulebase)
@@ -132,9 +133,20 @@ def cmd_rules_import(args: argparse.Namespace) -> int:
     skip = args.skip or []
     log = ((lambda m: print(f"  .. {m}", file=sys.stderr)) if args.verbose
            else (lambda m: None))
+    if args.manifest != "candidates" and not (args.vendor and args.sdk):
+        print("error: --vendor and --sdk are required for gitmodules and west", file=sys.stderr)
+        return 2
     common = dict(vendor=args.vendor, sdk=args.sdk, sdk_version=args.sdk_version,
                   only=args.only, jobs=_resolve_jobs(args.jobs), log=log)
-    if args.manifest == "west":
+    if args.manifest == "candidates":
+        if args.dry_run:
+            print("error: --dry-run is not supported with candidates (the function "
+                  "signature is written while the rule is built)", file=sys.stderr)
+            return 2
+        results = import_candidates(Path(args.sdk_repo), out_dir, limit=args.limit,
+                                    only=args.only, jobs=common["jobs"], log=log,
+                                    date=args.date or _dt.date.today().isoformat())
+    elif args.manifest == "west":
         results = import_west(args.sdk_repo, enable_groups=args.group or (),
                               manifest_file=args.manifest_file or "west.yml",
                               recursive=args.recursive,

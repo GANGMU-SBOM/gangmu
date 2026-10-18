@@ -219,3 +219,73 @@ def test_west_imports_cannot_escape_their_project(tmp_path):
     (tmp_path / "x").mkdir()
     (tmp_path / "secret.yml").write_text("manifest: {}")
     assert _manifest_texts(tmp_path / "x", "../secret.yml") == []
+
+
+# --- candidates: generic rules from upstream repositories' own tags ----------
+
+def _tagged_upstream(tmp_path):
+    """A small library released three times, plus a pre-release tag and test code."""
+    repo = _repo(tmp_path / "upstream", {
+        "src/lib.c": (_BODY % (1, 3, 5)) + (_BODY % (2, 4, 6)),
+        "include/lib_version.h": '#define LIB_VERSION "1.0.0"\n',
+        "tests/t.c": _BODY % (9, 9, 9)})
+    _git(repo, "tag", "v1.0.0")
+    (repo / "src/lib.c").write_text((_BODY % (1, 3, 5)) + (_BODY % (2, 4, 7)))
+    (repo / "include/lib_version.h").write_text('#define LIB_VERSION "1.1.0"\n')
+    _git(repo, "commit", "-qam", "1.1")
+    _git(repo, "tag", "v1.1.0")
+    (repo / "src/extra.c").write_text(_BODY % (5, 6, 7))
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "rc")
+    _git(repo, "tag", "v1.2.0-rc1")
+    return repo
+
+
+def test_a_candidate_becomes_a_reproducible_generic_rule(tmp_path):
+    import json
+    from gangmu.importers import dump_rule, import_candidates
+    from gangmu.rules.loader import load_rules
+    repo = _tagged_upstream(tmp_path)
+    cands = tmp_path / "candidates.json"
+    cands.write_text(json.dumps({"candidates": [
+        {"name": "TinyLib", "url": repo.as_posix(), "license": "MIT",
+         "note": "republished by 3 packages", "evidence": {"registries": ["platformio"]}}]}))
+    out = tmp_path / "rules" / "generic"
+    [res] = import_candidates(cands, out, date="2026-10-19", workdir=tmp_path / "w")
+    assert res.status == "ok", res.detail
+    rule = res.rule
+    assert rule["id"] == "generic/tinylib"
+    # pinned to the latest release, never the pre-release or a branch
+    assert rule["upstream"]["source"] == {"kind": "git", "url": repo.as_posix(), "ref": "v1.1.0"}
+    assert rule["identity"]["functions"]["versions"] == ["1.0.0", "1.1.0"]
+    assert rule["identity"]["functions"]["subset"] is True     # the repository is more than vendors copy
+    assert rule["upstream"]["cpe_status"].startswith("unverified")
+    assert res.needs_cpe and rule["review"]["note"] == "republished by 3 packages"
+    assert (out / "tinylib.fnsig").is_file()
+    # test code stays out of the identity
+    assert not any("tests/" in a["path"] for a in rule["identity"]["anchors"])
+    (out / "tinylib.yaml").write_text(dump_rule(rule))
+    base = load_rules(tmp_path / "rules")
+    assert not base.errors and [r.id for r in base] == ["generic/tinylib"]
+
+
+def test_a_candidate_with_no_release_tag_is_refused(tmp_path):
+    import json
+    from gangmu.importers import import_candidates
+    repo = _repo(tmp_path / "untagged", {"a.c": _BODY % (1, 2, 3)})
+    cands = tmp_path / "c.json"
+    cands.write_text(json.dumps([{"name": "untagged", "url": repo.as_posix()}]))
+    [res] = import_candidates(cands, tmp_path / "out", workdir=tmp_path / "w")
+    assert res.status == "error" and "no release tags" in res.detail
+
+
+def test_a_bundle_of_other_libraries_does_not_accept_partial_copies(tmp_path):
+    import json
+    from gangmu.importers import import_candidates
+    repo = _tagged_upstream(tmp_path)
+    cands = tmp_path / "c.json"
+    cands.write_text(json.dumps([{"name": "TinyLib", "url": repo.as_posix(),
+                                  "bundles": {"share": 0.9, "libraries": ["LVGL"]}}]))
+    [res] = import_candidates(cands, tmp_path / "out", workdir=tmp_path / "w")
+    assert "subset" not in res.rule["identity"]["functions"]
+    assert "LVGL" in res.rule["review"]["shared_code"]
