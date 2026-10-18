@@ -236,6 +236,9 @@ class Rule:
     binary_functions: Optional[FunctionSpec] = None
     """Per-function fingerprints (strings and constants a function uses) for finding the
     component's functions inside compiled images (``fprint.py``)."""
+    binary_banners: Tuple[str, ...] = ()
+    """Regular expressions over a compiled image's bytes whose first group is a release of
+    this component (``identity.binary_banners``): the text a library prints about itself."""
     binary_functions_more: Tuple[FunctionSpec, ...] = ()
     """Further ``binary_functions`` sidecars, one per architecture (the rule lists them
     after the first); use :meth:`binary_function_specs` for all of them."""
@@ -339,6 +342,39 @@ def _parse_rule_support(raw: Any, source_path: Any) -> Optional[Support]:
         return parse_support(raw, f"{source_path}: upstream.support")
     except SupportError as exc:
         raise RuleError(str(exc)) from None
+
+
+MAX_BANNER_PATTERN = 160
+_UNBOUNDED = re.compile(r"\.[*+]|\\[SsWw][*+]|\[\^[^\]]*\][*+]|\([^)]*[*+]\)[*+]")
+
+
+def _binary_banners(raw, source_path) -> Tuple[str, ...]:
+    """The version banners a rule gives for its component, checked at load time.
+
+    A pattern is run over every byte of every binary in a tree, so it must be cheap and
+    must say something: one capturing group (the release), a literal of at least four
+    characters, and no unbounded wildcard or nested repetition."""
+    if raw is None:
+        return ()
+    if not isinstance(raw, list) or not all(isinstance(x, str) for x in raw):
+        raise RuleError(f"{source_path}: identity.binary_banners must be a list of patterns")
+    for text in raw:
+        where = f"{source_path}: identity.binary_banners {text!r}"
+        if len(text) > MAX_BANNER_PATTERN:
+            raise RuleError(f"{where} is longer than {MAX_BANNER_PATTERN} characters")
+        if _UNBOUNDED.search(text):
+            raise RuleError(f"{where} has an unbounded wildcard or nested repetition; "
+                            "bound it ({0,40}) so a scan stays fast")
+        try:
+            compiled = re.compile(text.encode())
+        except (re.error, UnicodeEncodeError) as exc:
+            raise RuleError(f"{where} does not compile: {exc}") from exc
+        if compiled.groups < 1:
+            raise RuleError(f"{where} needs a capturing group around the release")
+        literal = re.sub(r"\\.|\[[^\]]*\]|\(\?[^)]*\)|[^A-Za-z0-9 ._/-]", "", text)
+        if len(literal) < 4 + 0:
+            raise RuleError(f"{where} has no literal text to anchor on")
+    return tuple(raw)
 
 
 def _binary_functions_spec(raw_bf: Any, source_path: str) -> "FunctionSpec":
@@ -581,6 +617,7 @@ def rule_from_dict(data: Mapping[str, Any], source_path: str = "") -> Rule:
         binary_strings=bs_spec,
         binary_functions=bf_spec,
         binary_functions_more=tuple(bf_specs[1:]),
+        binary_banners=_binary_banners(identity.get("binary_banners"), source_path),
         thresholds=thresholds,
         probes=tuple(probes),
         confidence_ceiling=ceiling,
