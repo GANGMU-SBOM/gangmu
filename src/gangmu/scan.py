@@ -225,7 +225,7 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
         unknown = discover_unknown(
             root, [(f.directory, f.files, f.upstream_name) for f in findings + not_built
                    if not f.rule_id.startswith("binary/")] + absorbed,
-            [(f.directory, f.files, f.rule_id) for f in possible])
+            [(f.directory, f.files, f.rule_id) for f in possible], store)
         if unknown:
             notes.append(
                 f"{len(unknown)} piece(s) of code look vendored but no rule names them "

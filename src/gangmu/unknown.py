@@ -34,6 +34,7 @@ the SBOM.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from collections import Counter, defaultdict
@@ -41,6 +42,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple
 
+from .analysis import ANALYSIS_DIGEST, AnalysisStore
 from .discover import SKIP_DIRS as DISCOVER_SKIP_DIRS
 from .functions import extract_functions
 
@@ -219,10 +221,34 @@ def _versions(data: bytes) -> List[Tuple[str, str]]:
     return out
 
 
-def read_tree(root: Path, known: Callable[[str], bool] = lambda rel: False) -> Tree:
+FACTS_VERSION = "unknown-1-" + ANALYSIS_DIGEST
+
+
+def _facts_of(data: bytes) -> FileFacts:
+    return FileFacts(
+        holder=_holder(data[:HEAD_BYTES]),
+        includes=[m.decode("utf-8", "replace") for m in _INCLUDE.findall(data)],
+        functions=[f.name for f in extract_functions(data) if f.name],
+        versions=_versions(data))
+
+
+def read_tree(root: Path, known: Callable[[str], bool] = lambda rel: False,
+              store: Optional[AnalysisStore] = None) -> Tree:
     """What discovery needs from every source file: provenance, includes, function
-    names. Of a file *known* accounts for, only the head is read, for its holder."""
+    names. Of a file *known* accounts for, only the head is read, for its holder.
+    With a *store* that has an on-disk cache, a file seen before (same content) is
+    not read or tokenised again."""
     root = Path(root)
+    cached: Dict[str, str] = {}
+    fresh: List[Tuple[str, str]] = []
+    if store is not None and store.root == root:
+        rels = [r for r in store.index.rels
+                if os.path.splitext(r)[1].lower() in SOURCE_EXTS and not known(r)]
+        shas = store.shas(rels)
+        cached = {r: sha for r, sha in shas.items()}
+        hits = store.facts_lookup(sorted(set(shas.values())), FACTS_VERSION)
+    else:
+        store, hits = None, {}
     files: Dict[str, FileFacts] = {}
     other: Dict[str, List[str]] = defaultdict(list)
     subdirs: Dict[str, List[str]] = {}
@@ -246,17 +272,24 @@ def read_tree(root: Path, known: Callable[[str], bool] = lambda rel: False) -> T
                 except OSError:
                     pass
                 continue
+            sha = cached.get(rel)
+            if sha is not None and sha in hits:
+                got = json.loads(hits[sha])
+                files[rel] = FileFacts(got["holder"], got["includes"], got["functions"],
+                                       [(p, v) for p, v in got["versions"]])
+                continue
             try:
                 data = (Path(dirpath) / fn).read_bytes()
             except OSError:
                 continue
             if len(data) > MAX_BYTES:
                 continue
-            files[rel] = FileFacts(
-                holder=_holder(data[:HEAD_BYTES]),
-                includes=[m.decode("utf-8", "replace") for m in _INCLUDE.findall(data)],
-                functions=[f.name for f in extract_functions(data) if f.name],
-                versions=_versions(data))
+            files[rel] = facts = _facts_of(data)
+            if sha is not None:
+                fresh.append((sha, json.dumps(asdict(facts))))
+                hits[sha] = fresh[-1][1]        # the same content again in this tree
+    if store is not None:
+        store.facts_store(fresh, FACTS_VERSION)
     return Tree(root, files, dict(other), subdirs, _submodules(root), dict(by_name))
 
 
@@ -654,12 +687,13 @@ def pick_version(vers: List[Tuple[str, str]], prefixes: Counter) -> Optional[str
 
 
 def discover_unknown(root: Path, known: Iterable[Tuple[str, List[str], str]],
-                     possible: Iterable[Tuple[str, List[str], str]] = ()) -> List[Unknown]:
+                     possible: Iterable[Tuple[str, List[str], str]] = (),
+                     store: Optional[AnalysisStore] = None) -> List[Unknown]:
     """Candidate third-party code in *root* outside the *known* components, given as
     (directory, files, name). *possible* (directory, files, rule id) are weak
     matches, recorded on the candidates that hold their code."""
     known = list(known)
-    tree = read_tree(root, _accounts(known))
+    tree = read_tree(root, _accounts(known), store)
     found = Discoverer(tree, known).run()
     for d, files, rule_id in possible:
         theirs = set(files) or {p for p in tree.files if _under(p, d.strip("/")) and d.strip("/") not in ("", ".")}

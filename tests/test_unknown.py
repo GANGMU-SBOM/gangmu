@@ -128,10 +128,7 @@ def test_version_hint_prefers_the_codes_own_macro(tmp_path):
     assert u._versions(b"#define LFS_DISK_VERSION_MAJOR (0xffff & (LFS_DISK_VERSION >> 16))\n") == []
 
 
-def test_scan_reports_them_outside_the_sbom(tmp_path):
-    tree = tmp_path / "tree"
-    _project(tree)
-    _lib(tree, "third_party/fooz", "fooz")
+def _rules(tmp_path):
     rules = tmp_path / "rules"
     rules.mkdir()
     sig = FunctionSignature.build([("1", {12345}, set())])
@@ -144,6 +141,14 @@ upstream:
 identity:
   functions: {{file: other.fnsig, sha256: {sig.write(rules / "other.fnsig")}, count: 1, versions: ['1']}}
 """)
+    return rules
+
+
+def test_scan_reports_them_outside_the_sbom(tmp_path):
+    tree = tmp_path / "tree"
+    _project(tree)
+    _lib(tree, "third_party/fooz", "fooz")
+    rules = _rules(tmp_path)
     out = tmp_path / "out.json"
     assert main(["scan", str(tree), "--rules", str(rules), "--format", "json", "-o", str(out)]) == 0
     data = json.loads(out.read_text())
@@ -156,3 +161,23 @@ identity:
     assert main(["scan", str(tree), "--rules", str(rules), "--format", "cyclonedx", "-o", str(out)]) == 0
     props = json.loads(out.read_text())["metadata"]["properties"]
     assert any(p["name"] == "gangmu:unknownThirdParty" and "fooz" in p["value"] for p in props)
+
+
+def test_a_second_scan_reads_the_facts_from_the_cache(tmp_path, monkeypatch):
+    tree = tmp_path / "tree"
+    _project(tree)
+    _lib(tree, "third_party/fooz", "fooz")
+    rules = _rules(tmp_path)
+    cache = tmp_path / "cache"
+    out = tmp_path / "out.json"
+    argv = ["scan", str(tree), "--rules", str(rules), "--format", "json", "--cache-dir", str(cache),
+            "-o", str(out)]
+    assert main(argv) == 0
+    first = json.loads(out.read_text())["unknown"]
+    assert first
+
+    def boom(*a, **k):
+        raise AssertionError("tokenised again")
+    monkeypatch.setattr(u, "extract_functions", boom)
+    assert main(argv) == 0
+    assert json.loads(out.read_text())["unknown"] == first
