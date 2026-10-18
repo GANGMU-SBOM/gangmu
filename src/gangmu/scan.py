@@ -118,12 +118,13 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
         findings, notes = _apply_declarations(root, findings, rulebase,
                                               declarations, build_facts)
 
+    absorbed: List[Tuple[str, List[str], str]] = []
     if options.loose:
         # What no directory explains: a component's files dropped in among the
         # project's own (app/lwprintf.c beside app/main.c).
         loose = find_loose(root, engine, store, findings,
                            build_facts.compiled if build_facts and build_facts.compiled else None,
-                           asserted=options.possible_below)
+                           asserted=options.possible_below, absorbed=absorbed)
         # A resemblance at a directory gives way to the component's own files in it.
         placed = {(f.rule_id, f.directory) for f in loose}
         findings = [f for f in findings if f.identity_confidence >= options.possible_below
@@ -223,7 +224,7 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
     if options.unknown:
         unknown = discover_unknown(
             root, [(f.directory, f.files, f.upstream_name) for f in findings + not_built
-                   if not f.rule_id.startswith("binary/")],
+                   if not f.rule_id.startswith("binary/")] + absorbed,
             [(f.directory, f.files, f.rule_id) for f in possible])
         if unknown:
             notes.append(

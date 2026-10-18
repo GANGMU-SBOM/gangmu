@@ -32,7 +32,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
-from typing import Dict, List, Optional, Sequence, Set
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from ..analysis import AnalysisStore
 from ..dirprint import DEFAULT_EXCLUDE, DEFAULT_INCLUDE, print_from_store
@@ -83,7 +83,8 @@ def _named(stem: str, names: Set[str]) -> bool:
 
 def find_loose(root: Path, engine: MatchEngine, store: AnalysisStore,
                findings: Sequence[Finding], compiled: Optional[Set[Path]] = None,
-               asserted: float = 0.0) -> List[Finding]:
+               asserted: float = 0.0,
+               absorbed: Optional[List[Tuple[str, List[str], str]]] = None) -> List[Finding]:
     """Findings for components copied in as loose files.
 
     *findings* are the directories already identified. Their files are not looked
@@ -94,6 +95,11 @@ def find_loose(root: Path, engine: MatchEngine, store: AnalysisStore,
     *compiled* (build facts), only directories holding a compiled file are looked at.
     A directory identified below *asserted* (a resemblance, not a component) holds
     nothing back.
+
+    Files of a component found beside the directory it was found at (lwmem's
+    ``src/system`` ports beside ``src/lwmem``) are that same copy, not a second
+    one: they are recorded on its finding's evidence and, as (directory, files,
+    name), in *absorbed*, instead of being reported again.
     """
     root = Path(root)
     signatures = {}
@@ -140,6 +146,10 @@ def find_loose(root: Path, engine: MatchEngine, store: AnalysisStore,
     for r in rels:
         by_dir[str(PurePosixPath(r).parent)].append(r)
 
+    homes: Dict[str, List[Finding]] = defaultdict(list)
+    for f in findings:
+        if not f.files and f.identity_confidence >= asserted:
+            homes[f.rule_id].append(f)
     out: List[Finding] = []
     for d, files in sorted(by_dir.items()):
         hit_rules = {rid for r in files for h in functions[r] for rid in holders.get(h, ())}
@@ -151,6 +161,18 @@ def find_loose(root: Path, engine: MatchEngine, store: AnalysisStore,
             if group is not None:
                 groups.append(group)
         for group in _assign(groups, functions, {rid: signatures[rid] for rid in hit_rules}):
+            home = next((f for f in homes.get(group.rule.id, ()) if _beside(d, f.directory)), None)
+            if home is not None:
+                members = _members(group, files, functions)
+                home.evidence.append(Evidence(
+                    technique=Technique.AST_FINGERPRINT, confidence=0.0,
+                    summary=(f"{len(members)} more of its files beside it, in {d}: "
+                             + ", ".join(PurePosixPath(m).name for m in members[:8])
+                             + (" ..." if len(members) > 8 else "")),
+                    locator=d))
+                if absorbed is not None:
+                    absorbed.append((d, members, home.upstream_name))
+                continue
             under = store.select(root / d if d != "." else root, DEFAULT_INCLUDE,
                                  DEFAULT_EXCLUDE) or []
             finding = _identify(root, d, group, files, under, engine, functions)
@@ -259,14 +281,25 @@ def _assign(groups: List[_Group], functions: Dict[str, Set[int]], signatures) ->
     return out
 
 
-def _identify(root: Path, d: str, group: _Group, files: Sequence[str], under: Sequence[str],
-              engine: MatchEngine, functions: Dict[str, Set[int]]) -> Optional[Finding]:
+def _beside(d: str, home: str) -> bool:
+    """*d* is within the parent of *home*, a directory below the scan root."""
+    parent = str(PurePosixPath(home.strip("/")).parent)
+    return parent not in ("", ".") and (d == parent or d.startswith(parent + "/"))
+
+
+def _members(group: _Group, files: Sequence[str], functions: Dict[str, Set[int]]) -> List[str]:
+    """The group's files and the headers that go with them: headers declare rather
+    than define, so they rarely carry functions."""
     names = rule_names(group.rule)
     stems = {_key(PurePosixPath(f).stem) for f in group.files}
-    # Headers declare rather than define, so they rarely carry functions.
     extra = [f for f in files if f not in group.files and f.endswith(HEADER_SUFFIXES)
              and not functions[f] and _belongs(f, names, stems)]
-    members = sorted(group.files + extra)
+    return sorted(group.files + extra)
+
+
+def _identify(root: Path, d: str, group: _Group, files: Sequence[str], under: Sequence[str],
+              engine: MatchEngine, functions: Dict[str, Set[int]]) -> Optional[Finding]:
+    members = _members(group, files, functions)
     directory = root / d if d != "." else root
     subset_min = LOOSE_MIN_FUNCTIONS if group.named else SUBSET_MIN_FUNCTIONS
     finding = engine.identify_files(root, directory, members, group.rule, subset_min)

@@ -162,3 +162,17 @@ def test_a_component_tree_is_never_narrowed_to_files(tmp_path):
     _tree(tree, {"bigcomp/src/core.c": big["src/core.c"], "bigcomp/contrib/apps.c": _code(7000, 45, 3)})
     found = _scan(tmp_path / "rules", tree, tmp_path)["findings"]
     assert [(f["directory"], f["files"]) for f in found] == [("bigcomp", [])]
+
+
+def test_files_beside_the_directory_it_was_found_at_are_the_same_copy(tmp_path):
+    lib = {"tinylib.c": _code(100, 45), "tinylib_sys.c": _code(200, 9)}
+    _rule(tmp_path / "rules", "tinylib", lib)
+    tree = tmp_path / "tree"
+    # found at src/tinylib (where its rule says); its ports sit in the sibling src/system
+    _tree(tree, {**APP, "lib/tl/src/tinylib/tinylib.c": lib["tinylib.c"],
+                 "lib/tl/src/system/tinylib_sys.c": lib["tinylib_sys.c"]})
+    data = _scan(tmp_path / "rules", tree, tmp_path)
+    assert [(f["directory"], f["files"]) for f in data["findings"]] == [("lib/tl/src/tinylib", [])]
+    assert any("more of its files beside it, in lib/tl/src/system" in e["summary"]
+               for e in data["findings"][0]["evidence"])
+    assert data["unknown"] == []
