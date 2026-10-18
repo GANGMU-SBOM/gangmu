@@ -37,6 +37,8 @@ def _package(finding: Finding) -> Dict[str, Any]:
            + (f" {finding.rule_pack_version}" if finding.rule_pack_version else "")
            if finding.rule_pack else ""),
         f"directory: {finding.directory}",
+        *([f"files (copied in among other files of the directory): "
+           f"{', '.join(finding.files)}"] if finding.files else []),
         f"identity confidence: {finding.identity_confidence:.3f}",
         f"version confidence: {finding.version_confidence:.3f}"
         f" (source: {finding.version_source or 'none'})",

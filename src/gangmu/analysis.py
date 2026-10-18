@@ -247,9 +247,11 @@ class AnalysisStore:
 
     # ---- selection
     def select(self, directory: Path, include: Sequence[str],
-               exclude: Sequence[str]) -> Optional[List[str]]:
+               exclude: Sequence[str],
+               only: Optional[Sequence[str]] = None) -> Optional[List[str]]:
         """Root-relative files a print of *directory* covers, or None if the
-        directory is not under this store's root."""
+        directory is not under this store's root. With *only*, the print covers
+        those of its files alone (a component copied in among other files)."""
         try:
             rel_dir = directory.relative_to(self.root).as_posix()
         except ValueError:
@@ -257,7 +259,7 @@ class AnalysisStore:
         inc, exc = compile_any(include), compile_any(exclude)
         cut = 0 if rel_dir in ("", ".") else len(rel_dir) + 1
         out: List[str] = []
-        for rel in self.index.under(rel_dir):
+        for rel in sorted(only) if only is not None else self.index.under(rel_dir):
             sub = rel[cut:]
             if inc is None or not inc.match(sub):
                 continue

@@ -149,6 +149,8 @@ def cmd_scan(args: argparse.Namespace) -> int:
                               declared=not args.no_declared,
                               licenses=not args.no_licenses,
                               binaries=not args.no_binaries,
+                              loose=not args.no_loose,
+                              unknown=not args.no_unknown,
                               possible_below=0.0 if args.include_possible
                               else POSSIBLE_BELOW))
 
@@ -529,6 +531,13 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--min-confidence", type=float, default=0.35)
     s.add_argument("--no-binaries", action="store_true",
                    help="do not inventory prebuilt .a/.lib/.so files")
+    s.add_argument("--no-loose", action="store_true",
+                   help="do not look for components copied in as loose files among the "
+                        "project's own (app/lwprintf.c beside app/main.c); this reads "
+                        "every source file outside the components found")
+    s.add_argument("--no-unknown", action="store_true",
+                   help="do not look for vendored code no rule names (own licence, "
+                        "copyright holder, manifest or function prefix)")
     s.add_argument("--include-possible", action="store_true",
                    help="put weak identifications (identity below 0.60) into the "
                         "SBOM too, as earlier versions did")

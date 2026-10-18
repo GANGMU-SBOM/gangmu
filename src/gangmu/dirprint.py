@@ -344,10 +344,12 @@ def print_directory(root: Path, include: Sequence[str] = DEFAULT_INCLUDE,
 def print_from_store(store: "AnalysisStore", directory: Path,
                      include: Sequence[str] = DEFAULT_INCLUDE,
                      exclude: Sequence[str] = DEFAULT_EXCLUDE,
-                     k: int = DEFAULT_K, window: int = DEFAULT_WINDOW
-                     ) -> DirectoryPrint:
-    """Pass 1 from a scan-wide store: no walk, and no file hashed twice."""
-    rels = store.select(Path(directory), include, exclude)
+                     k: int = DEFAULT_K, window: int = DEFAULT_WINDOW,
+                     only: Optional[Sequence[str]] = None) -> DirectoryPrint:
+    """Pass 1 from a scan-wide store: no walk, and no file hashed twice.
+
+    *only* restricts the print to those root-relative files of the directory."""
+    rels = store.select(Path(directory), include, exclude, only)
     if rels is None:
         return print_directory(directory, include, exclude, k, window,
                                jobs=store.jobs)

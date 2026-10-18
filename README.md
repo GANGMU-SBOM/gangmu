@@ -138,6 +138,11 @@ CONF  COMPONENT  VERSION  SRC     DIRECTORY                NOTES
 - **`not linked`**：这份 cJSON 编译过，但链接时被丢掉了。写进 SBOM，就要白白追它三年的 CVE。
 - **`vendor-modified`**：ESP-IDF 带的是乐鑫的 lwIP 分支。SBOM 在 `pedigree` 里如实写明祖先版本和厂商补丁。
 - **`unidentified`**：有个目录像组件，但没有规则认得它。明确告诉你，比悄悄漏掉有用得多。
+- **平铺拷贝**：厂商常把库的几个文件直接丢进自研目录（`app/lwprintf.c` 挨着 `app/main.c`）。这种目录既不像组件，也不是整个都属于组件。
+  gangmu 会对还没认出的源文件逐个比函数：某个文件的函数大都在某条规则的签名里，就归给这条规则；同一目录里归给同一条规则的文件，
+  按目录的同一套判据判身份和版本。表格里注 `N file(s) among others`，SBOM 用 `evidence.occurrences` 列出这些文件。`--no-loose` 关闭。
+- **`UNKNOWN`**：看起来是外来代码、却没有规则认得的目录或文件组。判据包括自带的许可证、版权人、清单文件、函数前缀，以及不依赖工程头文件，
+  每条给出名字和版本提示。它们不进 SBOM，只用来提醒你补规则。`--no-unknown` 关闭。
 
 许可证以规则里记录的上游许可证为准；同时读组件目录里的 `SPDX-License-Identifier` 文件头和顶层 LICENSE / COPYING，
 看到规则没提的许可证时，在 SBOM 里加 `gangmu:observedLicenses` 和 `gangmu:licenseDiffersFromRule` 两个属性，不替你选。

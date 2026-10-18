@@ -128,7 +128,13 @@ def test_a_directory_mostly_made_of_other_code_is_not_a_partial_copy(tmp_path):
     tree = tmp_path / "tree"
     other = "".join(_fn(9000 + i, 7) for i in range(25))   # 25 foreign functions beside 50
     _tree(tree / "synth", {"c3.c": _file(3, 1), "mine.c": other})
-    assert _scan(rules, tree, tmp_path)["findings"] == []
+    out = tmp_path / "out.json"
+    assert main(["scan", str(tree), "--rules", str(rules), "--format", "json", "--no-loose",
+                 "-o", str(out)]) == 0
+    assert json.loads(out.read_text())["findings"] == []
+    # The directory is not the component; the one file that is all its code is.
+    found = _scan(rules, tree, tmp_path)["findings"]
+    assert [(f["directory"], f["files"]) for f in found] == [("synth", ["synth/c3.c"])]
 
 
 def test_too_few_functions_is_not_enough(tmp_path):

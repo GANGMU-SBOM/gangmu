@@ -86,13 +86,19 @@ class PrintCache:
         self.jobs = jobs
         self.disk = disk
         self.store = store
+        # directory -> the only files its prints cover (see MatchEngine.identify_files)
+        self._only: Dict[str, Tuple[str, ...]] = {}
 
     def get(self, directory: Path, include: Sequence[str], exclude: Sequence[str],
             k: int, window: int) -> DirectoryPrint:
         key = (str(directory), tuple(include), tuple(exclude), k, window)
         if key not in self._cache:
-            if self.store is not None and (k, window) == (self.store.k,
-                                                          self.store.window):
+            only = self._only.get(str(directory))
+            if self.store is not None and only is not None:
+                self._cache[key] = print_from_store(self.store, directory, include,
+                                                    exclude, k, window, only=only)
+            elif self.store is not None and (k, window) == (self.store.k,
+                                                            self.store.window):
                 self._cache[key] = print_from_store(self.store, directory, include,
                                                     exclude, k, window)
             else:
@@ -107,6 +113,15 @@ class PrintCache:
         for key in [key for key in self._cache if key[0] == prefix]:
             del self._cache[key]
 
+    def restrict(self, directory: Path, rels: Optional[Sequence[str]]) -> None:
+        """Make the directory's prints cover only *rels* (root-relative), or, with
+        None, all of it again. Needs a store; prints already held are dropped."""
+        self.release(directory)
+        if rels is None:
+            self._only.pop(str(directory), None)
+        else:
+            self._only[str(directory)] = tuple(rels)
+
 
 @dataclass
 class MatchEngine:
@@ -119,6 +134,7 @@ class MatchEngine:
     _fn_index: Optional[Dict[str, Tuple[List[int], List[int]]]] = field(
         default=None, repr=False)
     _sketch_index: Optional[Dict[str, frozenset]] = field(default=None, repr=False)
+    _where: str = field(default="this directory", repr=False)   # what the evidence describes
     stats: Dict[str, int] = field(default_factory=lambda: {
         "rule_checks": 0, "rule_checks_skipped": 0}, repr=False)
 
@@ -309,10 +325,36 @@ class MatchEngine:
                 out.append(finding)
         return out
 
+    def identify_files(self, root: Path, directory: Path, rels: Sequence[str],
+                       rule: Rule, subset_min: int = SUBSET_MIN_FUNCTIONS
+                       ) -> Optional[Finding]:
+        """One rule against some of a directory's files: a component copied in
+        among the project's own files, which no directory holds on its own.
+
+        The tiers are those of a directory, applied to the files alone. A partial
+        copy is accepted from *subset_min* functions on, which the caller lowers
+        only when the files' own names corroborate the component.
+        """
+        if self.cache.store is None:
+            return None
+        rel = directory.relative_to(root).as_posix() or "."
+        self.cache.restrict(directory, rels)
+        self._where = "these files"
+        try:
+            self.stats["rule_checks"] += 1
+            finding = self._apply(root, directory, rel, rule, None, subset_min)
+        finally:
+            self.cache.restrict(directory, None)
+            self._where = "this directory"
+        if finding is None or finding.identity_confidence < self.min_confidence:
+            return None
+        return finding
+
     # ---------------------------------------------------------------- tiers
 
     def _apply(self, root: Path, directory: Path, rel: str, rule: Rule,
-               manifest: Optional[ManifestFacts]) -> Optional[Finding]:
+               manifest: Optional[ManifestFacts],
+               subset_min: int = SUBSET_MIN_FUNCTIONS) -> Optional[Finding]:
         evidence: List[Evidence] = []
         identity = 0.0
         version: Optional[str] = None
@@ -339,7 +381,7 @@ class MatchEngine:
         # versions those functions come from give a range, not a point.
         version_range = None
         if rule.functions is not None:
-            outcome = self._by_functions(directory, rule, rel, evidence)
+            outcome = self._by_functions(directory, rule, rel, evidence, subset_min)
             if outcome is not None:
                 fn_identity, fn_version, version_range = outcome
                 identity = max(identity, fn_identity)
@@ -573,7 +615,7 @@ class MatchEngine:
             return None
 
     def _by_functions(self, directory: Path, rule: Rule, rel: str,
-                      evidence: List[Evidence]):
+                      evidence: List[Evidence], subset_min: int = SUBSET_MIN_FUNCTIONS):
         """Containment of the component's application code, plus its version."""
         spec = rule.functions
         assert spec is not None
@@ -627,7 +669,7 @@ class MatchEngine:
             # the reverse measure instead: the releases that hold every function
             # that is here. A directory too small or too foreign for that falls
             # through to the bands below.
-            partial = self._by_subset(signature, present, rel, evidence)
+            partial = self._by_subset(signature, present, rel, evidence, subset_min)
             if partial is not None:
                 return partial
 
@@ -653,7 +695,7 @@ class MatchEngine:
                      + f"functions of {rule.upstream_name} "
                        f"{verdict.best or '?'} are present "
                        f"({containment:.3f} containment, {band}); "
-                       f"{len(present)} functions in this directory"
+                       f"{len(present)} functions in {self._where}"
                      + ("; the exact bodies did not match, so symbols here have "
                         "been renamed" if abstracted else "")),
             locator=rel))
@@ -674,7 +716,8 @@ class MatchEngine:
                 locator=rel))
         return identity, (verdict.label if verdict.best else None), verdict
 
-    def _by_subset(self, signature, present, rel: str, evidence: List[Evidence]):
+    def _by_subset(self, signature, present, rel: str, evidence: List[Evidence],
+                   subset_min: int = SUBSET_MIN_FUNCTIONS):
         """A directory holding only part of a component, as SDK packages ship it.
 
         Containment (how much of the release is here) cannot reach the floor for
@@ -684,7 +727,7 @@ class MatchEngine:
         nearly all of the directory's own functions are the component's.
         """
         matched = present & signature.hash_set
-        if len(matched) < SUBSET_MIN_FUNCTIONS:
+        if len(matched) < subset_min:
             return None
         share = len(matched) / len(present)
         if share < SUBSET_MIN_SHARE:
@@ -695,8 +738,8 @@ class MatchEngine:
         evidence.append(Evidence(
             technique=Technique.AST_FINGERPRINT,
             confidence=SUBSET_IDENTITY,
-            summary=(f"partial copy: {len(matched)} of this directory's "
-                     f"{len(present)} functions ({share:.0%}) are the component's, "
+            summary=(f"partial copy: {len(matched)} of the {len(present)} functions "
+                     f"in {self._where} ({share:.0%}) are the component's, "
                      f"identical to a recorded release"),
             locator=rel))
         evidence.append(Evidence(
@@ -728,7 +771,7 @@ class MatchEngine:
             technique=Technique.AST_FINGERPRINT,
             confidence=DERIVATIVE_IDENTITY,
             summary=(f"modified derivative of {rule.upstream_name}: "
-                     f"{len(matched)} of this directory's {len(present)} functions "
+                     f"{len(matched)} of the {len(present)} functions in {self._where} "
                      f"({share:.0%}) are identical to recorded releases and the rest "
                      f"are not; the version is not asserted"
                      + (f" (identical functions span {verdict.low} to {verdict.high})"
