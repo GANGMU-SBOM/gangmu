@@ -117,7 +117,8 @@ def cmd_binary_functions(args: argparse.Namespace) -> int:
         rec = disasm.recover_elf(data, elf)
     else:
         rec = disasm.recover_raw(data, args.arch, int(args.base, 0) if args.base else None,
-                                 int(args.code_size, 0) if args.code_size else None)
+                                 int(args.code_size, 0) if args.code_size else None,
+                                 int(args.offset, 0) if args.offset else None)
     if rec is None or not rec.functions:
         print(f"error: no functions recovered: {rec.note if rec else 'no decoder'}",
               file=sys.stderr)
@@ -128,7 +129,7 @@ def cmd_binary_functions(args: argparse.Namespace) -> int:
             for f in rec.functions]}, indent=2))
     else:
         print(f"# {rec.arch}: {len(rec.functions)} function(s), "
-              f"{rec.from_symbols} from symbols")
+              f"{rec.from_symbols} from symbols" + (f"; {rec.note}" if rec.note else ""))
         for f in rec.functions:
             print(f"{f.address:#010x}  {f.size:>6}  {f.source:<13} {f.name}")
     return 0

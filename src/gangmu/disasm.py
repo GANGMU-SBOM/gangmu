@@ -21,7 +21,10 @@ literal pool after it (Thumb, ARM) is counted with it.
 
 from __future__ import annotations
 
+import re
 import struct
+import sys
+from array import array
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple
 
@@ -309,12 +312,32 @@ def _arch(name: str) -> Optional[_Arch]:
 MIPS_ASE_COMPRESSED = 0x04000000 | 0x02000000     # EF_MIPS_ARCH_ASE_M16 | _MICROMIPS
 
 
+# Tag_CPU_arch values of the M profile: v6-M, v6S-M, v7E-M, v8-M baseline and mainline.
+_M_PROFILE_ARCHES = (11, 12, 13, 16, 17)
+
+
+def _arm_mode(info: ElfInfo) -> str:
+    """"thumb" or "arm" for an ARM ELF.
+
+    The build attributes say it outright: an M-profile core has no ARM state at all, and a
+    file that uses no ARM instruction is Thumb whatever its entry point says. Without them
+    the entry point's low bit is the mode, which fails for a firmware linked without
+    ``ENTRY`` (entry 0): Cortex-M code was then decoded as ARM and gave nonsense functions."""
+    attrs = info.arm_attributes
+    if attrs:
+        if attrs.get(7) == ord("M") or attrs.get(6) in _M_PROFILE_ARCHES:
+            return "thumb"
+        if attrs.get(8, 0) == 0 and attrs.get(9, 0) >= 1:
+            return "thumb"
+    return "thumb" if info.entry & 1 else "arm"
+
+
 def arch_of_elf(info: ElfInfo) -> Optional[str]:
     """The architecture an ELF is decoded as, or None when it has no decoder here."""
     if info.machine == EM_XTENSA:
         return "xtensa"                   # no Capstone: see xtensa.py
     if info.machine == EM_ARM:
-        return "thumb" if info.entry & 1 else "arm"
+        return _arm_mode(info)
     if info.machine == EM_MIPS:
         if info.flags & MIPS_ASE_COMPRESSED:
             return None                   # MIPS16e / microMIPS: a different instruction set
@@ -595,49 +618,159 @@ def recover_macho(data: bytes, info: "MachoInfo") -> Optional[Recovery]:
     return Recovery(arch, out)
 
 
-def cortex_m_base(image: bytes) -> Optional[int]:
-    """Load address of a raw Cortex-M image, from its vector table, or None.
+@dataclass
+class VectorTable:
+    """Where a raw Cortex-M image's vector table is, and what address it is linked at."""
+
+    offset: int                   # file offset of the table (0 for a bare image)
+    base: int                     # load address of that byte
+    length: Optional[int] = None  # bytes of image from *offset*, when a header says so
+    how: str = ""                 # what the layout was read from, for the person reading the result
+
+
+MCUBOOT_MAGIC = 0x96F3B83D
+# Where a wrapper (a bootloader's image header, an OTA container) can leave the vector table:
+# VTOR needs it 128-byte aligned, and the wrappers seen use 0x200 to 0x2000.
+_TABLE_OFFSETS = range(0x100, 0x4001, 0x100)
+_CSTRING = re.compile(rb"(?<=\x00)[\x20-\x7e\t\r\n]{4,160}(?=\x00)")
+MAX_BASE_CANDIDATES = 2048
+MAX_POINTERS = 4000
+
+
+def _table_handlers(image: bytes, at: int, strict: bool = False) -> Optional[List[int]]:
+    """The Thumb handler addresses of a Cortex-M vector table at *at*, or None.
 
     Word 0 is the initial stack pointer (RAM), words 1.. are handlers with the Thumb bit
-    set. The right base is the one that puts most of them inside the image.
-    """
-    if len(image) < 64:
+    set. *strict* is for a table found by searching, where nothing says one is there."""
+    if at < 0 or at + 64 > len(image):
         return None
-    words = struct.unpack_from("<16I", image, 0)
+    words = struct.unpack_from("<16I", image, at)
     handlers = [w for w in words[1:] if w & 1 and w > 0x100]
-    if len(handlers) < 4 or not 0x1000_0000 <= words[0] <= 0x7000_0000 and words[0] >> 28 not in (1, 2):
+    if len(handlers) < (6 if strict else 4) or not 0x1000_0000 <= words[0] <= 0x7000_0000:
         return None
-    best, best_hits = None, 0
-    for base in sorted({h & ~0xFFFFF for h in handlers} | {0}):
-        hits = sum(1 for h in handlers if base <= (h & ~1) < base + len(image))
-        if hits > best_hits:
-            best, best_hits = base, hits
-    return best if best is not None and best_hits >= max(4, len(handlers) * 3 // 4) else None
+    if strict and (words[0] & 3 or max(handlers) - min(handlers) >= 0x200_0000):
+        return None
+    return handlers
+
+
+def _string_pointers(body: bytes, lo: int, hi: int) -> Tuple[Set[int], List[int]]:
+    """(offsets where a C string starts, words that could point at one when the image is
+    linked anywhere in [lo, hi))."""
+    starts = {m.start() for m in _CSTRING.finditer(body)}
+    words = array("I")
+    words.frombytes(body[:len(body) & ~3])
+    if sys.byteorder != "little":
+        words.byteswap()
+    return starts, [w for w in words if lo <= w < hi][:MAX_POINTERS]
+
+
+def _table_base(body: bytes, handlers: List[int]) -> Optional[int]:
+    """The address a vector table at the start of *body* is linked at, or None.
+
+    A bare image usually starts at the 1 MB boundary its handlers lie in. An image that
+    does not (an application after a bootloader, at 0x08008000) has handlers anywhere
+    above its own start, so the start is chosen among the candidates the handlers allow by
+    what the image itself says: literal pools and tables hold the address of every string
+    the code prints, and only the true base turns those words into the start of a string."""
+    n = len(body)
+    plain = [h & ~1 for h in handlers]
+    low, high = min(plain), max(plain)
+    old, old_hits = None, 0
+    for base in sorted({h & ~0xFFFFF for h in plain} | {0}):
+        hits = sum(1 for h in plain if base <= h < base + n)
+        if hits > old_hits:
+            old, old_hits = base, hits
+    if old is not None and old_hits < max(4, len(handlers) * 3 // 4):
+        old = None
+    first, last = max(0, high - n + 1), low - 0x40       # the table ends before any handler
+    stride = 0x80 if n <= 0x20000 else 0x100 if n <= 0x100000 else 0x400
+    candidates = list(range((first + stride - 1) // stride * stride, last + 1, stride))
+    while len(candidates) > MAX_BASE_CANDIDATES:
+        candidates = candidates[::2]
+    if old is not None and old not in candidates:
+        candidates.append(old)
+    if not candidates:
+        return old
+    starts, pointers = _string_pointers(body, min(candidates), max(candidates) + n)
+
+    def score(base: int) -> int:
+        return sum(1 for w in pointers if base <= w < base + n and (w - base) in starts)
+
+    best, best_score = None, 0
+    for base in candidates:
+        found = score(base)
+        # more strings is better; among equals the better-aligned address is the likelier one
+        key = (found, (base & -base) if base else 1 << 40)
+        if best is None or key > (best_score, (best & -best) if best else 1 << 40):
+            best, best_score = base, found
+    old_score = score(old) if old is not None else 0
+    if best is not None and best_score >= 2 and best_score > old_score:
+        return best
+    return old
+
+
+def cortex_m_layout(image: bytes) -> Optional[VectorTable]:
+    """Where the vector table of a raw Cortex-M image is and what address it is linked at.
+
+    A bare image has it at offset 0. A bootloader's wrapper (an MCUboot header, whose size
+    and payload length the header states) or a container of unknown shape puts it later,
+    so 0x100-aligned offsets up to 16 KB are tried when offset 0 is not one."""
+    if len(image) >= 32 and struct.unpack_from("<I", image, 0)[0] == MCUBOOT_MAGIC:
+        load, header, size = struct.unpack_from("<IH2xI", image, 4)
+        handlers = _table_handlers(image, header)
+        if 0x20 <= header <= 0x4000 and 64 <= size <= len(image) - header and handlers:
+            body = image[header:header + size]
+            base = load if load not in (0, 0xFFFFFFFF) else _table_base(body, handlers)
+            if base is not None:
+                return VectorTable(header, base, size, f"MCUboot image header of {header:#x} bytes")
+    for offset in (0, *_TABLE_OFFSETS):
+        handlers = _table_handlers(image, offset, strict=offset != 0)
+        if handlers is None:
+            continue
+        base = _table_base(image[offset:], handlers)
+        if base is not None:
+            return VectorTable(offset, base, None,
+                               f"vector table at file offset {offset:#x}" if offset else "")
+    return None
+
+
+def cortex_m_base(image: bytes) -> Optional[int]:
+    """Load address of a raw Cortex-M image that starts with its vector table, or None."""
+    layout = cortex_m_layout(image)
+    return layout.base if layout is not None and layout.offset == 0 else None
 
 
 def recover_raw(image: bytes, arch: Optional[str] = None,
-                base: Optional[int] = None, code_size: Optional[int] = None
-                ) -> Optional[Recovery]:
+                base: Optional[int] = None, code_size: Optional[int] = None,
+                offset: Optional[int] = None) -> Optional[Recovery]:
     """Functions of a bare image. Cortex-M is recognised from its vector table; any other
     architecture and load address have to be given.
 
+    *offset*: where the code starts in the file, for a wrapper the layout search does not know.
     A bare image has no section table, so constant tables after the code decode as code.
     *code_size* (from a map file or the linker script) cuts the image there; without it,
     RISC-V precision on table-heavy libraries drops to about 0.4 (docs/BINARY-VALIDATION.md)."""
     if capstone is None:
         return None
+    if offset:
+        image = image[offset:]
+    seeds: List[int] = []
+    how = ""
+    if arch is None or base is None:
+        layout = cortex_m_layout(image)
+        if layout is None:
+            return Recovery("unknown", note="a raw image needs --arch and --base unless it "
+                                            "starts with a Cortex-M vector table (also looked "
+                                            "for after an MCUboot header and at 0x100-aligned "
+                                            "offsets up to 0x4000; --offset says where it is)")
+        image = image[layout.offset:][:layout.length] if layout.length else image[layout.offset:]
+        arch, base = arch or "thumb", layout.base if base is None else base
+        seeds = [w & ~1 for w in struct.unpack_from("<16I", image, 0)[1:] if w & 1]
+        how = layout.how
     if code_size is not None:
         image = image[:code_size]
-    seeds: List[int] = []
-    if arch is None or base is None:
-        guessed = cortex_m_base(image)
-        if guessed is None:
-            return Recovery("unknown", note="a raw image needs --arch and --base unless it "
-                                            "starts with a Cortex-M vector table")
-        arch, base = arch or "thumb", guessed if base is None else base
-        seeds = [w & ~1 for w in struct.unpack_from("<16I", image, 0)[1:] if w & 1]
     starts = sweep(image, base, arch, seeds)
     sized = _sized(starts, base + len(image))
     seed_set = set(seeds)
     return Recovery(arch, [Function(a, s, "", "vector-table" if a in seed_set else "disassembly")
-                           for a, s in sized])
+                           for a, s in sized], note=how)
