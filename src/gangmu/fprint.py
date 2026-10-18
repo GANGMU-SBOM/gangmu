@@ -32,6 +32,7 @@ whose words decode as stray instructions on the image side. Containment tolerate
 
 from __future__ import annotations
 
+import re
 import hashlib
 import json
 import struct
@@ -62,6 +63,10 @@ MAGIC = b"GMFP"
 FORMAT = 3               # 3 records the architecture and which features are strings; 2 appends the
 #                          author's self-test (calibration) as JSON; 1 and 2 are still read
 _SALT = (0x6D66_7072).to_bytes(8, "big")
+# x86 emits only immediates and displacements, which show up as digits (or RIP) in the text,
+# so an instruction without them skips the operand decode (a third of the time here).
+_TEXT_ONLY = ("x86-64", "x86")
+_OPERAND_HINT = re.compile(r"\d|rip")
 _BRANCHES = ("b", "bl", "blx", "bx", "cbz", "cbnz", "call", "jmp", "j", "jal", "jalr",
              "tbb", "tbh", "it")
 
@@ -221,6 +226,8 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
         m = insn.mnemonic
         if m == "db":
             continue
+        if arch in _TEXT_ONLY and not _OPERAND_HINT.search(insn.op_str):
+            continue          # no number and no RIP in the text: nothing to read from it
         ops = insn.operands
         if arch in ("thumb", "arm"):
             if m.startswith("movw") and len(ops) == 2 and ops[1].type == cs.CS_OP_IMM:
