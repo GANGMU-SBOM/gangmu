@@ -341,7 +341,7 @@ ok   generic/gmssl
 
 坦白列出来，因为缺口就是路线图。最主要的几条：
 
-- **不做深度二进制分析**：没有源码也没有构建时，只做清单、版本横幅和函数边界等较低置信度的补充证据；对 `.exe`/`.dll` 另外读 PE 结构、Go 和 Rust 工具链写进文件的依赖清单、.NET 的元数据和 `deps.json`，各类证据的可信度和验证方法见 [docs/BINARY-SBOM.md](docs/BINARY-SBOM.md)；
+- **不做深度二进制分析**：没有源码也没有构建时，只做清单、版本横幅和函数边界等较低置信度的补充证据；对 `.exe`/`.dll` 另外读 PE 结构、Go 和 Rust 工具链写进文件的依赖清单、.NET 的元数据和 `deps.json`，各类证据的可信度和验证方法见 [docs/BINARY-SBOM.md](docs/BINARY-SBOM.md)。实测的边界：Linux 发行版的库大多没有版本横幅（Ubuntu 24.04 的 13 个库认出 4 个，带 `.note.package` 的按包名认）；换成 clang 编译，固件里的 zlib、Mbed TLS 仍能认出是哪个库，但覆盖率只有 gcc 构建的一半以下，版本只给区间，littlefs 则认不出（规则的参考指纹是 gcc 构建的，试过加 clang 参考没有改善）；加密或压缩方式未知的镜像只给提示，不解包（U-Boot uImage 的 gzip、bzip2、LZMA 会解开）；数据见 [docs/BINARY-VALIDATION.md](docs/BINARY-VALIDATION.md)；
 - **评测规模有限**：方法是对的，规模还不是；规则也还少，欢迎一起补；
 - **`gangmu vuln` 本身不联网**：联网的一步单独做成 `gangmu vuln-fetch`，方便在内网使用；
 - **编译器包装器只能拦截按名字查找的编译器**。
@@ -385,7 +385,7 @@ ONEKEY、Finite State、Cybellum、NetRise 面向大型企业做固件二进制�
 | `gangmu policy check ROOT [--policy DIR] [--as-of DATE] [--fail-on fail]` | 把 CBOM、AIBOM 对照策略包里的法规或内部要求，每条检查给出 `ok` / `due` / `deprecated` / `fail` 和下一个期限；输出表格、Markdown、JSON，见 [策略检查指南](docs/guides/policy.md) |
 | `gangmu merge FILE... [-o OUT] [--fail-on-disagreement]` | 合并多份 CycloneDX（本工具的扫描、供应商的、Yocto 或 Conan 的）：purl 或名称加版本相同的算同一个，第一份优先，版本分歧与 VEX 状态冲突会报出来 |
 | `gangmu license-check SBOM [--fail-on copyleft\|incompatible\|unlicensed]` | 对 CycloneDX 里的许可证做分诊：GPL/LGPL/AGPL 等 copyleft、按 FSF 许可证列表可能不兼容的组合（如 Apache-2.0 与 GPL-2.0-only）、没有许可证的组件和预编译二进制；只是提示，不是法律结论 |
-| `gangmu binary-eval` / `binary-functions` | 二进制识别：`binary-eval` 在一批真实固件构建上给库与版本识别打分；`binary-functions` 从固件镜像还原函数边界（需要 capstone，即 `pip install gangmu-sbom[disasm]`）。见 [BINARY-VALIDATION.md](docs/BINARY-VALIDATION.md) |
+| `gangmu binary-eval` / `binary-functions` | 二进制识别：`binary-eval` 在一批真实固件构建上给库与版本识别打分；`binary-functions` 从固件镜像还原函数边界（需要 capstone，即 `pip install gangmu-sbom[disasm]`；向量表不在镜像开头时用 `--offset`，MCUboot 头会自动识别）。见 [BINARY-VALIDATION.md](docs/BINARY-VALIDATION.md) |
 | `gangmu sbom-score` / `eval` / `bench` / `diff` | 质量评分、评测基准、性能、两份 CycloneDX 的差异对比 |
 
 ## 仓库
