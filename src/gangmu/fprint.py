@@ -217,7 +217,7 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
     md.detail = True
     md.skipdata = True
     md.skipdata_setup = ("db", None, None)
-    building: Dict[int, int] = {}         # AArch64: register -> constant being built
+    building: Dict[str, int] = {}         # AArch64: register -> constant being built
     low: Dict[int, int] = {}              # ARM: register -> movw half
     regs: Dict[int, int] = {}             # RISC-V, MIPS: register -> known value
     held: Dict[int, List[int]] = {}       # MIPS: register -> [value, age] of a built value,
