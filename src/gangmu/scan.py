@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -147,7 +148,8 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
         binaries = collect_binaries(
             root, facts_map.linked_archives if facts_map else None,
             _string_signatures(rulebase), _function_prints(rulebase),
-            facts_map.link_map_stem if facts_map else "")
+            facts_map.link_map_stem if facts_map else "",
+            _banner_patterns(rulebase))
         findings.extend(_binary_findings(binaries, rulebase))
         opaque = [b.path for b in binaries if b.opaque and b.linked is not False]
         if opaque:
@@ -252,6 +254,7 @@ BINARY_SYMBOLS_IDENTITY = 0.65   # an exported API names the library, but every 
 BINARY_METADATA = 0.90      # the toolchain recorded the dependency list on purpose (Go, Rust)
 BINARY_IMPORT_IDENTITY = 0.50    # an import is a run-time dependency, not code inside the file
 BINARY_SIDECAR = 0.85       # a .deps.json is exact but a separate file, so it can be stale
+BINARY_FILE_NAME = 0.55     # the release in a library's file name (version only): the packager's choice, not the code's
 BINARY_ASSEMBLY = 0.50      # a .NET assembly named like a NuGet package; nobody confirmed it
 METADATA_METHODS = ("go-buildinfo", "cargo-auditable", "package-note")
 WEAK_DEPENDENCY_METHODS = ("imports", "dotnet-reference")   # needed at run time, release unknown
@@ -260,6 +263,12 @@ WEAK_DEPENDENCY_METHODS = ("imports", "dotnet-reference")   # needed at run time
 def _string_signatures(rulebase: RuleBase):
     return [(r.upstream_name, _norm(r.ships_as or r.upstream_name), r.binary_strings.load())
             for r in rulebase if r.binary_strings is not None]
+
+
+def _banner_patterns(rulebase: RuleBase):
+    """The version banners rules supply for their component (``identity.binary_banners``)."""
+    return [(_norm(r.ships_as or r.upstream_name), r.upstream_name, re.compile(pattern.encode()))
+            for r in rulebase for pattern in r.binary_banners]
 
 
 def _function_prints(rulebase: RuleBase):
@@ -282,6 +291,11 @@ def _binary_summary(emb, version: Optional[str]) -> str:
                     "; a replace directive means the code compiled in is not that release"
                     if emb.modified else
                     "; a patch applied after resolution would not show here"))
+    if emb.method == "file-name":
+        return (f"{emb.banner}: the release is in the library's file name, which agrees with its "
+                "own SONAME; the packager chose that name, the code was not compared with "
+                "upstream, and the release it names may carry the distribution's backported "
+                "fixes")
     if emb.method == "deps-json":
         return (f"{emb.banner}: listed in the program's .deps.json, which the .NET SDK writes at "
                 "build time with the package versions it restored; it is a separate file, so it "
@@ -342,6 +356,8 @@ def _binary_findings(binaries, rulebase: RuleBase) -> List[Finding]:
                 identity = version_conf = BINARY_SIDECAR
             elif emb.method == "dotnet-assembly":
                 identity = version_conf = BINARY_ASSEMBLY
+            elif emb.method == "file-name" and version:
+                identity, version_conf = BINARY_IDENTITY, BINARY_FILE_NAME
             elif version:
                 identity, version_conf = BINARY_IDENTITY, BINARY_VERSION
             else:
@@ -357,6 +373,7 @@ def _binary_findings(binaries, rulebase: RuleBase) -> List[Finding]:
                 version_source=("binary-metadata" if exact else
                                 "binary-sidecar" if emb.method == "deps-json" else
                                 "binary-version-info" if emb.method == "version-info" else
+                                "binary-file-name" if emb.method == "file-name" else
                                 "binary-string" if version else "unknown"),
                 identity_confidence=identity,
                 version_confidence=version_conf,

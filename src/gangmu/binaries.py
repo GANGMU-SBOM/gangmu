@@ -34,7 +34,7 @@ from . import disasm
 from .carve import carve, mask
 from .binmeta import CARGO_SECTION, GoBuildInfo, cargo_auditable, go_buildinfo
 from .dotnet import is_framework, parse_dotnet, read_deps_json
-from .elf import ElfInfo, package_note, parse_elf
+from .elf import ElfInfo, build_id, package_note, parse_elf, soname
 from .pe import PeInfo, parse_pe
 from .core.unpack import IMAGE_SUFFIXES as UNPACK_SUFFIXES, Layer, expand
 from .core.walk import NOT_CONTENT_DIRS
@@ -155,7 +155,7 @@ class Embedded:
     vendor_component: bool = False      # a vendor's own component, no upstream
     method: str = "banner"      # banner | symbols | strings | functions | go-buildinfo |
     #                             cargo-auditable | deps-json | version-info | imports |
-    #                             dotnet-reference | dotnet-assembly | package-note
+    #                             dotnet-reference | dotnet-assembly | package-note | file-name
     # version "" means the library is there (API symbols) but no release can be named
     purl: Optional[str] = None          # set by readers of a dependency list (Go, Rust)
     cpe: Optional[str] = None
@@ -187,6 +187,7 @@ class Binary:
     offset: Optional[int] = None        # where in that file it starts
     embedded_binaries: int = 0          # how many binaries were found inside this one
     opaque: bool = False                # raw image that looks encrypted or compressed: unread
+    build_id: Optional[str] = None      # GNU build-id: names this exact build, not a release
 
     def to_dict(self):
         return {
@@ -200,6 +201,7 @@ class Binary:
             "runtime": self.runtime, "imports": self.imports,
             "container": self.container, "offset": self.offset,
             "embedded_binaries": self.embedded_binaries, "opaque": self.opaque,
+            "build_id": self.build_id,
         }
 
 
@@ -307,10 +309,13 @@ def _kind(path: Path, data: bytes = b"") -> str:
 def collect_binaries(root: Path, linked_archives: Optional[Set[str]] = None,
                      string_signatures: Sequence = (),
                      function_prints: Sequence = (),
-                     product_stem: str = "") -> List[Binary]:
+                     product_stem: str = "",
+                     banners: Sequence = ()) -> List[Binary]:
     """*string_signatures*: ``(display name, name, FunctionSignature)`` per rule that
     can recognise its component from string constants (see ``binsig``); *function_prints*
     the same triple with a ``fprint.FunctionPrints`` (per-function fingerprints).
+    *banners*: ``(display name, name, compiled bytes pattern)`` that rules supply for their
+    component, read like the built-in ones (the first group is the version).
     *product_stem*: with a link map, the map's file stem; a firmware image is the build's own
     product only when it shares that stem (``fw.map`` and ``fw.elf``). Any other image in the
     tree belongs to some other build, so it is marked not linked."""
@@ -328,7 +333,7 @@ def collect_binaries(root: Path, linked_archives: Optional[Set[str]] = None,
                 continue
             try:
                 out.extend(_inspect(path, root, linked_archives, string_signatures,
-                                    function_prints, product_stem))
+                                    function_prints, product_stem, banners))
             except OSError:
                 continue
     return out
@@ -336,7 +341,7 @@ def collect_binaries(root: Path, linked_archives: Optional[Set[str]] = None,
 
 def _inspect(path: Path, root: Path, linked_archives: Optional[Set[str]],
              string_signatures: Sequence = (), function_prints: Sequence = (),
-             product_stem: str = "") -> List[Binary]:
+             product_stem: str = "", banners: Sequence = ()) -> List[Binary]:
     """The file, followed by every binary found inside it."""
     data = path.read_bytes() if path.stat().st_size <= MAX_BANNER_BYTES else b""
     digest = hashlib.sha256(data if data else path.read_bytes()).hexdigest()
@@ -356,13 +361,13 @@ def _inspect(path: Path, root: Path, linked_archives: Optional[Set[str]],
     out = [blob]
     if data:
         _analyze(blob, data, path.suffix.lower(), path, string_signatures, function_prints,
-                 0, out)
+                 0, out, banners)
     return out
 
 
 def _analyze(blob: Binary, data: bytes, suffix: str, sidecar: Optional[Path],
              string_signatures: Sequence, function_prints: Sequence, depth: int,
-             out: List[Binary]) -> None:
+             out: List[Binary], banners: Sequence = ()) -> None:
     """Read banners, structure and dependency lists from *data* into *blob*.
 
     Binaries found inside *data* (see ``carve``) are blanked out of what *blob* itself is read
@@ -377,10 +382,15 @@ def _analyze(blob: Binary, data: bytes, suffix: str, sidecar: Optional[Path],
     for layer in layers:
         elf = parse_elf(layer.data) if not layer.label else None
         pe = parse_pe(layer.data) if not layer.label and suffix in PE_SUFFIXES else None
-        found = _banners(layer.data, elf, managed=pe is not None and pe.is_dotnet)
+        found = _banners(layer.data, elf, managed=pe is not None and pe.is_dotnet,
+                         extra=banners)
         if not layer.label:
             found += _toolchain_lists(blob, layer.data, pe, elf)
             found += _package_metadata(layer.data, elf)
+            if elf is not None:
+                blob.build_id = build_id(layer.data, elf)
+                if sidecar is not None:
+                    found += _file_name_release(sidecar, layer.data, elf, found + blob.embedded)
         if pe is not None:
             found += _pe_evidence(blob, pe, found + blob.embedded, layer.data)
             if sidecar is not None:
@@ -428,7 +438,7 @@ def _analyze(blob: Binary, data: bytes, suffix: str, sidecar: Optional[Path],
             offset=item.offset, arch=item.arch)
         out.append(child)
         _analyze(child, sub, item.suffix, None, string_signatures, function_prints,
-                 depth + 1, out)
+                 depth + 1, out, banners)
 
 
 def _resource_names(data: bytes) -> dict:
@@ -439,11 +449,14 @@ def _resource_names(data: bytes) -> dict:
     return managed_resources(data, pe) if pe is not None and pe.is_dotnet else {}
 
 
-def _banners(data: bytes, elf: Optional[ElfInfo] = None, managed: bool = False
-             ) -> List[Embedded]:
+def _banners(data: bytes, elf: Optional[ElfInfo] = None, managed: bool = False,
+             extra: Sequence = ()) -> List[Embedded]:
     found: List[Embedded] = []
     seen = set()
-    for name, display, pattern in _COMPILED:
+    # (a rule's banner for a component the engine already knows loses to the built-in one)
+    for name, display, pattern in list(_COMPILED) + list(extra):
+        if name in seen:
+            continue
         m = pattern.search(data)
         if m:
             version = m.group(1).decode("ascii")
@@ -539,6 +552,43 @@ def _package_metadata(data: bytes, elf: Optional[ElfInfo]) -> List[Embedded]:
     return [Embedded(name.lower(), name, version,
                      f"{name} {version}" + (f" ({where})" if where else ""),
                      method="package-note", purl=purl)]
+
+
+# Libraries whose shared-object file name carries the release itself (libz.so.1.3.1 is zlib
+# 1.3.1), with the fewest numbers that make it so. Libtool-versioned libraries (libexpat.so.1.8.10
+# is expat 2.4.x) are not here: their number counts interface changes, not releases.
+_FILE_NAME_RELEASES = {
+    "libz": ("zlib", "zlib", 2),
+    "liblzma": ("xz", "xz", 3),
+    "libzstd": ("zstd", "zstd", 3),
+    "liblz4": ("lz4", "lz4", 3),
+    "libxml2": ("libxml2", "libxml2", 3),
+}
+_SHARED_OBJECT = re.compile(r"(lib[a-z0-9_]+)\.so((?:\.\d+)+)")
+
+
+def _file_name_release(path: Path, data: bytes, elf: ElfInfo, known: Sequence[Embedded]
+                       ) -> List[Embedded]:
+    """The release a distribution's shared object names in its file name, for the libraries
+    that number their files by release. It must agree with the object's own SONAME, so a file
+    renamed by hand does not pass; and the ELF must be a library, not a program that merely
+    sits beside one. Weaker than a banner (a file name is whatever the packager chose), so it
+    only speaks when no banner named the library."""
+    if elf.is_executable or elf.etype != 3:
+        return []
+    m = _SHARED_OBJECT.fullmatch(path.name)
+    spec = _FILE_NAME_RELEASES.get(m.group(1)) if m else None
+    if not m or spec is None:
+        return []
+    name, display, fewest = spec
+    version = m.group(2)[1:]
+    own = soname(data, elf)
+    if len(version.split(".")) < fewest or not own or not own.startswith(f"{m.group(1)}.so"):
+        return []
+    if any(e.name == name and e.version for e in known):
+        return []
+    return [Embedded(name, display, version,
+                     f"shared object {path.name} (SONAME {own})", method="file-name")]
 
 
 def _by_strings(data: bytes, known: Sequence[Embedded], signatures: Sequence

@@ -23,6 +23,7 @@ SHT_NOTE = 7
 SHT_ARM_ATTRIBUTES = 0x70000003
 ET_EXEC, ET_DYN = 2, 3
 FDO_NOTE_TYPE = 0xCAFE1A7E          # the packaging-metadata note (https://systemd.io/ELF_PACKAGE_METADATA/)
+NT_GNU_BUILD_ID, SHT_DYNAMIC, DT_SONAME = 3, 6, 14
 
 
 @dataclass
@@ -267,4 +268,50 @@ def package_note(data: bytes, info: ElfInfo) -> Optional[dict]:
             continue
         if isinstance(parsed, dict):
             return parsed
+    return None
+
+
+def build_id(data: bytes, info: ElfInfo) -> Optional[str]:
+    """The GNU build-id (``.note.gnu.build-id``) as hex, or None.
+
+    A hash the linker made of the file's contents: it names this exact build, so a debug-info
+    server or a vendor's records can say which source it came from. It says nothing about the
+    release by itself."""
+    e = "<" if info.little else ">"
+    for sec in info.sections:
+        if sec.name != ".note.gnu.build-id" or sec.type != SHT_NOTE or sec.size < 16:
+            continue
+        raw = data[sec.offset:sec.offset + sec.size]
+        try:
+            namesz, descsz, kind = struct.unpack_from(e + "III", raw, 0)
+        except struct.error:
+            continue
+        desc_at = 12 + ((namesz + 3) & ~3)
+        if kind == NT_GNU_BUILD_ID and raw[12:12 + namesz].rstrip(b"\0") == b"GNU" \
+                and 8 <= descsz <= 64 and desc_at + descsz <= len(raw):
+            return raw[desc_at:desc_at + descsz].hex()
+    return None
+
+
+def soname(data: bytes, info: ElfInfo) -> Optional[str]:
+    """The shared object's own name (``DT_SONAME``, ``libz.so.1``), or None."""
+    e = "<" if info.little else ">"
+    by_name = {sec.name: sec for sec in info.sections}
+    dynamic, strings = by_name.get(".dynamic"), by_name.get(".dynstr")
+    if dynamic is None or strings is None or dynamic.type != SHT_DYNAMIC:
+        return None
+    width = 8 if info.bits == 64 else 4
+    table = data[dynamic.offset:dynamic.offset + dynamic.size]
+    pool = data[strings.offset:strings.offset + strings.size]
+    for at in range(0, len(table) - 2 * width + 1, 2 * width):
+        tag, value = struct.unpack_from(e + ("QQ" if width == 8 else "II"), table, at)
+        if tag == 0:
+            break
+        if tag == DT_SONAME and value < len(pool):
+            end = pool.find(b"\0", value)
+            text = pool[value:end if end >= 0 else len(pool)]
+            try:
+                return text.decode("ascii")
+            except UnicodeDecodeError:
+                return None
     return None

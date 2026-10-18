@@ -33,11 +33,6 @@ def _starts(pools):
     return funcs, disasm.sweep(code, BASE, "thumb", [BASE], pools)
 
 
-def test_jump_table_into_a_function_is_not_a_function_table():
-    funcs, got = _starts([_words([BASE + 5, BASE + 7, BASE + 9, BASE + 11])])
-    assert got == funcs
-
-
 def test_repeated_data_words_in_rodata_do_not_count_as_two_references():
     stray = [BASE + 5, 0x12345678, BASE + 5, 0x9ABCDEF0, BASE + 7, 0x11111111, BASE + 7]
     funcs, got = _starts([_words(stray)])
@@ -54,3 +49,14 @@ def test_vector_table_with_a_repeated_default_handler_still_seeds_it():
     code, funcs = _code()
     vectors = _words([0x20001000, BASE + 17, BASE + 33, BASE + 33, BASE + 33, BASE + 33])
     assert BASE + 32 in disasm.sweep(code, BASE, "thumb", [], [vectors])
+
+
+def test_table_targets_that_push_late_are_still_functions():
+    # gcc schedules loads ahead of the push, so a function pointer names the instruction
+    # before the prologue the scan recognises; the table, not the prologue, says it starts here
+    def late(body):
+        return struct.pack("<%dH" % (body + 5), NOP, NOP, PUSH, MOVS, *([NOP] * body), POP)
+    code = late(3) + late(3) + late(3)             # three functions of 16 bytes
+    table = _words([BASE + 1, BASE + 17, BASE + 33])
+    got = disasm.sweep(code, BASE, "thumb", [], [table])
+    assert {BASE, BASE + 16, BASE + 32} <= set(got)

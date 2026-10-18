@@ -77,6 +77,14 @@ identity:
     file: lwip.strings.fnsig              #   string-constant sidecar, built with
     sha256: "..."                         #   `gangmu rules functions <url> --tag ... --strings --out`
     count: 1200                           #   a rule may carry only this, with no source anchors
+  binary_banners:                         # optional: text the library prints about itself, in compiled images
+    - 'ThreadX [A-Za-z0-9/ +_-]{0,40}Version G?(\d+\.\d+\.\d+)'   # one capturing group: the release
+                                          #   Checked when the rule loads, because the pattern runs over every byte
+                                          #   of every binary in a tree: at most 160 characters, one capturing
+                                          #   group, at least four literal characters, and no unbounded wildcard
+                                          #   (`.*`, `\S+`, `[^x]+`) or nested repetition. Bound a gap as {0,40}.
+                                          #   Gangmu's own banner list wins for a component it already knows. Needs
+                                          #   gangmu 0.12.0: set `requires_gangmu` in the pack's rulebase.json.
   binary_functions:                       # optional: find the component's functions inside compiled images
     file: lwip.fnprint                    #   per-function fingerprints (strings and constants a function
     sha256: "..."                         #   uses), built with `gangmu rules binary-prints`; needs `disasm`

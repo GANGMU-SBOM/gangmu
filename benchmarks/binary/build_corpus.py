@@ -30,6 +30,14 @@ TARGETS = {
     "arm": {"cc": "arm-none-eabi-gcc", "strip": "arm-none-eabi-strip",
             "flags": ["-mcpu=cortex-m3", "-mthumb"], "ld": "fw.ld", "start": "start.c",
             "include": []},
+    # The same Cortex-M3 target compiled by clang, linked by the GNU driver: the references
+    # are built by GCC, so this asks whether a different compiler's build is still recognised.
+    "arm-clang": {"cc": "clang", "strip": "arm-none-eabi-strip",
+                  "flags": ["--target=thumbv7m-none-eabi", "-mcpu=cortex-m3", "-mthumb",
+                            "-fno-builtin"],
+                  "ld": "fw.ld", "start": "start.c",
+                  "include": ["/usr/lib/arm-none-eabi/include"],
+                  "linker": "arm-none-eabi-gcc", "link_flags": ["-mcpu=cortex-m3", "-mthumb"]},
     "riscv32": {"cc": "riscv64-unknown-elf-gcc", "strip": "riscv64-unknown-elf-strip",
                 "flags": ["-march=rv32imac", "-mabi=ilp32"], "ld": "fw-riscv.ld",
                 "start": "start-riscv.c", "include": ["/usr/include/newlib"]},
@@ -113,7 +121,8 @@ def build(lib: str, spec: dict, tag: str, root: Path, opt: str, out: Path,
     # No libc, no libgcc: a reference must hold the library's own code and nothing else,
     # or functions every program shares (printf, strtod) become part of its fingerprint.
     # The images are never run, so unresolved references are fine.
-    r = run([t["cc"], *t["flags"], *t.get("link", []), "-nostartfiles", "-nostdlib",
+    r = run([t.get("linker", t["cc"]), *t.get("link_flags", t["flags"]), *t.get("link", []),
+             "-nostartfiles", "-nostdlib",
              "-T", str(HERE / t["ld"]), "-Wl,--unresolved-symbols=ignore-all",
              "-o", str(out), str(start), *objects])
     if r.returncode:
@@ -126,7 +135,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--out", required=True)
     ap.add_argument("--target", choices=sorted(TARGETS), default="arm",
-                    help="arm: Cortex-M3 Thumb (default); riscv32: rv32imac; "
+                    help="arm: Cortex-M3 Thumb (default); arm-clang: the same, built by clang; riscv32: rv32imac; "
                          "aarch64: ARMv8-A, freestanding; xtensa: ESP32")
     ap.add_argument("--cache", help="checkouts named <lib>-<tag>, reused if present")
     ap.add_argument("--lib", action="append", help="build only these libraries")
