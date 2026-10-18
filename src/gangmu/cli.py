@@ -570,16 +570,22 @@ def build_parser() -> argparse.ArgumentParser:
     ri = rsub.add_parser(
         "import",
         help="derive draft rules from a vendor SDK's own pins "
-             "(git submodules, or a west manifest)")
-    ri.add_argument("sdk_repo", help="SDK git URL, or a local clone")
-    ri.add_argument("--manifest", choices=["gitmodules", "west"],
+             "(git submodules, or a west manifest), or from a list of upstream "
+             "projects (candidates)")
+    ri.add_argument("sdk_repo", help="SDK git URL, or a local clone; with --manifest "
+                                     "candidates, the candidates JSON file")
+    ri.add_argument("--manifest", choices=["gitmodules", "west", "candidates"],
                     default="gitmodules",
-                    help="how the SDK pins its third-party code")
+                    help="how the SDK pins its third-party code; candidates: a JSON list "
+                         "of upstream repositories, each made a generic rule from its "
+                         "own release tags")
+    ri.add_argument("--limit", type=int, default=12,
+                    help="candidates: releases the function signature covers (default 12)")
     ri.add_argument("--manifest-file", help="west manifest name (default west.yml)")
     ri.add_argument("--group", action="append",
                     help="west group to re-enable, e.g. optional; repeatable")
-    ri.add_argument("--vendor", required=True)
-    ri.add_argument("--sdk", required=True)
+    ri.add_argument("--vendor", help="required for gitmodules and west")
+    ri.add_argument("--sdk", help="required for gitmodules and west")
     ri.add_argument("--sdk-version")
     ri.add_argument("--out", required=True, help="directory to write rules into")
     ri.add_argument("--only", action="append",
