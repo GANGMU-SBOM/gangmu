@@ -225,3 +225,46 @@ def test_the_vuln_command_reads_only_what_the_sbom_can_use():
     assert not _cn_keeper([Component()], [matched("CVE-1999-0001")])(ssl)
     assert keep(entry(title="OpenSSL 漏洞"))                 # no CVE, names a component
     assert not keep(entry(title="另一个产品"))                # no CVE, names nothing
+
+
+# ------------------------------------------------ what `vuln --format json` says about them
+
+def _cn_run(tmp_path, capsys, records, components):
+    import json
+    adv = tmp_path / "adv"
+    (adv / "osv").mkdir(parents=True)
+    (adv / "osv" / "OSV-CN-1.json").write_text(json.dumps({
+        "id": "OSV-CN-1", "aliases": ["CVE-2099-0001"], "summary": "overflow",
+        "database_specific": {"severity": "LOW"},
+        "affected": [{"package": {"purl": "pkg:generic/lwip"}, "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "2.2.0"}]}]}]}))
+    cn = tmp_path / "cn"
+    cn.mkdir()
+    (cn / "a.json").write_text(json.dumps(records, ensure_ascii=False), encoding="utf-8")
+    bom = tmp_path / "sbom.json"
+    bom.write_text(json.dumps({"bomFormat": "CycloneDX", "specVersion": "1.6", "components": components}))
+    assert main(["vuln", str(bom), "--db", str(adv), "--cn-db", str(cn), "--format", "json"]) == 0
+    return json.loads(capsys.readouterr().out)
+
+
+def test_json_output_carries_what_the_domestic_databases_added(tmp_path, capsys):
+    doc = _cn_run(tmp_path, capsys, [
+        {"cnnvdId": "CNNVD-1", "vulnName": "lwIP 溢出", "vulnDesc": "CVE-2099-0001", "hazardLevel": "高危", "affectedProduct": "lwip"},
+        {"cnnvdId": "CNNVD-2", "vulnName": "国产RTOS越界读", "vulnDesc": "越界读", "hazardLevel": "中危", "affectedProduct": "gangrtos 1.0"}],
+        [{"type": "library", "name": "lwip", "version": "2.1.2", "purl": "pkg:generic/lwip@2.1.2"},
+         {"type": "library", "name": "gangrtos", "version": "1.0", "purl": "pkg:generic/gangrtos@1.0"}])
+    cn = doc["cn"]
+    assert cn["parsed"] == 2
+    assert {k: [e["id"] for e in v] for k, v in cn["merged"].items()} == {"OSV-CN-1": ["CNNVD-1"]}
+    assert cn["disagreements"] == [{"id": "OSV-CN-1", "international": "low", "domestic": "high"}]
+    assert [(c["component"], c["id"]) for c in cn["candidates"]] == [("gangrtos", "CNNVD-2")]
+    assert cn["candidates"][0]["severityCn"] == "中危"
+    assert all("cn" not in m for m in doc["matches"])      # a candidate is never a match
+
+
+def test_json_output_has_no_cn_key_without_the_option(tmp_path, capsys):
+    import json
+    bom = tmp_path / "sbom.json"
+    bom.write_text('{"bomFormat": "CycloneDX", "specVersion": "1.6", "components": []}')
+    (tmp_path / "adv").mkdir()
+    assert main(["vuln", str(bom), "--db", str(tmp_path / "adv"), "--format", "json"]) == 0
+    assert "cn" not in json.loads(capsys.readouterr().out)
