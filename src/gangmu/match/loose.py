@@ -29,6 +29,7 @@ Three guards keep it from claiming what is not there:
 from __future__ import annotations
 
 import re
+import os
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
@@ -212,7 +213,7 @@ def _covered(root: Path, store: AnalysisStore, rels: Sequence[str],
         total = sum(len(functions[r]) for r in mine)
         theirs = sum(len(functions[r]) for r in claimed)
         flat = all(str(PurePosixPath(r).parent) == d for r in claimed)
-        if claimed and flat and theirs < 0.5 * total:
+        if claimed and flat and theirs < 0.5 * total and not _is_package(root / d):
             names = rule_names(entry[0])
             stems = {_key(PurePosixPath(r).stem) for r in claimed}
             members = sorted(claimed + [r for r in mine if not functions[r]
@@ -232,6 +233,24 @@ def _covered(root: Path, store: AnalysisStore, rels: Sequence[str],
         else:
             covered.update(r for r in mine if not functions[r] or r in claimed)
     return covered
+
+
+_PACKAGE_FILE = re.compile(r"^(licen[sc]e|copying|unlicense|library\.json|library\.properties|idf_component\.yml|"
+                           r"module\.yml|vcpkg\.json|conanfile\.(py|txt)|meson\.build|configure\.ac)([-_.].*)?$", re.I)
+_REPO_DIRS = {"test", "tests", "example", "examples", "doc", "docs", "fuzzing", "fuzz", "samples", "demo",
+              "demos", "benchmark", "benchmarks", ".github"}
+
+
+def _is_package(directory: Path) -> bool:
+    """A directory that is a package of its own -- with its own licence or manifest,
+    or the tests and examples of a repository -- is the component, whatever else is
+    in it; only a directory of the project's own files with the component's files
+    dropped among them is narrowed."""
+    try:
+        names = os.listdir(directory)
+    except OSError:
+        return False
+    return any(_PACKAGE_FILE.match(n) or n.lower() in _REPO_DIRS for n in names)
 
 
 def _belongs(rel: str, names: Set[str], stems: Set[str]) -> bool:
