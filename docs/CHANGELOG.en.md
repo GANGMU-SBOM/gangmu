@@ -2,6 +2,14 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
+## Unreleased
+* **Improved: Linux userland binaries are inventoried too.** Versioned shared objects (`libz.so.1.3`) and extensionless ELF programs (judged by magic and `e_type`; core dumps and `.o` excluded) are now inspected; new expat, Lua, libjpeg-turbo and busybox banners, and the zlib banner accepts both `deflate` and `inflate` copyright strings. On Ubuntu 24.04's 13 libraries identification rose from 0 to 4.
+* **New: `.note.package` (FDO packaging metadata) is read.** When a distribution stamps name, version and architecture into the ELF, a distro-qualified `pkg:deb`/`rpm`/`apk` purl is produced, with a note that the version carries distro backports and no upstream CPE is attached.
+* **Improved: ELF ARM/Thumb mode comes from the build attributes** (`.ARM.attributes`); Cortex-M ELFs with no entry point are no longer decoded as ARM.
+* **Improved: a raw image's vector table need not sit at offset 0.** MCUboot headers and aligned wrapper offsets are recognised, and an app-only image's base is inferred by scoring string pointers; `gangmu binary-functions --offset` is new. Weak evidence still reports unknown.
+* **New: a note for high-entropy `.bin` images.** Images whose content cannot be read (encrypted, or compressed by an unknown scheme) are called out in the scan output instead of silently counting as empty.
+* **Improved: function-level matching on libraries runs only when the rules carry prints for that CPU**, so unrelated libraries are not disassembled for nothing.
+
 ## 0.11.0
 * **Faster scans, same results.** The rule prefilter first makes a cheap disjointness test against the files' stored bottom fingerprints and builds the exact directory sketch only when a rule could share a value; function-signature sidecars are decoded table at once; duplicate and order checks in rule-base segmentation run in C. On the repository's synthetic-SDK benchmark a cold scan is about 22% faster and a warm one about 19% (about 8% at 16x the rules), with identical findings and work counters.
 * **Fixed: a version header that gives only major.minor no longer overrides the anchor's release.** littlefs's `lfs.h` defines `LFS_VERSION 0x00020009` (2.9), so a 2.9.1 tree whose files matched the 2.9.1 anchor was reported as `2.9`, a release the rule does not record, and the bench grader counted it wrong (littlefs 2.9.1 and 2.11.3). A probe value that is the leading part of the anchor's release (`2.9` of `2.9.1`) now leaves the anchor's answer in place; a probe naming a different unrecorded release still wins (#72).

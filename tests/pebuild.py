@@ -301,3 +301,35 @@ def macho_blob(cputype: int = 0x0100000C, filetype: int = 6, text: int = 4096,
     head = struct.pack("<IiiIIIII", 0xFEEDFACF, cputype, 3, filetype, ncmds, len(cmds), 0, 0)
     out = head + cmds
     return out + b"\0" * (text + linkedit + signature - len(out))
+
+
+def elf_with_sections(sections, machine: int = 40, etype: int = 2, entry: int = 0,
+                      bits64: bool = False, big: bool = False) -> bytes:
+    """An ELF holding the given ``(name, type, data)`` sections, for tests of what is read from
+    particular sections (build attributes, notes, ``.interp``). No program headers."""
+    e = ">" if big else "<"
+    ehsize, shentsize = (64, 64) if bits64 else (52, 40)
+    names = b"\0" + b"".join(n.encode() + b"\0" for n, _t, _d in sections) + b".shstrtab\0"
+    body, rows, at = b"", [], ehsize
+    name_at = 1
+    for name, typ, data in sections:
+        rows.append((name_at, typ, at + len(body), len(data)))
+        body += data + b"\0" * (-len(data) % 4)
+        name_at += len(name) + 1
+    shstr_at = at + len(body)
+    body += names
+    rows.append((name_at, 3, shstr_at, len(names)))
+    shoff = at + len(body)
+    shnum = len(rows) + 1                      # the null section first
+    if bits64:
+        head = (b"\x7fELF" + bytes([2, 2 if big else 1, 1]) + b"\0" * 9
+                + struct.pack(e + "HHIQQQIHHHHHH", etype, machine, 1, entry, 0, shoff, 0, ehsize,
+                              0, 0, shentsize, shnum, shnum - 1))
+        row = lambda n, t, o, z: struct.pack(e + "IIQQQQIIQQ", n, t, 0, 0, o, z, 0, 0, 1, 0)
+    else:
+        head = (b"\x7fELF" + bytes([1, 2 if big else 1, 1]) + b"\0" * 9
+                + struct.pack(e + "HHIIIIIHHHHHH", etype, machine, 1, entry, 0, shoff, 0, ehsize,
+                              0, 0, shentsize, shnum, shnum - 1))
+        row = lambda n, t, o, z: struct.pack(e + "IIIIIIIIII", n, t, 0, 0, o, z, 0, 0, 1, 0)
+    table = row(0, 0, 0, 0) + b"".join(row(*r) for r in rows)
+    return head + body + table

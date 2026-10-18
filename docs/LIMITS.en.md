@@ -17,3 +17,5 @@ Windows the shim is a real `gcc.exe` built from pip's vendored distlib launcher,
 windows-latest with MinGW gcc, clang, MSVC and the Arm GNU toolchain from Chocolatey). Without that launcher it falls back to a `.cmd` file
 that only `cmd.exe` finds, and builds run under MSYS/Git `sh` are not verified.
 `gangmu wrap` warns when nothing was recorded; use `--project` then.
+
+Linux distribution libraries are only partly identified: version banners cover few libraries (4 of 13 on Ubuntu 24.04) and distributions often strip them; `.note.package` helps only where the distribution wrote it. On clang-built Thumb firmware function-boundary recall is about 0.98 but precision only 0.60-0.65 (functions are over-segmented), and whether that is enough to identify a library is unconfirmed. High-entropy raw images get a note; the scan does not decrypt or unpack them.

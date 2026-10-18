@@ -682,6 +682,10 @@ def build_parser() -> argparse.ArgumentParser:
     bf.add_argument("--base", help="load address of a raw image, e.g. 0x08000000")
     bf.add_argument("--code-size", help="bytes of code at the start of a raw image, when known "
                                         "(constant tables after it otherwise decode as code)")
+    bf.add_argument("--offset", help="where the code starts in a raw image that has a header "
+                                     "the layout search does not know, e.g. 0x400 (an MCUboot "
+                                     "header and a vector table at a 0x100-aligned offset are "
+                                     "found without it)")
     bf.add_argument("--format", choices=["table", "json"], default="table")
     bf.set_defaults(func=cmd_binary_functions)
 
