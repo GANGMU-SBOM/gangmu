@@ -139,6 +139,8 @@ def main(argv=None) -> int:
                          "aarch64: ARMv8-A, freestanding; xtensa: ESP32")
     ap.add_argument("--cache", help="checkouts named <lib>-<tag>, reused if present")
     ap.add_argument("--lib", action="append", help="build only these libraries")
+    ap.add_argument("--tag", action="append",
+                    help="build these releases instead of the ones in libs.yaml (give --lib too)")
     ap.add_argument("--asserts", action="store_true",
                     help="keep assert() (the default builds with NDEBUG, like shipped firmware)")
     ap.add_argument("--relink", action="store_true",
@@ -154,7 +156,7 @@ def main(argv=None) -> int:
         if args.lib and lib not in args.lib:
             continue
         built = []
-        for tag in spec["tags"]:
+        for tag in (args.tag if args.tag and args.lib else spec["tags"]):
             root = cache / f"{lib}-{tag}"
             if not checkout(spec["url"], tag, root):
                 print(f"{lib} {tag}: cannot fetch", file=sys.stderr)
