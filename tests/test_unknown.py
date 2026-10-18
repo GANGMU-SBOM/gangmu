@@ -181,3 +181,16 @@ def test_a_second_scan_reads_the_facts_from_the_cache(tmp_path, monkeypatch):
     monkeypatch.setattr(u, "extract_functions", boom)
     assert main(argv) == 0
     assert json.loads(out.read_text())["unknown"] == first
+
+
+def test_a_package_bundling_a_known_library_is_reported_without_it(tmp_path):
+    _project(tmp_path)
+    _lib(tmp_path, "third_party/fooz", "fooz")
+    # fooz carries a copy of a library found (as another name) in the same directory
+    _w(tmp_path, "third_party/fooz/barlib.h", _funcs("barlib", 12))
+    c = _discover(tmp_path, [("third_party/fooz", ["third_party/fooz/barlib.h"], "barlib")])
+    assert [x.directory for x in c] == ["third_party/fooz"]
+    assert "third_party/fooz/barlib.h" not in c[0].files and c[0].name_hint == "fooz"
+    # without its own licence the known share still makes the directory the known component
+    (tmp_path / "third_party/fooz/LICENSE").unlink()
+    assert _discover(tmp_path, [("third_party/fooz", ["third_party/fooz/barlib.h"], "barlib")]) != []

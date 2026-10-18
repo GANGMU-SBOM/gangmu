@@ -176,3 +176,14 @@ def test_files_beside_the_directory_it_was_found_at_are_the_same_copy(tmp_path):
     assert any("more of its files beside it, in lib/tl/src/system" in e["summary"]
                for e in data["findings"][0]["evidence"])
     assert data["unknown"] == []
+
+
+def test_a_package_directory_is_not_narrowed_to_its_files(tmp_path):
+    # a repository copy: its own licence and tests/ beside the one file the signature records
+    lib = {"tinylib.c": _code(100, 45)}
+    _rule(tmp_path / "rules", "tinylib", lib, subset=False)
+    tree = tmp_path / "tree"
+    _tree(tree, {"drv/tinylib/tinylib.c": lib["tinylib.c"], "drv/tinylib/LICENSE": "MIT\n",
+                 "drv/tinylib/tests/run.c": _code(8000, 60, 3)})
+    found = _scan(tmp_path / "rules", tree, tmp_path)["findings"]
+    assert [(f["directory"], f["files"]) for f in found] == [("drv/tinylib", [])]

@@ -518,7 +518,11 @@ class Discoverer:
         if (s.total < THRESHOLD or "container" in s.signals or len(marked_kids) >= 2
                 or n_funcs < (1 if own_markers else MIN_FUNCTIONS)):
             return below + loose
-        if 1 - len(res) / len(files) >= 0.3 or self._known_root(d, s):
+        known_share = 1 - len(res) / len(files)
+        # a package of its own (licence, manifest) that bundles a library of another
+        # name -- kuba/zip around miniz -- is not that library: what is left is reported
+        bundles = own_markers and known_share < 0.5 and not self._known_root(d, s)
+        if (known_share >= 0.3 or self._known_root(d, s)) and not bundles:
             # mostly a component already found, a level deeper; what was found below
             # it under other holders is not that component
             kh = {self.t.files[p].holder for p in files if p in self.known_files} - {None}
