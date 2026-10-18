@@ -24,6 +24,8 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import zlib
+from urllib.parse import quote
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Sequence, Set
@@ -32,7 +34,7 @@ from . import disasm
 from .carve import carve, mask
 from .binmeta import CARGO_SECTION, GoBuildInfo, cargo_auditable, go_buildinfo
 from .dotnet import is_framework, parse_dotnet, read_deps_json
-from .elf import ElfInfo, parse_elf
+from .elf import ElfInfo, package_note, parse_elf
 from .pe import PeInfo, parse_pe
 from .core.unpack import IMAGE_SUFFIXES as UNPACK_SUFFIXES, Layer, expand
 from .core.walk import NOT_CONTENT_DIRS
@@ -67,11 +69,19 @@ BANNERS = (
     ("openssl", "OpenSSL", rb"OpenSSL (\d+\.\d+\.\d+[a-z]?)"),
     ("mbedtls", "Mbed TLS", rb"[Mm]bed ?TLS (\d+\.\d+\.\d+)"),
     ("wolfssl", "wolfSSL", rb"wolfSSL (?:Version )?(\d+\.\d+\.\d+)"),
-    ("zlib", "zlib", rb"(?:deflate|inflate) (\d+\.\d+\.\d+(?:\.\d+)?) Copyright"),
+    # "inflate 1.3 Copyright": a release is written 1.3 as well as 1.2.13 and 1.2.11.1
+    ("zlib", "zlib", rb"(?:deflate|inflate) (\d+\.\d+(?:\.\d+){0,2}) Copyright"),
     ("libpng", "libpng", rb"libpng version (\d+\.\d+\.\d+)"),
     ("curl", "curl", rb"libcurl/(\d+\.\d+\.\d+)"),
     ("sqlite", "SQLite", rb"SQLite version (\d+\.\d+\.\d+)"),
     ("freertos", "FreeRTOS-Kernel", rb"FreeRTOS (?:Kernel )?V(\d+\.\d+\.\d+)"),
+    # What a Linux userland carries (read off Ubuntu 24.04's libraries): XML_ExpatVersion()'s
+    # string, the $LuaVersion$ copyright line (5.1 spells it $Lua$), libjpeg-turbo's version
+    # string, and the banner BusyBox prints.
+    ("expat", "Expat", rb"(?<![A-Za-z0-9_])expat_(\d+\.\d+\.\d+)(?![\d.])"),
+    ("lua", "Lua", rb"\$Lua(?:Version)?: Lua (\d+\.\d+\.\d+)"),
+    ("libjpeg-turbo", "libjpeg-turbo", rb"libjpeg-turbo version (\d+\.\d+\.\d+)"),
+    ("busybox", "BusyBox", rb"BusyBox v(\d+\.\d+\.\d+(?:\.\d+)?)"),
 )
 
 # Libraries that leave no banner but export a recognisable API. Names are matched as whole
@@ -145,7 +155,7 @@ class Embedded:
     vendor_component: bool = False      # a vendor's own component, no upstream
     method: str = "banner"      # banner | symbols | strings | functions | go-buildinfo |
     #                             cargo-auditable | deps-json | version-info | imports |
-    #                             dotnet-reference | dotnet-assembly
+    #                             dotnet-reference | dotnet-assembly | package-note
     # version "" means the library is there (API symbols) but no release can be named
     purl: Optional[str] = None          # set by readers of a dependency list (Go, Rust)
     cpe: Optional[str] = None
@@ -176,6 +186,7 @@ class Binary:
     container: Optional[str] = None     # path of the file this binary was found inside
     offset: Optional[int] = None        # where in that file it starts
     embedded_binaries: int = 0          # how many binaries were found inside this one
+    opaque: bool = False                # raw image that looks encrypted or compressed: unread
 
     def to_dict(self):
         return {
@@ -188,7 +199,7 @@ class Binary:
             "product": self.product, "pdb": self.pdb, "signed": self.signed,
             "runtime": self.runtime, "imports": self.imports,
             "container": self.container, "offset": self.offset,
-            "embedded_binaries": self.embedded_binaries,
+            "embedded_binaries": self.embedded_binaries, "opaque": self.opaque,
         }
 
 
@@ -197,7 +208,7 @@ class Binary:
 # deps.json: the code is another file), or what the file *itself* is (a managed DLL naming
 # itself). The SBOM says which, because the three mean different things for a reader.
 DEPENDENCY_METHODS = ("imports", "dotnet-reference", "deps-json")
-SELF_METHODS = ("dotnet-assembly",)
+SELF_METHODS = ("dotnet-assembly", "package-note")
 
 
 def embedded_libraries(blob: Binary) -> List[Embedded]:
@@ -249,12 +260,48 @@ def describe_binary(blob: Binary) -> str:
     return text
 
 
-def _kind(path: Path) -> str:
-    return {".a": "archive", ".so": "shared-library", ".lib": "import-library",
-            ".elf": "firmware-image", ".axf": "firmware-image",
-            ".bin": "firmware-image", ".exe": "executable", ".dll": "shared-library",
-            ".sys": "shared-library", ".ocx": "shared-library",
-            ".pyd": "shared-library"}.get(path.suffix.lower(), "firmware-image")
+_KINDS = {".a": "archive", ".so": "shared-library", ".lib": "import-library",
+          ".elf": "firmware-image", ".axf": "firmware-image",
+          ".bin": "firmware-image", ".exe": "executable", ".dll": "shared-library",
+          ".sys": "shared-library", ".ocx": "shared-library", ".pyd": "shared-library"}
+# libz.so.1, libssl.so.3, libfoo.so.1.2.3: the names a Linux library has, whose last suffix is
+# a number, so the suffix tables above never see them.
+_VERSIONED_SO = re.compile(r"\.so(\.\d+)+$", re.I)
+
+
+def _is_elf_program(path: Path) -> bool:
+    """An ELF executable or shared object, by its magic number: a program or library on a
+    Linux root file system has no extension to say so (busybox, sshd, ld-linux-x86-64.so.2
+    aside), and an object file or a core dump is not one."""
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(20)
+    except OSError:
+        return False
+    if len(head) < 20 or head[:4] != b"\x7fELF" or head[5] not in (1, 2):
+        return False
+    return int.from_bytes(head[16:18], "little" if head[5] == 1 else "big") in (2, 3)
+
+
+def _wanted(path: Path) -> bool:
+    """Whether a file is inventoried as a prebuilt binary: by suffix, by a versioned shared
+    object's name, or, for a name with no suffix (or only a number), by what is inside."""
+    suffix = path.suffix.lower()
+    if suffix in BLOB_SUFFIXES or _VERSIONED_SO.search(path.name):
+        return True
+    return (suffix == "" or suffix[1:].isdigit()) and _is_elf_program(path)
+
+
+def _kind(path: Path, data: bytes = b"") -> str:
+    kind = _KINDS.get(path.suffix.lower())
+    if kind is not None:
+        return kind
+    if _VERSIONED_SO.search(path.name):
+        return "shared-library"
+    info = parse_elf(data) if data[:4] == b"\x7fELF" else None
+    if info is not None:
+        return "executable" if info.is_executable else "shared-library"
+    return "firmware-image"
 
 
 def collect_binaries(root: Path, linked_archives: Optional[Set[str]] = None,
@@ -275,7 +322,7 @@ def collect_binaries(root: Path, linked_archives: Optional[Set[str]] = None,
                           for part in Path(here).relative_to(root).parts)
         for name in sorted(files):
             path = Path(here) / name
-            if path.suffix.lower() not in BLOB_SUFFIXES or path.is_symlink():
+            if path.is_symlink() or not _wanted(path):
                 continue
             if in_fixtures and path.suffix.lower() in PRODUCT_SUFFIXES:
                 continue
@@ -294,7 +341,7 @@ def _inspect(path: Path, root: Path, linked_archives: Optional[Set[str]],
     data = path.read_bytes() if path.stat().st_size <= MAX_BANNER_BYTES else b""
     digest = hashlib.sha256(data if data else path.read_bytes()).hexdigest()
     rel = path.relative_to(root).as_posix()
-    blob = Binary(path=rel, sha256=digest, size=path.stat().st_size, kind=_kind(path))
+    blob = Binary(path=rel, sha256=digest, size=path.stat().st_size, kind=_kind(path, data))
     if path.suffix.lower() in PRODUCT_SUFFIXES:
         # A link map names link inputs, never images. With one in hand, an image that is not
         # this build's product (an audio .bin, another example's firmware) did not ship in it.
@@ -333,14 +380,18 @@ def _analyze(blob: Binary, data: bytes, suffix: str, sidecar: Optional[Path],
         found = _banners(layer.data, elf, managed=pe is not None and pe.is_dotnet)
         if not layer.label:
             found += _toolchain_lists(blob, layer.data, pe, elf)
+            found += _package_metadata(layer.data, elf)
         if pe is not None:
             found += _pe_evidence(blob, pe, found + blob.embedded, layer.data)
             if sidecar is not None:
                 found += _sidecar_packages(sidecar, found + blob.embedded)
         if string_signatures:
             found += _by_strings(layer.data, found + blob.embedded, string_signatures)
-        if (function_prints and not layer.label and disasm.available()
-                and suffix in IMAGE_SUFFIXES):
+        # Function-level work costs seconds per megabyte, so a library or program on a
+        # root file system gets it only when some rule has references built for its CPU.
+        code = (not layer.label and disasm.available()
+                and (suffix in IMAGE_SUFFIXES or _prints_for(elf, function_prints)))
+        if function_prints and code:
             found += _by_functions(layer.data, found + blob.embedded, function_prints)
         for emb in found:
             if any((e.name, e.version) == (emb.name, emb.version) for e in blob.embedded):
@@ -352,7 +403,7 @@ def _analyze(blob: Binary, data: bytes, suffix: str, sidecar: Optional[Path],
         if tool and not blob.toolchain:
             blob.toolchain = (f"{tool.group(1).decode('ascii', 'replace')} "
                               f"{tool.group(2).decode('ascii')}")
-        if not layer.label and disasm.available() and suffix in IMAGE_SUFFIXES:
+        if code:
             _recover_functions(blob, layer.data, elf, suffix == ".bin")
         if elf:
             blob.stripped, blob.symbols = elf.stripped, len(elf.defined)
@@ -363,6 +414,9 @@ def _analyze(blob: Binary, data: bytes, suffix: str, sidecar: Optional[Path],
         if pe is not None and not blob.toolchain and not blob.runtime and pe.linker != "0.0":
             blob.toolchain = f"linker {pe.linker}"
     blob.embedded_binaries = len(carved)
+    if (depth == 0 and suffix == ".bin" and blob.layers == 1 and not blob.embedded
+            and not blob.functions and _looks_unreadable(original)):
+        blob.opaque = True
     names = _resource_names(original) if carved else {}
     for item in carved:
         sub = original[item.offset:item.offset + item.size]
@@ -423,6 +477,68 @@ def _banners(data: bytes, elf: Optional[ElfInfo] = None, managed: bool = False
                                   m.group(0).decode("ascii", "replace"),
                                   vendor_component=True))
     return found
+
+
+# Files that are high-entropy by nature, or that something else reads: not "unreadable firmware".
+_NOT_OPAQUE_MAGIC = (b"\x89PNG", b"\xff\xd8\xff", b"GIF8", b"RIFF", b"OggS", b"ID3", b"\xff\xfb",
+                     b"PK\x03\x04", b"7z\xbc\xaf", b"Rar!", b"\x1f\x8b", b"\xfd7zXZ", b"BZh",
+                     b"GGUF", b"\x7fELF", b"MZ", b"fLaC", b"wOFF", b"%PDF")
+OPAQUE_MIN_SIZE = 16 * 1024
+OPAQUE_RATIO = 0.96             # deflate output over input: code and tables are well below it
+_SAMPLE = 32 * 1024
+
+
+def _looks_unreadable(data: bytes) -> bool:
+    """Whether a raw image is high-entropy: encrypted, or compressed with a scheme nothing here
+    unwraps (LZ4, zstd, a vendor's own). Sampled from the start, the middle and the end;
+    every sample has to be incompressible, so a firmware with a compressed blob in it is not
+    called opaque."""
+    if len(data) < OPAQUE_MIN_SIZE or data[:4] in _NOT_OPAQUE_MAGIC or any(
+            data.startswith(m) for m in _NOT_OPAQUE_MAGIC):
+        return False
+    last = len(data) - _SAMPLE
+    for at in (0, last // 2, last):
+        chunk = data[at:at + _SAMPLE]
+        if len(zlib.compress(chunk, 1)) < OPAQUE_RATIO * len(chunk):
+            return False
+    return True
+
+
+def _prints_for(elf: Optional[ElfInfo], prints: Sequence) -> bool:
+    """Whether some rule has per-function references built for this ELF's CPU."""
+    arch = disasm.arch_of_elf(elf) if elf is not None else None
+    return bool(arch) and any(getattr(p[2], "arch", "") == arch for p in prints)
+
+
+_PURL_TYPES = {"deb": "deb", "rpm": "rpm", "apk": "apk", "alpm": "alpm"}
+
+
+def _package_metadata(data: bytes, elf: Optional[ElfInfo]) -> List[Embedded]:
+    """The package the distribution's build says this file belongs to (``.note.package``).
+
+    The version is the package's, with the distribution's revision (1.5.5+dfsg2-2build1.1),
+    and it is kept whole: a distribution backports fixes without changing the upstream
+    number, so it is no more an upstream release than a dpkg status entry is."""
+    note = package_note(data, elf) if elf is not None else None
+    if not note:
+        return []
+    name, version = str(note.get("name") or "").strip(), str(note.get("version") or "").strip()
+    if not name or not version:
+        return []
+    kind = str(note.get("type") or "").strip().lower()
+    distro = str(note.get("os") or "").strip()
+    if not distro:                      # "cpe:/o:fedoraproject:fedora:33": the product, fedora
+        cpe = str(note.get("osCpe") or "").split(":")
+        distro = cpe[3] if len(cpe) > 3 else ""
+    arch = str(note.get("architecture") or "").strip()
+    namespace = quote(distro.lower().replace(" ", "-"), safe="") if distro else ""
+    purl = (f"pkg:{_PURL_TYPES.get(kind, 'generic')}/" + (namespace + "/" if namespace else "")
+            + quote(name, safe="") + "@" + quote(version, safe="~.-_")
+            + (f"?arch={quote(arch, safe='')}" if arch else ""))
+    where = ", ".join(x for x in (kind, distro, arch) if x)
+    return [Embedded(name.lower(), name, version,
+                     f"{name} {version}" + (f" ({where})" if where else ""),
+                     method="package-note", purl=purl)]
 
 
 def _by_strings(data: bytes, known: Sequence[Embedded], signatures: Sequence

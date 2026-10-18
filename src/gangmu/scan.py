@@ -149,6 +149,15 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
             _string_signatures(rulebase), _function_prints(rulebase),
             facts_map.link_map_stem if facts_map else "")
         findings.extend(_binary_findings(binaries, rulebase))
+        opaque = [b.path for b in binaries if b.opaque and b.linked is not False]
+        if opaque:
+            shown = ", ".join(opaque[:4]) + (f" and {len(opaque) - 4} more"
+                                             if len(opaque) > 4 else "")
+            notes.append(
+                f"{len(opaque)} raw image(s) are high-entropy ({shown}): encrypted, compressed "
+                "with a scheme the scan cannot unwrap, or not code at all. Nothing could be "
+                "read from them, so any component inside is missing from this SBOM; unwrap or "
+                "decrypt them first (the vendor's update tool, binwalk, unblob) and scan the result")
         unlinked = sum(1 for b in binaries if b.linked is False and b.container is None)
         if unlinked:
             notes.append(
@@ -244,7 +253,7 @@ BINARY_METADATA = 0.90      # the toolchain recorded the dependency list on purp
 BINARY_IMPORT_IDENTITY = 0.50    # an import is a run-time dependency, not code inside the file
 BINARY_SIDECAR = 0.85       # a .deps.json is exact but a separate file, so it can be stale
 BINARY_ASSEMBLY = 0.50      # a .NET assembly named like a NuGet package; nobody confirmed it
-METADATA_METHODS = ("go-buildinfo", "cargo-auditable")
+METADATA_METHODS = ("go-buildinfo", "cargo-auditable", "package-note")
 WEAK_DEPENDENCY_METHODS = ("imports", "dotnet-reference")   # needed at run time, release unknown
 
 
@@ -261,6 +270,12 @@ def _function_prints(rulebase: RuleBase):
 
 
 def _binary_summary(emb, version: Optional[str]) -> str:
+    if emb.method == "package-note":
+        return (f"{emb.banner}: the packaging metadata its distribution's build wrote into "
+                "this file (the ELF .note.package), so it is the package the file was built "
+                "for; the version includes the distribution's revision and may carry fixes "
+                "backported from later upstream releases, so it is not compared with upstream "
+                "advisories as an upstream release")
     if emb.method in METADATA_METHODS:
         return (f"{emb.banner}: the toolchain recorded this dependency list in the binary, so it "
                 "is the version the build resolved" + (
