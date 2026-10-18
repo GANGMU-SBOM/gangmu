@@ -2,7 +2,7 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
-## Unreleased
+## 0.12.0
 * **New: rules can carry their own version banners.** `identity.binary_banners` is a list of regular expressions (the first capturing group is the release) read over compiled images, so a rule can teach the engine what a library prints about itself without an engine release. They are checked when the rule loads: at most 160 characters, one or more capturing groups, at least four literal characters, no unbounded wildcard (`.*`, `\S+`, `[^x]+`) and no nested repetition, because the pattern runs over every byte of every binary in a tree. The engine's built-in banners win. Needs gangmu 0.12.0.
 * **New: the release in a shared library's file name is used.** `libz.so.1.3.1`, `liblzma.so.5.4.5`, `libzstd`, `liblz4` and `libxml2` name the release in their file name; it must agree with the library's own SONAME, the file must be a library and not a program, and no banner may have given a version. Confidence is lower than a banner's (version 0.55). Libtool-numbered libraries (`libexpat.so.1.8.10` is not expat 2.4.x) are left out.
 * **New: the GNU build-id is recorded.** The binary inventory (`build_id` in the JSON) carries it. It names this exact build, which a debug-info server or a vendor's records can resolve; it does not name a release.
