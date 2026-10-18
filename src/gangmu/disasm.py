@@ -348,11 +348,30 @@ def arch_of_elf(info: ElfInfo) -> Optional[str]:
 
 # ----------------------------------------------------------------------- sweep
 
+class _Insn:
+    """What the boundary scan reads of an instruction. ``disasm_lite`` hands back plain
+    tuples, about twice as fast as Capstone's full instruction objects, which the scan
+    would only read four attributes of."""
+
+    __slots__ = ("address", "size", "mnemonic", "op_str", "_code", "_at")
+
+    def __init__(self, address: int, size: int, mnemonic: str, op_str: str,
+                 code: bytes, at: int) -> None:
+        self.address, self.size, self.mnemonic, self.op_str = address, size, mnemonic, op_str
+        self._code, self._at = code, at
+
+    @property
+    def bytes(self) -> bytes:
+        return self._code[self._at:self._at + self.size]
+
+
 def _decode(spec, code: bytes, base: int):
     md = capstone.Cs(spec.cs_arch, spec.cs_mode)
     md.skipdata = True
     md.skipdata_setup = ("db", None, None)
-    return md.disasm(code[:MAX_CODE], base)
+    code = code[:MAX_CODE]
+    for address, size, mnemonic, op_str in md.disasm_lite(code, base):
+        yield _Insn(address, size, mnemonic, op_str, code, address - base)
 
 
 def _scan(spec, code: bytes, base: int, inside: bool = False):

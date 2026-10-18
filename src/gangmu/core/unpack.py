@@ -154,6 +154,50 @@ def _streams(data: bytes) -> Iterator[Tuple[str, int, bytes]]:
             return
 
 
+# U-Boot legacy image: a 64-byte big-endian header, then the (often compressed) payload.
+UIMAGE_MAGIC = b"\x27\x05\x19\x56"
+_UIMAGE_COMPRESSION = {0: "none", 1: "gzip", 2: "bzip2", 3: "lzma"}     # 4 lzo, 5 lz4, 6 zstd: no decoder
+MAX_UIMAGES = 8
+
+
+def _lzma_alone(payload: bytes) -> Optional[bytes]:
+    # (the .lzma container has no magic number a scan could use, and U-Boot's payload sets the
+    # uncompressed size to -1, which Python's decoder accepts)
+    return _bounded(lzma.LZMADecompressor(lzma.FORMAT_ALONE), payload)
+
+
+def _uimages(data: bytes) -> Iterator[Tuple[str, bytes]]:
+    """Payloads of U-Boot legacy images in *data*, decompressed where the header names a
+    scheme this module can undo. Only a header that is consistent with the data counts: the
+    payload must fit, and the compression and image-type bytes must be known values."""
+    found = 0
+    for m in re.finditer(re.escape(UIMAGE_MAGIC), data):
+        at = m.start()
+        if at + 64 > len(data):
+            break
+        size = struct.unpack_from(">I", data, at + 12)[0]
+        kind, comp = data[at + 30], data[at + 31]
+        if size < MIN_STREAM or at + 64 + size > len(data) or kind > 15 or comp > 6:
+            continue
+        payload = data[at + 64:at + 64 + size]
+        scheme = _UIMAGE_COMPRESSION.get(comp)
+        if scheme == "none":
+            body: Optional[bytes] = payload
+        elif scheme == "gzip":
+            body = _bounded(zlib.decompressobj(16 + zlib.MAX_WBITS), payload)
+        elif scheme == "bzip2":
+            body = _bounded(bz2.BZ2Decompressor(), payload)
+        elif scheme == "lzma":
+            body = _lzma_alone(payload)
+        else:
+            body = None
+        if body is not None:
+            found += 1
+            yield f"uimage-{scheme}@{at:#x}", body
+        if found >= MAX_UIMAGES:
+            return
+
+
 def _zip_members(data: bytes) -> Iterator[Tuple[str, bytes]]:
     try:
         archive = zipfile.ZipFile(io.BytesIO(data))
@@ -198,6 +242,7 @@ def expand(data: bytes, suffix: str = "") -> List[Layer]:
         children: List[Tuple[str, bytes]] = []
         if blob[:4] == b"PK\x03\x04":
             children.extend(_zip_members(blob))
+        children.extend(_uimages(blob))
         for label2, _, out in _streams(blob):
             children.append((label2, out))
         for label2, out in children:
