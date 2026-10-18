@@ -435,24 +435,45 @@ def sweep(code: bytes, base: int, arch: str, seeds: Sequence[int] = (),
     reliable |= calls
     if arch == "thumb":
         extent = max(reliable | {base}) + EXTENT
-        refs: Dict[int, int] = {}
+        refs: Dict[int, int] = {}          # pointers per target, literal pools in the code only
+        seen: Set[int] = set()
         tables: Set[int] = set()
+        jump_targets: Set[int] = set()
+        known = prologues | calls | {w for w in seeds}
+
+        def keep(run: List[int]) -> None:
+            # A run of code pointers is a function table when most of it lands on
+            # functions. One that lands mid-function is a switch's jump table (Thumb
+            # code without TBB/TBH keeps the case addresses in .rodata).
+            if len(run) < TABLE_RUN:
+                return
+            # (a vector table repeats its default handler: not a jump table either)
+            if 2 * sum(a in known for a in run) >= len(run) or 2 * len(set(run)) <= len(run):
+                tables.update(run)
+            else:
+                jump_targets.update(run)
+
         for blob in list(pools) + [code]:
             run: List[int] = []
             for off in range(0, len(blob) - 3, 4):
                 word = struct.unpack_from("<I", blob, off)[0]
                 if word & 1 and (word & ~1) in boundaries and (word & ~1) <= extent:
-                    refs[word & ~1] = refs.get(word & ~1, 0) + 1
+                    seen.add(word & ~1)
+                    if blob is code:
+                        refs[word & ~1] = refs.get(word & ~1, 0) + 1
                     run.append(word & ~1)
                     continue
-                if len(run) >= TABLE_RUN:
-                    tables.update(run)
+                keep(run)
                 run = []
-            if len(run) >= TABLE_RUN:
-                tables.update(run)
+            keep(run)
         vectors = {w for w in seeds}
-        for target, count in refs.items():
-            if target in prologues or target in vectors or target in tables or count >= 2:
+        # (a data table's words that happen to look like addresses, in .rodata, repeat
+        # too: only a pointer repeated in the code's own literal pools counts)
+        for target in seen:
+            if target in jump_targets and target not in known:
+                continue
+            if target in prologues or target in vectors or target in tables \
+                    or refs.get(target, 0) >= 2:
                 reliable.add(target)
     starts: Set[int] = set(reliable)
     ordered = sorted(reliable | {base})

@@ -3,6 +3,7 @@
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
 ## 未发布
+* **修复：Thumb 函数起点不再被 `.rodata` 里的数据冒充。** switch 的跳转表（clang 在没有 TBB/TBH 时把 case 地址放进 `.rodata`）和重复出现的类地址数据字（zlib 的固定哈夫曼表）曾被当成函数指针，把 `adler32_z` 切成 26 个假函数。现在指针表要半数以上落在函数起点上才算函数表（重复默认处理函数的向量表除外），只在代码字面量池里重复出现的指针才算「被引用两次」。clang 编译的 Cortex-M3 zlib 上，函数边界精确率由 0.60–0.65 升到约 0.98，召回不变（0.98）。
 * **改进：Linux 用户态二进制也进清单。** 带版本号的共享库（`libz.so.1.3`）和没有扩展名的 ELF 程序（按魔数和 `e_type` 判断，核心转储与 `.o` 排除）现在会被检查；新增 expat、Lua、libjpeg-turbo、busybox 横幅，zlib 横幅同时认 `deflate`/`inflate` 版权串。Ubuntu 24.04 的 13 个库从 0 个识别提高到 4 个。
 * **新增：读 `.note.package`（FDO 打包元数据）。** 发行版把包名、版本、架构写进 ELF 时，直接生成带发行版的 `pkg:deb`/`rpm`/`apk` purl，说明版本带发行版的回移补丁，不拼上游 CPE。
 * **改进：ELF 的 ARM/Thumb 模式按构建属性判断**（`.ARM.attributes`），无入口点的 Cortex-M ELF 不再被当成 ARM 解码。
