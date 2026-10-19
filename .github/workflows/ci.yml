@@ -204,7 +204,12 @@ jobs:
         # shims) is already on PATH, so no shell restart is needed.
         shell: pwsh
         run: |
-          choco install gcc-arm-embedded -y --no-progress
+          # community.chocolatey.org answers 504 now and then; try again.
+          foreach ($try in 1..4) {
+            choco install gcc-arm-embedded -y --no-progress
+            if (Get-Command arm-none-eabi-gcc -ErrorAction SilentlyContinue) { break }
+            Start-Sleep -Seconds (15 * $try)
+          }
           arm-none-eabi-gcc --version
       - name: end to end, arm-none-eabi-gcc (cross compiler)
         shell: python {0}
