@@ -31,3 +31,4 @@ Submit at the ENISA Single Reporting Platform. The platform has no API at its fi
 
 - The early warning may say the assessment is preliminary. It may not be late: the 24 hours run from awareness, not from confirmation.
 - No coordinating CSIRT recorded. The platform asks you to choose one at registration, not at report time — set reporting.csirt.
+6 required field(s) are still empty: Manufacturer, Product name, Product version(s) affected, Member states where the product is available, Title, Summary
