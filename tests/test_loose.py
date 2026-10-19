@@ -187,3 +187,13 @@ def test_a_package_directory_is_not_narrowed_to_its_files(tmp_path):
                  "drv/tinylib/tests/run.c": _code(8000, 60, 3)})
     found = _scan(tmp_path / "rules", tree, tmp_path)["findings"]
     assert [(f["directory"], f["files"]) for f in found] == [("drv/tinylib", [])]
+
+
+def test_a_component_copied_loose_across_subdirectories_is_one_finding(tmp_path):
+    lib = {"tinylib.c": _code(100, 30), "sub/tinylib_b.c": _code(300, 20)}
+    _rule(tmp_path / "rules", "tinylib", lib)
+    tree = tmp_path / "tree"
+    _tree(tree, {**APP, "vendor/tl/tinylib.c": lib["tinylib.c"], "vendor/tl/sub/tinylib_b.c": lib["sub/tinylib_b.c"]})
+    found = _scan(tmp_path / "rules", tree, tmp_path)["findings"]
+    assert [(f["directory"], f["files"]) for f in found] == [
+        ("vendor/tl", ["vendor/tl/sub/tinylib_b.c", "vendor/tl/tinylib.c"])]

@@ -152,7 +152,11 @@ def find_loose(root: Path, engine: MatchEngine, store: AnalysisStore,
         if not f.files and f.identity_confidence >= asserted:
             homes[f.rule_id].append(f)
     out: List[Finding] = []
+    taken: Set[str] = set()                   # files a finding of this pass already lists
     for d, files in sorted(by_dir.items()):
+        files = [f for f in files if f not in taken]
+        if not files:
+            continue
         hit_rules = {rid for r in files for h in functions[r] for rid in holders.get(h, ())}
         if not hit_rules:
             continue
@@ -178,6 +182,14 @@ def find_loose(root: Path, engine: MatchEngine, store: AnalysisStore,
                                  DEFAULT_EXCLUDE) or []
             finding = _identify(root, d, group, files, under, engine, functions)
             if finding is not None:
+                if finding.files:
+                    # a component copied loose across subdirectories (CANopenNode's 301/, 303/ ...):
+                    # what lies below with the same code is the same copy
+                    below = [r for r in rels if r.startswith(d + "/") and r not in taken] if d != "." else []
+                    more = _group(signatures[group.rule.id], below, functions) if below else None
+                    if more is not None:
+                        finding.files = sorted(set(finding.files) | set(_members(more, below, functions)))
+                    taken.update(finding.files)
                 out.append(finding)
     return out
 
