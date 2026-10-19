@@ -160,7 +160,7 @@
   只能借 Win32 版本资源里的 `ProductVersion`。
 - **UTF-16 编码的版本横幅**没有匹配；库的版本横幅匹配的仍然是单字节字符串。
 - **签名只看有没有**，不验证证书，也不读签名人。
-- **PE 和 Mach-O 上的函数级指纹**只验证过很窄的范围：函数恢复和指纹生成（`rules binary-prints`、`binary-eval`）已支持 PE（x86、x64、ARM、Thumb、ARM64，含 Windows CE 的 ARM）和 Mach-O，真实样本只有 lz4.exe、zstd.exe 和 zstandard 的 wheel（见 BINARY-VALIDATION.md）；`gangmu scan` 对 `.exe`、`.dll` 的函数级比对只在某条规则带有这种 CPU 的参考指纹时才做（和 ELF 库一样；.NET 程序集没有原生代码，不做），目前免费库里的指纹只有 Thumb 和 RISC-V，所以实际上还没有 PE 能被函数级识别；`binary-functions` 仍然只读 ELF 和裸镜像。
+- **PE 和 Mach-O 上的函数级指纹**只验证过很窄的范围：函数恢复和指纹生成（`rules binary-prints`、`binary-eval`）已支持 PE（x86、x64、ARM、Thumb、ARM64，含 Windows CE 的 ARM）和 Mach-O，真实样本只有 lz4.exe、zstd.exe 和 zstandard 的 wheel（见 BINARY-VALIDATION.md）；`gangmu scan` 对 `.exe`、`.dll` 的函数级比对只在某条规则带有这种 CPU 的参考指纹时才做（和 ELF 库一样；.NET 程序集没有原生代码，不做），免费库里有 x86-64 指纹的只有 zlib、littlefs 和 Mbed TLS（见 BINARY-VALIDATION.md 末节：mingw 编的 Mbed TLS 2.28.8 的 DLL 被识别为 `2.28.0~2.28.8`），其余库的 PE 还不能被函数级识别；`binary-functions` 仍然只读 ELF 和裸镜像。
   字符串常量比对对任何文件的字节都会跑，但我没有在真实 PE 上验证它的准确率。
 - **没有验证的想法：** Rust 程序的 panic 信息可能带着 `registry/src/.../crate-版本/` 路径，能补充没有 `cargo auditable` 的程序；
   我在一个小样本里没找到这类字符串，所以没做。

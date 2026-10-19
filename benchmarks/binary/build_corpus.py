@@ -46,6 +46,13 @@ TARGETS = {
                           "-fno-asynchronous-unwind-tables"],
                 "ld": "fw-aarch64.ld", "start": "start-aarch64.c", "include": [],
                 "link": ["-static", "-no-pie"]},
+    # Native x86-64 GCC, freestanding and not position-independent, like the other bare-metal
+    # targets: only the library's own code, so libc functions do not become part of a reference.
+    "x86-64": {"cc": "gcc", "strip": "strip",
+               "flags": ["-m64", "-ffreestanding", "-fno-pic", "-fno-pie", "-fno-stack-protector",
+                         "-fcf-protection=none", "-fno-asynchronous-unwind-tables"],
+               "ld": "fw-x86.ld", "start": "start-x86.c", "include": [],
+               "link": ["-static", "-no-pie"]},
     # clang with lld, so no MIPS GCC is needed; the stub headers in mips-include declare
     # just what the libraries call (nothing is linked, the images are never run). -G0 keeps
     # data out of the $gp-relative small-data area.
@@ -135,7 +142,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--out", required=True)
     ap.add_argument("--target", choices=sorted(TARGETS), default="arm",
-                    help="arm: Cortex-M3 Thumb (default); arm-clang: the same, built by clang; riscv32: rv32imac; "
+                    help="arm: Cortex-M3 Thumb (default); arm-clang: the same, built by clang; x86-64: native GCC; riscv32: rv32imac; "
                          "aarch64: ARMv8-A, freestanding; xtensa: ESP32")
     ap.add_argument("--cache", help="checkouts named <lib>-<tag>, reused if present")
     ap.add_argument("--lib", action="append", help="build only these libraries")
