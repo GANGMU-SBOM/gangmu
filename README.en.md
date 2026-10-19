@@ -110,6 +110,8 @@ gangmu patch-verify rules/patches/*.json   # rebuild every patch record from the
 gangmu rules index rules/                                   # precompile a rule directory (223 rules: about 1.3 s -> 0.26 s to load); each entry is checked by file hash, so a stale index only costs speed
 gangmu merge ours.cdx.json vendor.cdx.json yocto.cdx.json -o product.cdx.json [--fail-on-disagreement]   # join CycloneDX documents (same purl, or name + version, is one component; the first document wins; version and VEX disagreements are reported)
 gangmu license-check sbom.json [--fail-on copyleft|incompatible|unlicensed]   # triage licences: copyleft, possibly incompatible pairs (per the FSF list), components with no licence; a prompt for a person, not a legal conclusion
+gangmu vuln-coverage sbom.json --db advisories/        # how many findings a CPE-only scanner would miss on this SBOM
+gangmu binary-functions firmware.bin                     # function boundaries from a firmware image (pip install gangmu-sbom[disasm]; --offset when the vector table is not at the start; MCUboot headers are detected)
 gangmu keygen && gangmu sign sbom.json --key gangmu-signing.key   # detached Ed25519 signature (pip install gangmu-sbom[sign])
 gangmu sign-verify sbom.json --pubkey gangmu-signing.pub   # PEM keys, OpenSSL verifies them too; no timestamp: use cosign for that
 gangmu vuln sbom.json --db advisories/ -o vex.json        # local NVD/OSV mirror -> CycloneDX VEX
