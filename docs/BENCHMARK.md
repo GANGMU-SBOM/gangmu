@@ -308,6 +308,12 @@ no pristine tree reported as patched.** LVGL needed its include and exclude glob
 aligned with the signature (C and headers only, no `demos/` or `env_support/`),
 or the C++ files LVGL bundles for 9.x made every pristine tree look modified.
 
+The table above is that experiment as it was measured. The runnable benchmark
+([gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench)) was re-run on
+2026-10-19 with gangmu-sbom 0.12.0 and rules 2026.10.18: 23 cases, 27 rows, 22
+exact, 5 ranges, 0 wrong, 0 missing, including two RISC-V firmware-image cases
+(Mbed TLS 3.4.0 exact, littlefs 2.4.0 as the range `2.0.4~2.11.0`).
+
 ## 1f. Chinese RTOS kernels: TencentOS-tiny
 
 `generic/tencentos-tiny-kernel`: 13 releases, 2.1.0 to 2.5.2, 432 functions, 12 KB.
