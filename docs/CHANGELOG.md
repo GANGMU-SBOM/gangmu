@@ -8,6 +8,10 @@
 * **新增：从一份上游项目清单生成通用规则草稿。** `gangmu rules import 清单.json --manifest candidates --out rules/generic`。清单（JSON）只提供仓库地址（可选子目录、许可、备注），例如由公开 registry 索引找出的、被许多包转发的库。gangmu 自己列出该仓库的发行 tag（去掉预发布），用最新发行版生成指纹，用最近 `--limit` 个发行版（默认 12）生成 `.fnsig`，`upstream.source.ref` 钉在最新 tag 上，所以 `gangmu rules verify` 能逐位复现。规则描述的是整个仓库（含移植层、示例应用），厂商很少整份拷贝，所以标 `functions.subset`；清单里标了 `bundles` 的条目（大量代码也出现在其他无关包里）不标，免得认领那些包的拷贝。不猜 CPE：`cpe_status` 写 `unverified`，`review.todo` 要求合并前查。**验证：** 用 GangmuAI 的 registry 索引导出的 9 个库（lwrb、lwjson、lwmem、lwprintf、lwshell、tinyexpr、nanoprintf、agile_modbus、qpc）生成规则，扫描 120 个生成的固件工程：独立目录里的拷贝认出 57/59，版本 52 个精确、5 个区间、0 个错；平铺在自研目录里的 0/14（按目录识别的老限制）；新规则 0 误报，已有规则的结论 0 个被挤掉。另用排名前 40 的候选生成规则：40 条全过 `rules lint`，抽 5 条 `rules verify` 全部逐位复现，同样 120 个工程上 0 误报；一份 LVGL 9.2.0 拷贝上，捆绑了 LVGL 的 inkplate-lvgl-library 规则在标 `bundles` 之前会认领 LVGL 自带的 lodepng、lz4、qrcode 目录，之后不再认领。**局限：** 生成的规则都没有 CPE，必须人工补；版本标签照抄上游 tag，tag 命名怪异的项目（`05`、`131.2.0`）需要人看。
 * `rules import` 的 `--vendor`、`--sdk` 改为只在 gitmodules 和 west 时必填。
 
+## 未发布
+* **新增：`gangmu scan` 对 `.exe`、`.dll` 也做函数级比对**，条件与 ELF 库相同：某条规则带有这种 CPU 的参考指纹才做，否则不花这份时间；.NET 程序集（没有原生代码）不做。目前免费库里的指纹只有 Thumb 和 RISC-V，所以实际上还没有 PE 能被函数级识别，要等规则带上 x86/x64 的指纹。
+* **文档：** README.en 的快速上手补上 `vuln-coverage`、`binary-functions`；中文命令表补上 `vuln-coverage`。
+
 ## 0.12.0
 * **新增：规则可以自带版本横幅。** `identity.binary_banners` 是一组正则（第一个捕获组为版本），用来在编译后的镜像里读库自己打印的文字，不用等引擎内置。加载规则时就检查：不超过 160 个字符、有且至少一个捕获组、至少 4 个字面字符、不允许无界通配符（`.*`、`\S+`、`[^x]+`）和嵌套重复，因为这个正则会跑过树里每个二进制的每个字节。引擎内置的横幅优先。需要 gangmu 0.12.0。
 * **新增：共享库的文件名里带发行版时，据此给出版本。** `libz.so.1.3.1`、`liblzma.so.5.4.5`、`libzstd`、`liblz4`、`libxml2` 的文件名数字就是发行版，且必须与库自己的 SONAME 一致、必须是库而不是程序、必须没有横幅给出版本才采用；置信度低于横幅（版本 0.55）。libtool 编号的库（`libexpat.so.1.8.10` 不是 expat 2.4.x）不在其中。

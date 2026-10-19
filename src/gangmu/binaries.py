@@ -399,8 +399,10 @@ def _analyze(blob: Binary, data: bytes, suffix: str, sidecar: Optional[Path],
             found += _by_strings(layer.data, found + blob.embedded, string_signatures)
         # Function-level work costs seconds per megabyte, so a library or program on a
         # root file system gets it only when some rule has references built for its CPU.
+        native_pe = pe if pe is not None and not pe.is_dotnet else None
         code = (not layer.label and disasm.available()
-                and (suffix in IMAGE_SUFFIXES or _prints_for(elf, function_prints)))
+                and (suffix in IMAGE_SUFFIXES
+                     or _prints_for(elf or native_pe, function_prints)))
         if function_prints and code:
             found += _by_functions(layer.data, found + blob.embedded, function_prints)
         for emb in found:
@@ -414,7 +416,7 @@ def _analyze(blob: Binary, data: bytes, suffix: str, sidecar: Optional[Path],
             blob.toolchain = (f"{tool.group(1).decode('ascii', 'replace')} "
                               f"{tool.group(2).decode('ascii')}")
         if code:
-            _recover_functions(blob, layer.data, elf, suffix == ".bin")
+            _recover_functions(blob, layer.data, elf, suffix == ".bin", native_pe)
         if elf:
             blob.stripped, blob.symbols = elf.stripped, len(elf.defined)
             if not blob.toolchain:
@@ -517,9 +519,13 @@ def _looks_unreadable(data: bytes) -> bool:
     return True
 
 
-def _prints_for(elf: Optional[ElfInfo], prints: Sequence) -> bool:
-    """Whether some rule has per-function references built for this ELF's CPU."""
-    arch = disasm.arch_of_elf(elf) if elf is not None else None
+def _prints_for(image: Optional[object], prints: Sequence) -> bool:
+    """Whether some rule has per-function references built for this ELF's or PE's CPU."""
+    arch = None
+    if isinstance(image, ElfInfo):
+        arch = disasm.arch_of_elf(image)
+    elif image is not None:
+        arch = disasm.arch_of_pe(image)       # type: ignore[arg-type]
     return bool(arch) and any(getattr(p[2], "arch", "") == arch for p in prints)
 
 
@@ -615,10 +621,13 @@ def _by_strings(data: bytes, known: Sequence[Embedded], signatures: Sequence
     return found
 
 
-def _recover_functions(blob: Binary, data: bytes, elf: Optional[ElfInfo], raw_ok: bool) -> None:
-    """Function boundaries for an ELF, or for a bare Cortex-M ``.bin``."""
+def _recover_functions(blob: Binary, data: bytes, elf: Optional[ElfInfo], raw_ok: bool,
+                       pe: Optional[PeInfo] = None) -> None:
+    """Function boundaries for an ELF, a Windows PE image, or a bare Cortex-M ``.bin``."""
     if elf is not None:
         rec = disasm.recover_elf(data, elf)
+    elif pe is not None:
+        rec = disasm.recover_pe(data, pe)
     elif raw_ok:
         rec = disasm.recover_raw(data)
     else:
