@@ -194,3 +194,11 @@ def test_a_package_bundling_a_known_library_is_reported_without_it(tmp_path):
     # without its own licence the known share still makes the directory the known component
     (tmp_path / "third_party/fooz/LICENSE").unlink()
     assert _discover(tmp_path, [("third_party/fooz", ["third_party/fooz/barlib.h"], "barlib")]) != []
+
+
+def test_ties_are_broken_by_name_not_by_iteration_order():
+    from collections import Counter
+    # the dominant function prefix decides a candidate's namespace signal; with equal counts the
+    # answer used to follow the order a set of names was iterated in, which varies with the hash seed
+    assert u._top(Counter({"zz": 3, "aa": 3, "mm": 2})) == ("aa", 3)
+    assert u._top(Counter({"aa": 3, "zz": 3})) == ("aa", 3)

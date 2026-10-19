@@ -196,6 +196,12 @@ def _holder(head: bytes) -> Optional[str]:
     return None
 
 
+def _top(counter: Counter) -> Tuple[str, int]:
+    """The most common key; of equal counts the smallest, so the answer does not depend on the order
+    a set of names happened to be iterated in (it changes with the interpreter's hash seed)."""
+    return min(counter.items(), key=lambda kv: (-kv[1], kv[0]))
+
+
 def _prefix(name: str) -> Optional[str]:
     """`cJSON_Parse` -> cjson, `lfs_mount` -> lfs, `SEGGER_RTT_Init` -> segger."""
     name = name.lstrip("_")
@@ -398,7 +404,7 @@ class Discoverer:
         n_funcs = sum(len(self.t.files[p].functions) for p in res)
         prefix = None
         if names and n_funcs >= MIN_FUNCTIONS:
-            prefix, n = names.most_common(1)[0]
+            prefix, n = _top(names)
             files_with = sum(1 for p in res if self.t.files[p].functions)
             share = n / max(files_with, 1)
             out = self.prefix_files[prefix] - n
@@ -409,7 +415,7 @@ class Discoverer:
         own = Counter(self.t.files[p].holder for p in res if self.t.files[p].holder)
         holder = None
         if own and res:
-            holder = own.most_common(1)[0][0]
+            holder = _top(own)[0]
             # files whose holder is (nearly) only found here -- a library's files often
             # name several holders -- or found elsewhere too, but on code under a prefix
             # only used here (two libraries by one author side by side)
@@ -594,9 +600,9 @@ class Discoverer:
         # files sharing a function prefix no other file in the tree uses (agile_modbus_*)
         by_prefix: Dict[str, List[str]] = defaultdict(list)
         for p in loose:
-            top = Counter(x for x in (_prefix(f) for f in self.t.files[p].functions) if x).most_common(1)
+            top = Counter(x for x in (_prefix(f) for f in self.t.files[p].functions) if x)
             if top:
-                by_prefix[top[0][0]].append(p)
+                by_prefix[_top(top)[0]].append(p)
         for pre, group in by_prefix.items():
             if len(group) >= 2 and self.prefix_files[pre] == len(group):
                 for p in group[1:]:
@@ -673,7 +679,7 @@ class Discoverer:
             name = os.path.splitext(big.rsplit("/", 1)[-1])[0]
         own = [p for p, _ in vers if p.split("_")[0] not in OWN_VERSION]
         if not name and own:
-            name = Counter(own).most_common(1)[0][0]
+            name = _top(Counter(own))[0]
         if not name and s.prefix:
             name = s.prefix
         return name, version
@@ -686,7 +692,7 @@ def pick_version(vers: List[Tuple[str, str]], prefixes: Counter) -> Optional[str
     if not vers:
         return None
     count = Counter(vers)
-    top = prefixes.most_common(1)[0][0] if prefixes else None
+    top = _top(prefixes)[0] if prefixes else None
     return max(count, key=lambda xv: (bool(top) and xv[0].split("_")[0] == top, count[xv]))[1]
 
 

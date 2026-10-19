@@ -152,7 +152,12 @@ def find_loose(root: Path, engine: MatchEngine, store: AnalysisStore,
         if not f.files and f.identity_confidence >= asserted:
             homes[f.rule_id].append(f)
     out: List[Finding] = []
+    short: List[Tuple[str, List[str], _Group]] = []     # (directory, its files, group) too small alone
+    taken: Set[str] = set()                   # files a finding of this pass already lists
     for d, files in sorted(by_dir.items()):
+        files = [f for f in files if f not in taken]
+        if not files:
+            continue
         hit_rules = {rid for r in files for h in functions[r] for rid in holders.get(h, ())}
         if not hit_rules:
             continue
@@ -161,7 +166,10 @@ def find_loose(root: Path, engine: MatchEngine, store: AnalysisStore,
             group = _group(signatures[rid], files, functions)
             if group is not None:
                 groups.append(group)
-        for group in _assign(groups, functions, {rid: signatures[rid] for rid in hit_rules}):
+        small: List[_Group] = []
+        assigned = _assign(groups, functions, {rid: signatures[rid] for rid in hit_rules}, small)
+        short.extend((d, files, g) for g in small)
+        for group in assigned:
             home = next((f for f in homes.get(group.rule.id, ()) if _beside(d, f.directory)), None)
             if home is not None:
                 members = _members(group, files, functions)
@@ -178,7 +186,51 @@ def find_loose(root: Path, engine: MatchEngine, store: AnalysisStore,
                                  DEFAULT_EXCLUDE) or []
             finding = _identify(root, d, group, files, under, engine, functions)
             if finding is not None:
+                if finding.files:
+                    # a component copied loose across subdirectories (CANopenNode's 301/, 303/ ...):
+                    # what lies below with the same code is the same copy
+                    below = [r for r in rels if r.startswith(d + "/") and r not in taken] if d != "." else []
+                    more = _group(signatures[group.rule.id], below, functions) if below else None
+                    if more is not None:
+                        finding.files = sorted(set(finding.files) | set(_members(more, below, functions)))
+                    taken.update(finding.files)
                 out.append(finding)
+    # what is too little to stand alone (qpc's include/ with 15 functions, qk/ with 9) belongs to the
+    # copy of the same component that was found under the same parent directory
+    for d, files, group in short:
+        mine = [f for f in group.files if f not in taken]
+        if not mine:
+            continue
+        members = _members(group, [f for f in files if f not in taken], functions)
+        whole = next((f for f in homes.get(group.rule.id, ()) if _beside(d, f.directory)), None)
+        if whole is not None:               # a directory found as the component: these are beside it
+            whole.evidence.append(Evidence(
+                technique=Technique.AST_FINGERPRINT, confidence=0.0,
+                summary=(f"{len(members)} more of its files beside it, in {d}: "
+                         + ", ".join(PurePosixPath(m).name for m in members[:8])
+                         + (" ..." if len(members) > 8 else "")),
+                locator=d))
+            if absorbed is not None:
+                absorbed.append((d, members, whole.upstream_name))
+            taken.update(members)
+            continue
+        home = next((f for f in out if f.rule_id == group.rule.id and _common(d, f.directory)), None)
+        if home is None:
+            continue
+        if not home.files:                  # found as a whole directory: those are its files now
+            home.files = sorted(store.select(root / home.directory, DEFAULT_INCLUDE, DEFAULT_EXCLUDE) or [])
+        home.files = sorted(set(home.files) | set(members))
+        home.directory = _common(d, home.directory) or home.directory
+        home.evidence.append(Evidence(
+            technique=Technique.AST_FINGERPRINT, confidence=0.0,
+            summary=(f"{len(members)} more of its files in {d}, too few to be found there alone: "
+                     + ", ".join(PurePosixPath(m).name for m in members[:8])
+                     + (" ..." if len(members) > 8 else "")),
+            locator=d))
+        taken.update(members)
+    for f in out:
+        if f.files:
+            f.content_hash = print_from_store(store, root, only=f.files).fileset_sha256
     return out
 
 
@@ -279,8 +331,10 @@ def _group(entry, files: Sequence[str], functions: Dict[str, Set[int]]) -> Optio
     return group if group.files else None
 
 
-def _assign(groups: List[_Group], functions: Dict[str, Set[int]], signatures) -> List[_Group]:
-    """Each file to one component: named groups first, then the larger."""
+def _assign(groups: List[_Group], functions: Dict[str, Set[int]], signatures,
+            short: Optional[List[_Group]] = None) -> List[_Group]:
+    """Each file to one component: named groups first, then the larger. A group with too few
+    functions to stand on its own is appended to *short*, if given."""
     taken: Set[str] = set()
     out = []
     for group in sorted(groups, key=lambda g: (not g.named, -len(g.matched), g.rule.id)):
@@ -294,10 +348,21 @@ def _assign(groups: List[_Group], functions: Dict[str, Set[int]], signatures) ->
             group = rest
         need = LOOSE_MIN_FUNCTIONS if group.named else SUBSET_MIN_FUNCTIONS
         if len(group.matched) < need:
+            if short is not None and len(group.matched) >= FILE_MIN_FUNCTIONS:
+                short.append(group)
             continue
         taken.update(group.files)
         out.append(group)
     return out
+
+
+def _common(a: str, b: str) -> str:
+    """The deepest directory both are in or are, or "" when that is the scan root."""
+    pa, pb = PurePosixPath(a.strip("/")).parts, PurePosixPath(b.strip("/")).parts
+    n = 0
+    while n < min(len(pa), len(pb)) and pa[n] == pb[n]:
+        n += 1
+    return "/".join(pa[:n])
 
 
 def _beside(d: str, home: str) -> bool:
