@@ -24,7 +24,7 @@
 | --- | --- | --- |
 | 软件物料清单（SBOM） | Software Bill of Materials | 产品中所有软件组件及其版本、来源、许可证的机器可读清单。 |
 | CycloneDX | CycloneDX | OWASP 的 SBOM 格式，纲目默认输出 1.6 版。 |
-| SPDX | SPDX | Linux 基金会的 SBOM 格式（ISO/IEC 5962），纲目输出 2.3 版。 |
+| SPDX | SPDX | Linux 基金会的 SBOM 格式（ISO/IEC 5962），纲目输出 2.3 版和 3.0.1 版（`--format spdx3`）。 |
 | VEX | Vulnerability Exploitability eXchange | 说明某个漏洞是否真正影响产品的声明，纲目以 CycloneDX VEX 输出。 |
 | CPE | Common Platform Enumeration | NVD 用来标识产品的名称，写错一个字就匹配不到任何 CVE。 |
 | PURL | Package URL | 跨生态的组件标识，OSV 用它匹配漏洞；纲目把它当作与 CPE 并列的一等通道。 |
@@ -61,6 +61,6 @@
 | 术语 | English | 含义 |
 | --- | --- | --- |
 | 国密算法 | SM2 / SM3 / SM4 | 国家商用密码算法：SM2 公钥算法、SM3 杂凑算法、SM4 分组密码。 |
-| GmSSL | GmSSL | 北京大学发起的开源国密库，纲目支持 3.0.0 至 3.2.0。 |
-| 铜锁 | Tongsuo | 基于 OpenSSL 3.0 的开源密码库，支持国密，纲目支持 8.4.0 与 8.5.0。 |
+| GmSSL | GmSSL | 北京大学发起的开源国密库，纲目支持 3.0.0 至 3.2.0，另有独立规则覆盖 2.0.0 至 2.5.4。 |
+| 铜锁 | Tongsuo | 基于 OpenSSL 3.0 的开源密码库，支持国密，纲目支持 8.1.3 至 8.5.0。 |
 | 代码分割 | Code segmentation | 多条规则共有的函数对谁都不算身份证据，避免把 OpenSSL 认成铜锁这类分支混淆。 |

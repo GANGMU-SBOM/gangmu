@@ -20,7 +20,7 @@ sketch; the rest is what a sketch of that size estimates.
 | lwIP 2.2.0 | cJSON 1.7.19 | 0.000 | 0.000 | **0.000** | 0.000 |
 
 `size=256` is the default: at 128 the error reached 0.039 on the 2.1.3 pair,
-which is too much next to a band edge at 0.85. 256 halves it for 2 KB more per
+which is too much next to a band edge at 0.85. 256 halves it for 1 KB more per
 rule; 512 buys little beyond that.
 
 Trees: `github.com/lwip-tcpip/lwip` at `STABLE-2_2_0_RELEASE`,
@@ -30,8 +30,8 @@ Trees: `github.com/lwip-tcpip/lwip` at `STABLE-2_2_0_RELEASE`,
 ## What the numbers mean
 
 **A vendor fork and a neighbouring upstream release are not separable by
-similarity.** 0.945 (a fork of 2.2.0) sits between 0.984 (a later release of the
-same line) and 0.836 (an earlier one). There is no threshold that puts forks on
+similarity.** 0.949 (a fork of 2.2.0) sits between 0.985 (a later release of the
+same line) and 0.867 (an earlier one). There is no threshold that puts forks on
 one side and versions on the other, and any tool that reports a version derived
 from a similarity score is guessing.
 

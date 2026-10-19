@@ -11,7 +11,7 @@ Key facts:
 - Rules never guess a CPE; PURL/OSV is a first-class matching channel. CI re-derives every rule's evidence from the upstream release it names.
 - Works offline: vulnerability matching reads local NVD / OSV / CNNVD / CNVD directories; `gangmu vuln-fetch` is the separate online step that fills them.
 - Also lists the cryptographic algorithms in a firmware (`gangmu cbom`, CycloneDX 1.6 CBOM, with a post-quantum migration summary) and its machine-learning models and inference runtimes (`gangmu aibom`); both match names and file signatures, not behaviour.
-- Does not do deep binary analysis (only banners, exported symbols and toolchain-recorded dependency lists in prebuilt libraries, firmware images and Windows executables), security testing, legal conclusions or submission to official platforms (the ENISA Single Reporting Platform has no API at first release).
+- Does not do deep binary analysis (without source or a build it reads banners, exported symbols, ELF package metadata and build-id, toolchain-recorded dependency lists and Windows PE resources, and matches per-function fingerprints against rule packs after recovering function boundaries with Capstone; all of it is lower-confidence evidence), security testing, legal conclusions or submission to official platforms (the ENISA Single Reporting Platform has no API at first release).
 
 ## Docs
 

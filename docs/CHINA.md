@@ -123,7 +123,7 @@ gangmu cn-db-check cnnvd-export/
   （LVGL 54 个发布版，libcoap 13 个，TinyCrypt 7 个）。7 份副本全部识别。写规则时 NVD 不可达，CPE 当时未核实；
   2026-10-05 补查：libcoap 登记在 `libcoap:libcoap`（NVD 中有 CVE-2023-35862 等，引用指向 obgm/libcoap），已写入规则；
   LVGL 与 TinyCrypt 在 NVD 的 CPE 字典里没有条目，已在规则里记为 `none-found`。OSV 对这两个项目也没有记录（2026-10-04 核查，见 BENCHMARK.md 4b），所以目前 LVGL、TinyCrypt 都没有可用的漏洞比对通道。
-* **腾讯 TencentOS-tiny 内核** —— 12 个版本（2.1.0–2.5.2，上游只打了 3 个标签，其余按版本头文件首次出现的提交固定；
+* **腾讯 TencentOS-tiny 内核** —— 13 个版本（2.1.0–2.5.2，上游只打了 3 个标签，其余按版本头文件首次出现的提交固定；
   标签 v2.4.5 实际头文件写的是 2.4.3）。沁恒 CH32V307 / CH32V20x 示例里的 2 份副本全部识别，版本 2.4.5。
   NVD 里 CPE `tencent:tencentos-tiny` 只有一条记录（CVE-2021-27439），影响版本写作上游从未发布的 3.1.0；
   国内的 CNNVD/CNVD 尚未核对（见 BENCHMARK.md 末尾 “What these numbers do not show”：2026-10-04 CNNVD 接口拒绝匿名访问，CNVD 返回 521 后断连）。
@@ -131,8 +131,8 @@ gangmu cn-db-check cnnvd-export/
   里的 HTTP/2、WebSocket、MQTT、Thread 和 AWS 接入库（nghttp2 64 个发布版，libwebsockets 63 个，Paho 23 个，OpenThread 11 个，AWS 14 个）。
   联盛德的 nghttp2 1.59.0、libwebsockets 4.3.3、Paho 1.3.11 由版本文件读出，博流和 bl_iot 的 OpenThread、bl_iot 的 AWS SDK 3.0.1 由函数签名判定。2026-10-05 补查 CPE：nghttp2 为 `nghttp2:nghttp2`、OpenThread 为 `o:google:openthread`（NVD 把它登记为操作系统类），已写入规则；
   libwebsockets、AWS IoT Device SDK 没有登记；Paho C 唯一的 CPE（`eclipse:paho_mqtt_c/c++_client`）下的 CVE 指向 paho.mqtt.embedded-c，是另一个项目，所以不用（见 BENCHMARK.md 1g）。
-* **wolfSSL、miniz、nanopb、NimBLE** —— 四条通用规则，CPE 均已用 NVD 记录核对（`wolfssl:wolfssl`、`miniz_project:miniz`、`nanopb_project:nanopb`、`apache:nimble`）。wolfSSL 的函数签名覆盖 3.12.0–5.9.4 的稳定版（46 个），miniz 2.0.0–3.1.2（17 个），nanopb 0.3.6–0.4.92（29 个），NimBLE 1.0.0–1.10.0（11 个，只取主机协议栈）。在 LuatOS 上实测：`components/miniz` 报 3.1.0~3.1.1（`MZ_VERSION` 是 zlib 兼容号而不是发布号，所以 miniz 不设版本探针，版本只靠函数签名），`components/nanopb` 报 0.4.9.1（由 `pb.h` 的 `NANOPB_VERSION` 读出，兼容 LuatOS 把 `pb.h` 放进 `include/` 的布局）。局限：乐鑫 ESP8266 SDK 的 wolfSSL 只带头文件和预编译的 `libwolfssl.a`，与完整源码签名的相似度低于报告下限，所以这份副本目前没有被识别（`libwolfssl.a` 里读不到版本横幅），要靠头文件签名或预编译库的字符串另做。LuatOS 的 `components/nimble` 只是 Lua 胶水层，不是 NimBLE 本体，规则不会（也不应该）报它。CMSIS 没有做：NVD 里只有 `arm:cmsis-rtos`，对应的是 RTOS 接口而不是 Core 头文件，而 `cmsis_version.h` 里的数字是 Core 版本，不是 CMSIS 发布号。
-* **CherryUSB、libsrtp、LibYAML、MQTT-C、libmetal、FastLZ、XZ Embedded** —— 七条通用规则，函数签名分别覆盖 CherryUSB 0.7.0–1.6.1（21 个）、libsrtp 1.5.0–2.8.1（18 个）、LibYAML 0.0.1–0.2.5（13 个）、MQTT-C 1.0.0–1.1.6（11 个）、libmetal v2020.01.0–v2026.04.0（15 个）、FastLZ 0.4.0–0.5.0、XZ Embedded 的四个标签。实测：博流 bouffalo_sdk 里的 CherryUSB 1.6.1、libsrtp 2.3.0、MQTT-C 1.1.2 由版本文件读出，联盛德 wm_iot_sdk 的 LibYAML 0.2.5 由函数签名判定，LuatOS 的 FastLZ 0.5.0 由头文件读出。CPE 已用 NVD 核对：libsrtp 为 `cisco:libsrtp`，LibYAML 为 `pyyaml:libyaml`（其 CVE 指向的是旧的 bitbucket 仓库，是同一个项目），其余五个 NVD 没有登记，记为 none-found（MQTT-C 的 CVE-2026-54412 没有 CPE，不能据此写一个）。局限：libmetal 的 `VERSION` 文件落后于代码（博流副本写 1.8.0，函数却对应 2025.10.0 以后），所以不设探针；XZ Embedded 上游只有 2024 年之后的标签，博流带的是更早的快照，只能作为“可能”项（`--include-possible`）列出；TinyCBOR 没有可测的副本，没有做。
+* **wolfSSL、miniz、nanopb、NimBLE** —— 四条通用规则，CPE 均已用 NVD 记录核对（`wolfssl:wolfssl`、`miniz_project:miniz`、`nanopb_project:nanopb`、`apache:nimble`）。wolfSSL 的函数签名覆盖 3.12.0–5.9.4 的稳定版（46 个），miniz 1.14–3.1.2（19 个），nanopb 0.3.6–0.4.92（29 个），NimBLE 1.0.0–1.10.0（11 个，只取主机协议栈）。在 LuatOS 上实测：`components/miniz` 报 3.1.0~3.1.1（`MZ_VERSION` 是 zlib 兼容号而不是发布号，所以 miniz 不设版本探针，版本只靠函数签名），`components/nanopb` 报 0.4.9.1（由 `pb.h` 的 `NANOPB_VERSION` 读出，兼容 LuatOS 把 `pb.h` 放进 `include/` 的布局）。局限：乐鑫 ESP8266 SDK 的 wolfSSL 只带头文件和预编译的 `libwolfssl.a`，与完整源码签名的相似度低于报告下限，所以这份副本目前没有被识别（`libwolfssl.a` 里读不到版本横幅），要靠头文件签名或预编译库的字符串另做。LuatOS 的 `components/nimble` 只是 Lua 胶水层，不是 NimBLE 本体，规则不会（也不应该）报它。CMSIS-Core 已有两条规则（`generic/cmsis5-core` 13 个版本、`generic/cmsis6-core` 5 个版本，只靠函数签名定版本，因为 `cmsis_version.h` 里的数字是 Core 版本，不是 CMSIS 发布号）；NVD 里只有 `arm:cmsis-rtos`，对应的是 RTOS 接口而不是 Core 头文件，所以不设 CPE。
+* **CherryUSB、libsrtp、LibYAML、MQTT-C、libmetal、FastLZ、XZ Embedded** —— 七条通用规则，函数签名分别覆盖 CherryUSB 0.7.0–1.6.1（21 个）、libsrtp 1.5.0–2.8.1（18 个）、LibYAML 0.0.1–0.2.5（13 个）、MQTT-C 1.0.0–1.1.6（11 个）、libmetal v2020.01.0–v2026.04.0（15 个）、FastLZ 0.4.0–0.5.0、XZ Embedded 的四个标签。实测：博流 bouffalo_sdk 里的 CherryUSB 1.6.1、libsrtp 2.3.0、MQTT-C 1.1.2 由版本文件读出，联盛德 wm_iot_sdk 的 LibYAML 0.2.5 由函数签名判定，LuatOS 的 FastLZ 0.5.0 由头文件读出。CPE 已用 NVD 核对：libsrtp 为 `cisco:libsrtp`，LibYAML 为 `pyyaml:libyaml`（其 CVE 指向的是旧的 bitbucket 仓库，是同一个项目），其余五个 NVD 没有登记，记为 none-found（MQTT-C 的 CVE-2026-54412 没有 CPE，不能据此写一个）。局限：libmetal 的 `VERSION` 文件落后于代码（博流副本写 1.8.0，函数却对应 2025.10.0 以后），所以不设探针；XZ Embedded 上游只有 2024 年之后的标签，博流带的是更早的快照，只能作为“可能”项（`--include-possible`）列出；TinyCBOR 已有通用规则 `generic/tinycbor`（NVD 没有登记产品，按 purl 走 OSV），但没有在国产 SDK 里找到可测的副本。
 * **hostap（wpa_supplicant / hostapd）** —— 通用规则 `generic/hostap`，函数签名覆盖 2.0–2.12（来自 git.w1.fi 的发布标签），只取 `src/`，所以像联盛德那样删掉了 `wpa_supplicant/` 与 `hostapd/` 目录的 SDK 也能认出。联盛德 wm_iot_sdk 与博流 bouffalo_sdk wifi6 的副本均识别为 2.10（由 `src/common/version.h` 读出）。此前这两份被误报为 Zephyr 的 hostap 规则，且没有版本。博流 wifi4 与 bl_wpa_supplicant 两份没有版本头，仍未识别。
 * **阿里 AliOS Things（Rhino 内核）** —— 16 个版本（1.1.0–3.3.0）。上游给 1.1.0–2.1.0 打了标签，3.x 只有
   发布分支（rel_3.0.0、rel_3.1.0、rel_3.3.0），一律按提交固定。内核目录三次搬家（`kernel/rhino/core`、
@@ -167,14 +167,14 @@ gangmu cn-db-check cnnvd-export/
   `VERSION/PATCHLEVEL/SUBLEVEL`。只报 `.config` 选中的包，版本是计算出来的（`$(...)`）的配方跳过而不是猜。
   内核与 U-Boot 一律标为厂商分支（厂商内核回移植了大量修复，版本号不等于 CVE 状态），漏洞比对时进入待确认而不是直接判定受影响。
   约 45 个常见软件包（zlib、curl、dropbear、dnsmasq、OpenSSH、wolfSSL 等）带有 CPE，每个都在 2026-10-05 对照 NVD 确认过该 vendor:product 下有 CVE。
-  评测用的是真实的 buildroot、openwrt、busybox、u-boot 仓库；没有拿到任何一家国产 Linux SDK 的完整树。Yocto 配方未读。
+  评测用的是真实的 buildroot、openwrt、busybox、u-boot 仓库；没有拿到任何一家国产 Linux SDK 的完整树。Yocto 的构建产物清单和镜像选中的配方由 `declared_build` 读取（见 CHANGELOG），但没有在国产 Linux SDK 上验证过。
 
 * **只有二进制的库** —— 国产 SDK 的 Wi-Fi、蓝牙、射频、音频栈常以 `.a` / `.lib` / `.so` 形式提供，没有源码，指纹看不见。
   现在每个预编译库都会进 SBOM：路径、SHA-256、大小、是否出现在链接 map 里（有 map 时）、编译器横幅，并标明“无源码”。
   同时从字节里读版本横幅：开源库自己编进去的字符串（博流 bouffalo_sdk 的 libopus 1.3、libvorbis 1.3.7、Speex 1.2.1、Sonic 1.2.1 都由此读出，
   与此前人工 `strings` 的结果一致），以及厂商组件自带的 `component_version_<名>_<版本>`（博流的 fhost 1.7.10、macsw 1.7.10、lmac154 1.7.13）。
   读到横幅的开源库作为组件列出，置信度 0.70/0.60，来源标为 `binary-string`——说明库在里面，不说明是未改动的上游副本。
-  没有横幅的库（aacdec、amrnb 等）只作为文件清单列出。`--no-binaries` 可关闭。
+  没有横幅、也没有规则带函数指纹的库（aacdec、amrnb 等）只作为文件清单列出。`--no-binaries` 可关闭。
 * **全志 RTOS SDK 里的第三方库** —— FreeType、libjpeg-turbo、giflib、Opus、OpenAMP 五条通用规则（函数级）；全志、国民技术、华大、瑞芯微等原厂自己的 HAL 与驱动库规则属于商业版规则包。
 
 * **厂商 SDK 本身作为组件** —— 以前扫描博流或联盛德的 SDK 只会列出里面的开源库，SBOM 里没有“这是哪家的哪个 SDK、哪个版本”。

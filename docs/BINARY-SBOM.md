@@ -160,7 +160,7 @@
   只能借 Win32 版本资源里的 `ProductVersion`。
 - **UTF-16 编码的版本横幅**没有匹配；库的版本横幅匹配的仍然是单字节字符串。
 - **签名只看有没有**，不验证证书，也不读签名人。
-- **PE 上的函数级指纹**没有接：现有的反汇编和函数边界恢复只对 ELF 和裸固件镜像开放。
+- **PE 和 Mach-O 上的函数级指纹**只验证过很窄的范围：函数恢复和指纹生成（`rules binary-prints`、`binary-eval`）已支持 PE（x86、x64、ARM、Thumb、ARM64，含 Windows CE 的 ARM）和 Mach-O，真实样本只有 lz4.exe、zstd.exe 和 zstandard 的 wheel（见 BINARY-VALIDATION.md）；`gangmu scan` 目前还不对 `.exe`、`.dll` 做函数级比对，`binary-functions` 也只读 ELF 和裸镜像。
   字符串常量比对对任何文件的字节都会跑，但我没有在真实 PE 上验证它的准确率。
 - **没有验证的想法：** Rust 程序的 panic 信息可能带着 `registry/src/.../crate-版本/` 路径，能补充没有 `cargo auditable` 的程序；
   我在一个小样本里没找到这类字符串，所以没做。

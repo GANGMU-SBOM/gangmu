@@ -34,6 +34,7 @@ description: 纲目（Gangmu）是面向嵌入式 C/C++ 固件的开源构建期
 | CRA 24 小时预警与工信部 2 日报送草稿 | `gangmu report` |
 | 十年留存技术文档包 | `gangmu evidence` |
 | 规则生成、导入与复现 | `gangmu rules` |
+| 从固件镜像恢复函数边界、做逐函数指纹识别（较低置信度的补充证据） | `gangmu binary-functions`、`gangmu binary-eval`、`gangmu rules binary-prints` |
 | 固件里的密码算法清单（CBOM）与后量子迁移摘要 | `gangmu cbom`、`gangmu cbom --format readiness` |
 | 固件里的机器学习模型与推理库清单（AIBOM） | `gangmu aibom` |
 | 把 CBOM、AIBOM 对照法规或内部要求，看哪些到期、哪些已禁用 | `gangmu policy check` |

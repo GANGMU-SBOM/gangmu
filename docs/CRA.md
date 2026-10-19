@@ -20,7 +20,7 @@ declaration of conformity.
 | **Article 13(8), Annex VII** | Technical documentation, kept ten years | `gangmu evidence` assembles the component part: SBOM, VEX, the rule base, its verification output, the build facts, and a sha256 manifest. |
 | **Article 14** | 24 h early warning, 72 h notification, 14 d final report | `gangmu report` pre-fills the ENISA platform's fields from the SBOM and your configuration. The platform has no API at its first release, so a person still pastes it in. |
 
-Five of ten are partial, declared or out of scope. A tool that claimed
+Six of ten are partial, declared or out of scope. A tool that claimed
 otherwise would be selling a false sense of safety.
 
 ## The honest reading of "top-level dependencies"
