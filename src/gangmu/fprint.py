@@ -184,6 +184,12 @@ class FeatureSet(set):
         self.strings = set(strings)
 
 
+def _a64(insn, reg: int) -> str:
+    """An AArch64 register by number, so w2 and x2 are the same register."""
+    name = insn.reg_name(reg) or ""
+    return name[1:] if name[:1] in ("w", "x") and name[1:].isdigit() else name
+
+
 def function_features(mem: Memory, arch: str, address: int, size: int) -> "FeatureSet":
     """Strings referenced and distinctive constants used by one function."""
     spec = disasm._arch(arch)
@@ -216,7 +222,7 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
     md.detail = True
     md.skipdata = True
     md.skipdata_setup = ("db", None, None)
-    building: Dict[int, int] = {}         # AArch64: register -> constant being built
+    building: Dict[str, int] = {}         # AArch64: register -> constant being built
     low: Dict[int, int] = {}              # ARM: register -> movw half
     regs: Dict[int, int] = {}             # RISC-V, MIPS: register -> known value
     held: Dict[int, List[int]] = {}       # MIPS: register -> [value, age] of a built value,
@@ -345,22 +351,31 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
             else:
                 regs.pop(rt, None)
         elif arch == "aarch64":
-            # A constant is built from movz/movk (flushed once the run of movk ends) and an
-            # address from adrp + add or an adrp-relative load.
-            if m == "movk" and len(ops) == 2 and ops[0].reg in building:
+            # A constant is built from movz/movk and an address from adrp + add or an
+            # adrp-relative load. The compiler often schedules unrelated instructions between
+            # a mov and its movk (``mov x2, #0x3800; mov w3, #0xf; movk x2, #0x4002, lsl #16``),
+            # so a register's half-built constant is kept until that register is read or
+            # written by something other than movk, or control leaves; flushing at the first
+            # other instruction recorded 0x40023800 as the generic halves 0x3800 and 0x4002.
+            if m == "movk" and len(ops) == 2 and _a64(insn, ops[0].reg) in building:
+                key = _a64(insn, ops[0].reg)
                 shift = ops[1].shift.value if ops[1].shift.type else 0
-                building[ops[0].reg] = ((building[ops[0].reg] & ~(0xFFFF << shift))
-                                        | (ops[1].imm & 0xFFFF) << shift)
+                building[key] = ((building[key] & ~(0xFFFF << shift)) | (ops[1].imm & 0xFFFF) << shift)
                 continue
-            for _reg, value in building.items():
-                emit(value)
-            building.clear()
+            if building:
+                if m.startswith(("b", "cb", "tb")) or m == "ret":
+                    touched = set(building)
+                else:
+                    read, written = insn.regs_access()
+                    touched = {_a64(insn, r) for r in (*read, *written)} & set(building)
+                for key in sorted(touched):
+                    emit(building.pop(key))
             if m == "adrp" and len(ops) == 2:
                 regs[ops[0].reg] = ops[1].imm
                 continue
             if m in ("movz", "mov") and len(ops) == 2 and ops[1].type == cs.CS_OP_IMM:
                 shift = ops[1].shift.value if m == "movz" and ops[1].shift.type else 0
-                building[ops[0].reg] = (ops[1].imm << shift) if m == "movz" else ops[1].imm
+                building[_a64(insn, ops[0].reg)] = (ops[1].imm << shift) if m == "movz" else ops[1].imm
                 continue
             if m.startswith(("b", "cb", "tb")) or m == "ret":
                 continue
