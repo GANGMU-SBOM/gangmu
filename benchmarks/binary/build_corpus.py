@@ -16,6 +16,7 @@ library's release order. ``gangmu binary-eval --corpus <out>`` reads that.
 import argparse
 import glob
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -83,6 +84,15 @@ def checkout(url: str, tag: str, dest: Path) -> bool:
         return True
     r = run(["git", "clone", "-q", "--depth", "1", "--branch", tag, url, str(dest)])
     return r.returncode == 0
+
+
+def prepare(spec: dict, root: Path) -> None:
+    """Files a checkout needs before it compiles: copies of generic headers (``copy``) and
+    small configuration headers written out (``write``)."""
+    for src, dst in spec.get("copy", {}).items():
+        shutil.copyfile(root / src, root / dst)
+    for path, text in spec.get("write", {}).items():
+        (root / path).write_text(text)
 
 
 def sources(spec: dict, root: Path):
@@ -168,6 +178,7 @@ def main(argv=None) -> int:
             if not checkout(spec["url"], tag, root):
                 print(f"{lib} {tag}: cannot fetch", file=sys.stderr)
                 continue
+            prepare(spec, root)
             ok = []
             for opt in args.opt or OPTS:
                 dest = out / lib / tag / f"{opt}.elf"
