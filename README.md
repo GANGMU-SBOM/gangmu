@@ -167,7 +167,7 @@ GitHub Action 已上架 [GitHub Marketplace](https://github.com/marketplace/acti
 ```yaml
 # .pre-commit-config.yaml
 - repo: https://github.com/GANGMU-SBOM/gangmu
-  rev: v0.12.0
+  rev: v0.13.0
   hooks:
     - id: gangmu-scan
 ```
