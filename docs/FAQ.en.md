@@ -45,7 +45,7 @@ from a different release by 0.06; function level separates them by 0.25.
 
 ## Which SDKs and chips are covered?
 
-The free rule base ([gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules)) has 98 rules.
+The free rule base ([gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules)) has 223 rules.
 
 Covered: Zephyr (Mbed TLS 4.1, TF-PSA-Crypto, hostap, FatFs, littlefs, MCUboot, nanopb, zcbor, uOSCORE/uEDHOC) and its HALs for Chinese and APAC silicon from Zephyr 4.4 (GigaDevice GD32, Bouffalo Lab, WCH CH32, SiFli, Telink, Realtek, plus the STM32, NXP, Nordic, TI, Renesas, Silicon Labs and Infineon HAL modules); and the general components lwIP, cJSON, OpenSSL, GmSSL, Tongsuo, Mbed TLS, TF-PSA-Crypto, FatFs, littlefs, LVGL, libcoap, TinyCrypt, nghttp2, libwebsockets, Paho MQTT C, OpenThread, the AWS IoT Device SDK, FreeType, libjpeg-turbo, giflib, Opus and OpenAMP, plus the FreeRTOS, RT-Thread, TencentOS-tiny, AliOS Things and LiteOS (M, A, 5.x) kernels (found by marker files wherever a vendor put them).
 
@@ -68,7 +68,7 @@ not mistaken for Tongsuo.
 Annex I Part II(1) of Regulation (EU) 2024/2847 requires an SBOM in a commonly
 used machine-readable format covering at least top-level dependencies, kept in
 the technical documentation. Gangmu produces it, and `gangmu cra-check` reviews
-ten clauses; five of them only ever return partial, declared or out of scope.
+ten clauses; six of them only ever return partial, declared or out of scope.
 Manufacturers' reporting obligations apply from 11 September 2026 (24-hour
 early warning, 72-hour notification, 14-day final report via the ENISA Single
 Reporting Platform); everything else from 11 December 2027. The platform has no
@@ -85,9 +85,9 @@ CNNVD/CNVD data has to be exported from those platforms yourself.
 
 ## What does it not do?
 
-No deep binary analysis (banners, exported symbols and the dependency lists toolchains write on purpose), no security testing, no legal conclusions, no submission to
-official platforms, and no guessed CPEs (53 of 98 rules carry one, new ones citing
-the NVD records that prove it; the other 45 say why not; PURL and OSV are first-class channels).
+No deep binary analysis (only lower-confidence supporting evidence from prebuilt files: banners, exported symbols, function-boundary recovery and per-function fingerprint matching where a rule carries fingerprints, and the dependency lists toolchains write on purpose), no security testing, no legal conclusions, no submission to
+official platforms, and no guessed CPEs (97 of 223 rules carry one, new ones citing
+the NVD records that prove it; the other 126 say why not; PURL and OSV are first-class channels).
 
 ## How do I add a rule?
 
@@ -146,7 +146,7 @@ run the process long term. See [EDITIONS.md](EDITIONS.md).
    "name": "Which SDKs and chips are covered?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "The free rule base (gangmu-rules) has 98 rules."
+    "text": "The free rule base (gangmu-rules) has 223 rules."
    }
   },
   {
@@ -162,7 +162,7 @@ run the process long term. See [EDITIONS.md](EDITIONS.md).
    "name": "What does the CRA require, and what does Gangmu cover?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "Annex I Part II(1) of Regulation (EU) 2024/2847 requires an SBOM in a commonly used machine-readable format covering at least top-level dependencies, kept in the technical documentation. Gangmu produces it, and gangmu cra-check reviews ten clauses; five of them only ever return partial, declared or out of scope. Manufacturers' reporting obligations apply from 11 September 2026 (24-hour early warning, 72-hour notification, 14-day final report via the ENISA Single Reporting Platform); everything else from 11 December 2027. The platform has no API at first release, so gangmu report pre-fills the fields for a person to paste in. See CRA.md."
+    "text": "Annex I Part II(1) of Regulation (EU) 2024/2847 requires an SBOM in a commonly used machine-readable format covering at least top-level dependencies, kept in the technical documentation. Gangmu produces it, and gangmu cra-check reviews ten clauses; six of them only ever return partial, declared or out of scope. Manufacturers' reporting obligations apply from 11 September 2026 (24-hour early warning, 72-hour notification, 14-day final report via the ENISA Single Reporting Platform); everything else from 11 December 2027. The platform has no API at first release, so gangmu report pre-fills the fields for a person to paste in. See CRA.md."
    }
   },
   {
@@ -178,7 +178,7 @@ run the process long term. See [EDITIONS.md](EDITIONS.md).
    "name": "What does it not do?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "No deep binary analysis (banners, exported symbols and the dependency lists toolchains write on purpose), no security testing, no legal conclusions, no submission to official platforms, and no guessed CPEs (53 of 98 rules carry one, new ones citing the NVD records that prove it; the other 45 say why not; PURL and OSV are first-class channels)."
+    "text": "No deep binary analysis (only lower-confidence supporting evidence from prebuilt files: banners, exported symbols, function-boundary recovery and per-function fingerprint matching where a rule carries fingerprints, and the dependency lists toolchains write on purpose), no security testing, no legal conclusions, no submission to official platforms, and no guessed CPEs (97 of 223 rules carry one, new ones citing the NVD records that prove it; the other 126 say why not; PURL and OSV are first-class channels)."
    }
   },
   {

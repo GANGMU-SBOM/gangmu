@@ -538,14 +538,19 @@ def recover_elf(data: bytes, info: ElfInfo) -> Optional[Recovery]:
     return Recovery(arch, functions)
 
 
+def arch_of_pe(info: "PeInfo") -> Optional[str]:
+    """The decoder a PE image's machine type needs, or None."""
+    return {"x86": "x86", "x86_64": "x86-64", "arm": "arm", "thumb": "thumb",
+            "armnt": "thumb", "aarch64": "aarch64"}.get(info.machine)
+
+
 def recover_pe(data: bytes, info: "PeInfo") -> Optional[Recovery]:
     """Functions of a Windows PE image (x86 or x64).
 
     An x64 image lists every function that has unwind data in its exception table with an
     exact start and end, which a sweep can only estimate; the sweep then covers the leaf
     functions that have none, and x86 images, which carry no such table."""
-    arch = {"x86": "x86", "x86_64": "x86-64", "arm": "arm", "thumb": "thumb",
-            "armnt": "thumb", "aarch64": "aarch64"}.get(info.machine)
+    arch = arch_of_pe(info)
     if arch is None:
         return Recovery("unsupported", note=f"no decoder for PE machine {info.machine}"
                         + (" (Windows CE)" if info.is_windows_ce else ""))

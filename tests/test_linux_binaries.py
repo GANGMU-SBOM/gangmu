@@ -251,3 +251,47 @@ def test_the_scan_says_which_raw_images_could_not_be_read(tmp_path):
 def test_an_unreadable_image_the_link_map_says_is_not_shipped_is_not_reported():
     blob = Binary("other/update.bin", "0" * 64, 1, "firmware-image", linked=False, opaque=True)
     assert blob.opaque and blob.to_dict()["opaque"] is True
+
+
+# ------------------------------------------------------------ Windows programs get the same gate
+
+def _pe(machine=0x8664, clr=False):
+    from pebuild import build_pe
+    return build_pe(machine=machine, text=b"\x55\x48\x89\xe5\x5d\xc3" * 40, code=True, clr=clr)
+
+
+@pytest.mark.skipif(not disasm.available(), reason="capstone not installed")
+@pytest.mark.parametrize("machine, arch, runs", [
+    (0x8664, "x86-64", True),        # a rule with x64 references
+    (0x8664, "thumb", False),        # references for another CPU
+    (0x14C, "x86-64", False),        # a 32-bit image against x64 references
+])
+def test_a_windows_image_is_matched_by_function_only_when_a_rule_can_use_it(
+        tmp_path, monkeypatch, machine, arch, runs):
+    (tmp_path / "app.dll").write_bytes(_pe(machine))
+    called = []
+    monkeypatch.setattr(binaries, "_by_functions", lambda *a: called.append(1) or [])
+    collect_binaries(tmp_path, None, (), [("Foo", "foo", _Prints(arch))])
+    assert bool(called) == runs
+
+
+@pytest.mark.skipif(not disasm.available(), reason="capstone not installed")
+def test_a_dotnet_assembly_has_no_native_code_to_match(tmp_path, monkeypatch):
+    (tmp_path / "lib.dll").write_bytes(_pe(clr=True))
+    called = []
+    monkeypatch.setattr(binaries, "_by_functions", lambda *a: called.append(1) or [])
+    collect_binaries(tmp_path, None, (), [("Foo", "foo", _Prints("x86-64"))])
+    assert not called
+
+
+@pytest.mark.skipif(not disasm.available(), reason="capstone not installed")
+def test_function_boundaries_of_a_windows_image_are_recorded_when_matching_runs(tmp_path):
+    (tmp_path / "app.exe").write_bytes(_pe())
+    (blob,) = collect_binaries(tmp_path, None, (), [("Foo", "foo", _Prints("x86-64"))])
+    assert blob.arch == "x86-64" and blob.functions and blob.functions >= 1
+
+
+def test_without_references_a_windows_image_costs_no_function_work(tmp_path):
+    (tmp_path / "app.exe").write_bytes(_pe())
+    (blob,) = collect_binaries(tmp_path)
+    assert blob.functions is None and blob.function_source is None

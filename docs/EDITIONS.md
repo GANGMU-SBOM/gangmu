@@ -19,8 +19,9 @@ gangmu 的核心能力全部开源，并会一直开源：识别引擎、构建�
 
 | 能力 | 说明 |
 | --- | --- |
-| 免费规则库 gangmu-rules | 被各家 SDK 拷贝最多的上游组件（lwIP、Mbed TLS、FreeRTOS、LVGL 等）、Zephyr 及其 HAL 模块和社区贡献的规则（现有 98 条），每条都能从上游复现 |
+| 免费规则库 gangmu-rules | 被各家 SDK 拷贝最多的上游组件（lwIP、Mbed TLS、FreeRTOS、LVGL 等）、Zephyr 及其 HAL 模块和社区贡献的规则（现有 223 条），每条都能从上游复现 |
 | 函数级识别引擎 | 多版本函数签名、自适应版本区间、厂商修改检测 |
+| 预编译二进制读取 | 库与镜像清单、版本横幅、ELF 包元数据、函数边界恢复与逐函数指纹比对（`gangmu binary-functions`、`binary-eval`），Windows PE 与 Go / Rust / .NET 依赖清单 |
 | 合并与许可证分诊 | `gangmu merge`（合并多份 CycloneDX：本工具的、供应商的、Yocto 或 Conan 的）、`gangmu license-check`（copyleft、可能不兼容的组合、缺许可证的组件） |
 | 构建期采集 | `compile_commands.json`、链接 map、IAR / Keil / CCS 工程、编译器包装器 |
 | 生态声明直读 | RT-Thread、OpenHarmony、ESP-IDF、CMake / vcpkg / Meson / Cargo、STM32Cube / CMSIS-Pack、dpkg / opkg / apk 包数据库的声明 |

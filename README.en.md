@@ -107,9 +107,11 @@ gangmu patch-build CVE-2025-1866 --db advisories/ -o patches.json   # record the
 gangmu vuln sbom.json --db advisories/ --source ROOT --patches patches.json   # test the code, not the version: fixed body present -> resolved, vulnerable body present -> exploitable, edited -> left for a person (a near-identical variant is reported as likely_fixed / likely_vulnerable; --patch-near-vex lets it change the state)
 gangmu patch-verify rules/patches/*.json   # rebuild every patch record from the upstream commits it names; fails on any difference
 # Records in an installed rule pack's patches/ directory are used by `vuln --source` on their own (--no-pack-patches to skip).
-gangmu rules index rules/                                   # precompile a rule directory (98 rules: about 0.6 s -> 0.04 s to load); each entry is checked by file hash, so a stale index only costs speed
+gangmu rules index rules/                                   # precompile a rule directory (223 rules: about 1.3 s -> 0.26 s to load); each entry is checked by file hash, so a stale index only costs speed
 gangmu merge ours.cdx.json vendor.cdx.json yocto.cdx.json -o product.cdx.json [--fail-on-disagreement]   # join CycloneDX documents (same purl, or name + version, is one component; the first document wins; version and VEX disagreements are reported)
 gangmu license-check sbom.json [--fail-on copyleft|incompatible|unlicensed]   # triage licences: copyleft, possibly incompatible pairs (per the FSF list), components with no licence; a prompt for a person, not a legal conclusion
+gangmu vuln-coverage sbom.json --db advisories/        # how many findings a CPE-only scanner would miss on this SBOM
+gangmu binary-functions firmware.bin                     # function boundaries from a firmware image (pip install gangmu-sbom[disasm]; --offset when the vector table is not at the start; MCUboot headers are detected)
 gangmu keygen && gangmu sign sbom.json --key gangmu-signing.key   # detached Ed25519 signature (pip install gangmu-sbom[sign])
 gangmu sign-verify sbom.json --pubkey gangmu-signing.pub   # PEM keys, OpenSSL verifies them too; no timestamp: use cosign for that
 gangmu vuln sbom.json --db advisories/ -o vex.json        # local NVD/OSV mirror -> CycloneDX VEX
@@ -139,7 +141,7 @@ The GitHub Action is listed on the [GitHub Marketplace](https://github.com/marke
 ```yaml
 # .pre-commit-config.yaml
 - repo: https://github.com/GANGMU-SBOM/gangmu
-  rev: v0.12.0
+  rev: v0.13.0
   hooks:
     - id: gangmu-scan
 ```
@@ -218,7 +220,7 @@ The rules come in two parts: the free gangmu-rules holds the general open-source
 and its HAL modules, and community contributions; rules tied to one company (its own SDK, its firmware library, or an
 open-source component it forked) belong to the commercial rule packs: contact us (see the end of this page). Rule ids are the same on both sides and the commercial packs overlay automatically once installed. CI re-derives every rule's evidence from the upstream
 release it names (`gangmu rules verify`), so review cost is close to zero.
-Rules never guess a CPE: 53 of the 98 free rules carry one, new ones citing the NVD records
+Rules never guess a CPE: 97 of the 223 free rules carry one, new ones citing the NVD records
 that prove it, and the other 45 say why they have none. PURL is a first-class
 matching channel. See [contributing a rule](https://github.com/GANGMU-SBOM/gangmu-rules/blob/main/CONTRIBUTING.md).
 
@@ -234,7 +236,7 @@ repository because no vendor's brand terms were checked. See
 
 Listed plainly, because the gaps are the roadmap. The main ones:
 
-- **No deep binary analysis:** without source or a build, only an inventory, version banners and function boundaries, as lower-confidence supporting evidence. For `.exe`/`.dll` it also reads the PE structure, the dependency lists the Go and Rust toolchains write into the file, .NET metadata and `deps.json`; what each kind of evidence proves, and how it was checked, is in [docs/BINARY-SBOM.md](docs/BINARY-SBOM.md). Measured limits: most Linux distribution libraries carry no version banner (4 of 13 on Ubuntu 24.04; files with a `.note.package` are named by their package); built with clang, zlib and Mbed TLS in firmware are still recognised as the library but at under half the coverage of a gcc build and with a release range, not a release, and littlefs is not recognised at all (the rules' reference fingerprints are gcc builds; adding clang references did not help); images that are encrypted or compressed by an unknown scheme get a note, not an unpacking (U-Boot uImage with gzip, bzip2 or LZMA is unwrapped). The numbers are in [docs/BINARY-VALIDATION.md](docs/BINARY-VALIDATION.md).
+- **No deep binary analysis:** without source or a build, only an inventory, version banners (built in, or supplied by a rule's `identity.binary_banners`), the release in a shared library's file name, ELF package metadata and the GNU build-id, plus function boundaries recovered with Capstone and matched against the per-function fingerprints rules carry (`identity.binary_functions`), as lower-confidence supporting evidence. For `.exe`/`.dll` it also reads the PE structure, the dependency lists the Go and Rust toolchains write into the file, .NET metadata and `deps.json`; what each kind of evidence proves, and how it was checked, is in [docs/BINARY-SBOM.md](docs/BINARY-SBOM.md). Measured limits: most Linux distribution libraries carry no version banner (4 of 13 on Ubuntu 24.04; files with a `.note.package` are named by their package); built with clang, zlib and Mbed TLS in firmware are still recognised as the library but at under half the coverage of a gcc build and with a release range, not a release, and littlefs is not recognised at all (the rules' reference fingerprints are gcc builds; adding clang references did not help); images that are encrypted or compressed by an unknown scheme get a note, not an unpacking (U-Boot uImage with gzip, bzip2 or LZMA is unwrapped). The numbers are in [docs/BINARY-VALIDATION.md](docs/BINARY-VALIDATION.md).
 - **Small evaluation and rule base:** the method is right, the scale is not yet; contributions welcome.
 - **`gangmu vuln` never touches the network:** the online step is the separate `gangmu vuln-fetch`, so it works inside an air-gapped network.
 - **The compiler wrapper only intercepts compilers found by name.**

@@ -149,9 +149,11 @@ def cmd_vuln(args: argparse.Namespace) -> int:
             tail.append("Absence of findings for those is absence of evidence.")
         _write("\n".join(lines + tail), args.output)
     elif args.format == "json":
-        _write(json.dumps({"matches": [m.to_dict() for m in matches],
-                           "summary": counts, "notLookedUp": blind},
-                          indent=2, ensure_ascii=False), args.output)
+        doc = {"matches": [m.to_dict() for m in matches],
+               "summary": counts, "notLookedUp": blind}
+        if cn is not None:
+            doc["cn"] = _cn_json(cn, cn_report.parsed)
+        _write(json.dumps(doc, indent=2, ensure_ascii=False), args.output)
     elif args.format in ("openvex", "csaf"):
         from ..vuln.csaf import to_csaf
         from ..vuln.openvex import to_openvex
@@ -407,6 +409,23 @@ def _apply_reachability(args: argparse.Namespace, matches) -> int:
     print("reachability: " + ", ".join(f"{k} {v}" for k, v in sorted(tally.items())),
           file=sys.stderr)
     return 0
+
+
+def _cn_json(cn, parsed: int) -> dict:
+    """What the domestic databases added, for a program that reads ``--format json``.
+
+    ``merged``: CNNVD / CNVD entries that name the same CVE as a match, keyed by the match's advisory id (the
+    Chinese title and the domestic grade are what a report in China needs). ``candidates``: entries with no CVE id
+    whose product text names a component; these are *not* matches and are never given a state, a person decides.
+    ``disagreements``: the domestic grade differs from the international one.
+    """
+    def entry(e) -> dict:
+        return {"id": e.id, "source": e.source, "title": e.title, "severity": e.severity,
+                "severityCn": e.severity_cn, "published": e.published, "references": e.references[:5]}
+    return {"parsed": parsed,
+            "merged": {adv: [entry(e) for e in hits] for adv, hits in cn.merged.items()},
+            "candidates": [dict(entry(e), component=name, affected=e.affected_text[:300]) for name, e in cn.candidates],
+            "disagreements": [{"id": cve, "international": intl, "domestic": local} for cve, intl, local in cn.disagreements]}
 
 
 def _cn_keeper(candidates, matches):
