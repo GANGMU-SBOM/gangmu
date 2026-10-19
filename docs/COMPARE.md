@@ -5,10 +5,10 @@ description: 嵌入式 C/C++ 固件的 SBOM 工具怎么选？对比纲目（gan
 
 # 纲目与其他 SBOM 工具的区别
 
-> **Summary (English).** Most SBOM generators (Syft, Trivy, cdxgen) read package manifests and lockfiles; embedded C/C++ firmware usually has none. Gangmu targets that gap: it identifies vendored, renamed and vendor-modified components by function-level matching, reads build facts (compile database, linker map, IDE projects) to separate compiled-and-linked from merely present, and covers CRA and China MIIT reporting. It is not a binary-analysis or security-testing product.
+> **Summary (English).** Most SBOM generators (Syft, Trivy, cdxgen) read package manifests and lockfiles; embedded C/C++ firmware usually has none. Gangmu targets that gap: it identifies vendored, renamed and vendor-modified components by function-level matching, reads build facts (compile database, linker map, IDE projects) to separate compiled-and-linked from merely present, and covers CRA and China MIIT reporting. It is not a binary-analysis or security-testing product (prebuilt binaries are read only as lower-confidence supporting evidence).
 
 **一句话区别：** 通用 SBOM 工具读的是包管理器留下的清单；嵌入式 C/C++ 往往没有清单，第三方代码直接拷进工程、被芯片原厂改名魔改、最后静态链接。
-纲目读的是源码和构建过程，识别"这个目录其实是哪个上游的哪个版本"。
+纲目读的是源码和构建过程（预编译库和固件镜像也读，但只作较低置信度的补充），识别"这个目录其实是哪个上游的哪个版本"。
 
 ## 对照表
 
@@ -16,7 +16,7 @@ description: 嵌入式 C/C++ 固件的 SBOM 工具怎么选？对比纲目（gan
 
 | 工具 | 主要输入 | 擅长 | 对嵌入式 C/C++ 拷贝式依赖 | 许可 |
 | --- | --- | --- | --- | --- |
-| **纲目 gangmu** | 源码树 + `compile_commands.json` / 链接 map / IAR、Keil、CCS 工程 | 识别被改名魔改的组件，区分编译与链接，CRA 自查与报送草稿，国内漏洞库通道 | 核心场景：函数级匹配，给出 vendor-modified 与祖先版本 | 工具 Apache-2.0，规则 CDLA-Permissive-2.0 |
+| **纲目 gangmu** | 源码树 + `compile_commands.json` / 链接 map / IAR、Keil、CCS 工程；预编译库、固件镜像和 `.exe`/`.dll`（补充证据） | 识别被改名魔改的组件，区分编译与链接，CRA 自查与报送草稿，国内漏洞库通道 | 核心场景：函数级匹配，给出 vendor-modified 与祖先版本 | 工具 Apache-2.0，规则 CDLA-Permissive-2.0 |
 | Syft | 镜像、文件系统、包管理器清单 | 容器与通用软件包的 SBOM | 依赖清单与已知包元数据，源码拷贝式依赖通常不在其视野内 | 开源 |
 | Trivy | 镜像、仓库、清单 | 漏洞、配置、密钥扫描，兼出 SBOM | 同上，侧重清单可见的依赖 | 开源 |
 | cdxgen | 多语言项目清单 | 多语言 CycloneDX 生成 | C/C++ 依赖主要来自 Conan 等声明 | 开源 |
@@ -35,7 +35,7 @@ description: 嵌入式 C/C++ 固件的 SBOM 工具怎么选？对比纲目（gan
 
 ## 什么时候不选纲目
 
-- 只有编译好的固件镜像、没有源码也没法重现构建：纲目只对预编译库和镜像读版本横幅与导出符号，不做反汇编和函数级比对，请用二进制分析产品。
+- 只有编译好的固件镜像、没有源码也没法重现构建：纲目对预编译库和镜像会读版本横幅、ELF 包元数据，装了 Capstone 后还能恢复函数边界、与规则自带的逐函数指纹比对，对 Windows 的 `.exe`/`.dll` 另读 PE 结构和 Go、Rust、.NET 的依赖清单；但这些只是较低置信度的补充证据：带指纹的规则目前只有少数（免费库 3 条），版本常常只给区间，clang 编译的固件只能认出库，Linux 发行版的库多半没有横幅（实测见 [BINARY-VALIDATION.md](BINARY-VALIDATION.md)）。需要深度的无源码分析，请用二进制分析产品。
 - 要做渗透测试或安全测试：纲目不做。
 - 要自动提交 ENISA 或工信部平台：纲目只起草，提交由人完成。
 - 要得出法律结论：纲目不替你下。

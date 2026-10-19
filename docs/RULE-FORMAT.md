@@ -64,14 +64,14 @@ identity:
       sha256:
         "2.2.0": "0696ee...365e"
   signature:                              # tier 2: identity only
-    algo: winnow-minhash
+    algo: winnow-bottomk
     k: 16
     window: 8
-    num_perm: 128
+    size: 256                           # values kept (default 256)
     reference_version: "2.2.0"
     fileset_sha256: "8e01f1...9b9e"       # exact-copy test; see docs/CALIBRATION.md
     values: >-
-      <1024 bytes of hex>
+      <2048 bytes of hex: 256 values of 8 bytes>
   thresholds: {exact: 0.98, strong: 0.85, weak: 0.60, floor: 0.35}   # optional
   binary_strings:                         # optional: recognise the component inside compiled images
     file: lwip.strings.fnsig              #   string-constant sidecar, built with
@@ -102,7 +102,7 @@ identity:
       negative_pairs: 6                   #   is pinned above, so the figures cannot be edited by hand).
       false_positives: 0                  #   Build for the SAME architecture as the firmware, linking only
       min_features: 2                     #   the library's own code (no libc): x86 references matched no
-      tie_share: 0.85                     #   Thumb image, and libc functions in a reference look like the
+      tie_share: null                     #   Thumb image, and libc functions in a reference look like the
       version: 1                          #   library. The self-test shows the fingerprints work on builds
                                           #   the author made, not on a compiler or flags nobody tried.
                                           # One sidecar per architecture: `binary_functions` may be a
@@ -153,8 +153,8 @@ review:
 ## What is validated at load time
 
 * `upstream.source` present and well formed;
-* at least one anchor **or** a signature -- a rule with nothing checkable is
-  refused outright;
+* at least one anchor, signature, function signature (`functions`), `binary_strings`
+  or `binary_functions` -- a rule with nothing checkable is refused outright;
 * `cpe` is a 13-part CPE 2.3 name. A CPE with the wrong vendor matches no CVE at
   all, and the SBOM then looks clean, which is the most expensive way for a rule
   to be wrong. (`lwip:lwip` is wrong; NVD registers lwIP as `lwip_project:lwip`.)

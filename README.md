@@ -302,7 +302,7 @@ ok   generic/gmssl
 对不上就直接拒绝，并给出差异。第一条 cJSON 规则就是这样被拦下的：
 用仓库 HEAD 取指纹却声称是 v1.7.19，相似度 0.9922，期望 1.0。
 
-**规则库不猜 CPE。** 免费规则库 98 条里有 53 条带 CPE。新加的 CPE 都附有 NVD 里的 CVE 作为证据（`cpe_evidence`）。另外 45 条没有 CPE，每条都写明原因，多数是在完整的 NVD 镜像里确实查无记录。
+**规则库不猜 CPE。** 免费规则库 223 条里有 97 条带 CPE。新加的 CPE 都附有 NVD 里的 CVE 作为证据（`cpe_evidence`）。另外 126 条没有 CPE，每条都写明原因，多数是在完整的 NVD 镜像里确实查无记录。
 写错一个字的 CPE 匹配不到任何 CVE，SBOM 看起来却是干净的，这是规则出错最昂贵的方式。
 所以 PURL / OSV 是一等通道，不是兜底。
 
@@ -338,7 +338,7 @@ ok   generic/gmssl
 就把这一点摆出来，明确说明这是法务判断，而不是让团队在倒计时第 20 小时才第一次想到。
 详见 [docs/CHINA.md](docs/CHINA.md)。
 
-`gangmu cra-check` 同样克制：CRA 相关的十个条款里，有五个只会返回 partial、declared
+`gangmu cra-check` 同样克制：CRA 相关的十个条款里，有六个只会返回 partial、declared
 或 out of scope。配置文件里的一个 URL 不是政策被执行的证据，扫描也不是安全测试。
 详见 [docs/CRA.md](docs/CRA.md)。
 
@@ -346,7 +346,7 @@ ok   generic/gmssl
 
 坦白列出来，因为缺口就是路线图。最主要的几条：
 
-- **不做深度二进制分析**：没有源码也没有构建时，只做清单、版本横幅和函数边界等较低置信度的补充证据；对 `.exe`/`.dll` 另外读 PE 结构、Go 和 Rust 工具链写进文件的依赖清单、.NET 的元数据和 `deps.json`，各类证据的可信度和验证方法见 [docs/BINARY-SBOM.md](docs/BINARY-SBOM.md)。实测的边界：Linux 发行版的库大多没有版本横幅（Ubuntu 24.04 的 13 个库认出 4 个，带 `.note.package` 的按包名认）；换成 clang 编译，固件里的 zlib、Mbed TLS 仍能认出是哪个库，但覆盖率只有 gcc 构建的一半以下，版本只给区间，littlefs 则认不出（规则的参考指纹是 gcc 构建的，试过加 clang 参考没有改善）；加密或压缩方式未知的镜像只给提示，不解包（U-Boot uImage 的 gzip、bzip2、LZMA 会解开）；数据见 [docs/BINARY-VALIDATION.md](docs/BINARY-VALIDATION.md)；
+- **不做深度二进制分析**：没有源码也没有构建时，只做清单、版本横幅（内置的，以及规则里 `identity.binary_banners` 自带的）、共享库文件名里的发行版、ELF 包元数据和 GNU build-id，装了 Capstone 后还恢复函数边界并与规则自带的逐函数指纹（`identity.binary_functions`）比对，都是较低置信度的补充证据；对 `.exe`/`.dll` 另外读 PE 结构、Go 和 Rust 工具链写进文件的依赖清单、.NET 的元数据和 `deps.json`，各类证据的可信度和验证方法见 [docs/BINARY-SBOM.md](docs/BINARY-SBOM.md)。实测的边界：Linux 发行版的库大多没有版本横幅（Ubuntu 24.04 的 13 个库认出 4 个，带 `.note.package` 的按包名认）；换成 clang 编译，固件里的 zlib、Mbed TLS 仍能认出是哪个库，但覆盖率只有 gcc 构建的一半以下，版本只给区间，littlefs 则认不出（规则的参考指纹是 gcc 构建的，试过加 clang 参考没有改善）；加密或压缩方式未知的镜像只给提示，不解包（U-Boot uImage 的 gzip、bzip2、LZMA 会解开）；数据见 [docs/BINARY-VALIDATION.md](docs/BINARY-VALIDATION.md)；
 - **评测规模有限**：方法是对的，规模还不是；规则也还少，欢迎一起补；
 - **`gangmu vuln` 本身不联网**：联网的一步单独做成 `gangmu vuln-fetch`，方便在内网使用；
 - **编译器包装器只能拦截按名字查找的编译器**。
@@ -375,14 +375,14 @@ ONEKEY、Finite State、Cybellum、NetRise 面向大型企业做固件二进制�
 | `gangmu vuln-fetch --db DIR` | 联网填充漏洞库目录：`--sbom` 只拉相关产品（秒级），`--all` 全量 NVD（按年分片，之后增量）；`--threat` 另外下载 CISA KEV 和 EPSS 到 `DIR/threat/`，`gangmu vuln` 会据此按「已被利用 → EPSS → CVSS」排序，`--fail-on kev` 遇到已被利用的漏洞就失败（Article 14 的 24 小时报送由「已被积极利用」触发） |
 | `gangmu vuln SBOM --db DIR --source ROOT` | 函数级可达性：按每条 CVE 的漏洞函数（`--symbols FILE` 给出；没有就从公告文字里猜）判断它在你的源码里是「不存在 / 已定义但无人引用 / 可达」。调用图按名字、宏、函数指针表做保守的过近似，看不到二进制库和汇编，所以默认只标注（`--config`/`-D` 给出构建配置后，`#if` 排除的分支不算，只存在于被排除分支的函数判为不存在）；加 `--reachability-vex` 才把不存在/不可达的写成 `not_affected`（`code_not_present` / `code_not_reachable`） |
 | `gangmu patch-build CVE --db DIR -o patches.json`；`gangmu vuln SBOM --db DIR --source ROOT --patches patches.json` | 补丁存在性检测：用修复提交改动过的函数（修复前、修复后各记一份函数体哈希；提交号可从 OSV 记录里读，或用 `--repo URL --fix SHA` 指定）去测你源码里的那个目录——有修复后的函数体就写成 `resolved`，仍是修复前的函数体就确认为 `exploitable`，被厂商改过的函数体（既不是修复前也不是修复后）留给人判断。魔改的 fork 只报告它所基于的版本号，版本区间匹配会让它永远停在 `in_triage`；这一项直接看代码，不看版本 |
-| `gangmu rules index DIR` | 预编译规则目录，写出 `DIR/.rule-index.json`，加载时不再解析 YAML（规则越多越明显：98 条规则加载约 0.6 秒 → 0.04 秒）。每条按文件哈希校验，规则改了或索引过期只会变慢，不会读错；规则包在打包时运行一次 |
+| `gangmu rules index DIR` | 预编译规则目录，写出 `DIR/.rule-index.json`，加载时不再解析 YAML（规则越多越明显：223 条规则加载约 1.3 秒 → 0.26 秒）。每条按文件哈希校验，规则改了或索引过期只会变慢，不会读错；规则包在打包时运行一次 |
 | `gangmu keygen` / `gangmu sign FILE --key K` / `gangmu sign-verify FILE --pubkey P` | 给 SBOM 或证据包的 `manifest.json` 做 Ed25519 分离签名并校验（`pip install gangmu-sbom[sign]`；密钥是标准 PEM，OpenSSL 可直接验）。只证明“这把密钥签过”，不含时间戳和密钥托管；要时间戳或免密钥签名，对同一文件用 `cosign sign-blob` |
 | `gangmu vuln SBOM --db DIR` | 漏洞比对，输出 CycloneDX VEX；`--format openvex` / `--format csaf`（须加 `--publisher`）输出 OpenVEX 0.2.0 或 CSAF 2.0 VEX |
 | `gangmu cn-db-check DIR` | 检查 CNNVD / CNVD 导出目录：每个文件能读出多少条，读不了的明确报出来 |
 | `gangmu cra-check` | 对照 CRA 条款审查产物 |
 | `gangmu report CVE` | 生成 CRA 或工信部报送草稿 |
 | `gangmu evidence --out DIR` | 汇总十年留存技术文档包 |
-| `gangmu rules lint / import [--recursive] / fingerprint / verify / functions` | 规则校验、导入、生成、复现、函数签名。`--rules` 可重复，后面的目录覆盖前面同名的规则；不写则用已安装的规则包 |
+| `gangmu rules lint / import [--recursive] / fingerprint / verify / functions / binary-prints` | 规则校验、导入、生成、复现、函数签名、逐函数指纹（`binary-prints` 从参考构建生成，需要 capstone，要先过自检）。`--rules` 可重复，后面的目录覆盖前面同名的规则；不写则用已安装的规则包 |
 | `gangmu rules cpe-evidence --nvd DIR` | 从本地 NVD 镜像里找出组件登记用的 CPE，并列出引用其上游仓库的 CVE 作为证据 |
 | `gangmu perf [--check BASELINE]` | 性能基线：规则数与耗时、内存，CI 回归检查 |
 | `gangmu cbom ROOT [--compile-db F] [--link-map F] [--rules DIR] [--libraries]` | 密码物料清单：列出源码、配置、预编译库和固件镜像里的密码算法，输出 CycloneDX 1.6 CBOM（`--format cyclonedx`）或后量子迁移摘要（`--format readiness`）；`--rules` 加载 CBOM 规则包，`--libraries` 按认出的库版本补算法；有构建事实时只统计真正编进固件的，没有时每项标 `unverified`；每个算法标量子风险（RSA、ECDSA、ECDH、SM2 等会被破解），`--fail-on quantum-vulnerable`（或 `legacy`）可在 CI 里卡住。按名字识别，见 [CBOM 指南](docs/guides/cbom-post-quantum.md) |
@@ -390,7 +390,7 @@ ONEKEY、Finite State、Cybellum、NetRise 面向大型企业做固件二进制�
 | `gangmu policy check ROOT [--policy DIR] [--as-of DATE] [--fail-on fail]` | 把 CBOM、AIBOM 对照策略包里的法规或内部要求，每条检查给出 `ok` / `due` / `deprecated` / `fail` 和下一个期限；输出表格、Markdown、JSON，见 [策略检查指南](docs/guides/policy.md) |
 | `gangmu merge FILE... [-o OUT] [--fail-on-disagreement]` | 合并多份 CycloneDX（本工具的扫描、供应商的、Yocto 或 Conan 的）：purl 或名称加版本相同的算同一个，第一份优先，版本分歧与 VEX 状态冲突会报出来 |
 | `gangmu license-check SBOM [--fail-on copyleft\|incompatible\|unlicensed]` | 对 CycloneDX 里的许可证做分诊：GPL/LGPL/AGPL 等 copyleft、按 FSF 许可证列表可能不兼容的组合（如 Apache-2.0 与 GPL-2.0-only）、没有许可证的组件和预编译二进制；只是提示，不是法律结论 |
-| `gangmu binary-eval` / `binary-functions` | 二进制识别：`binary-eval` 在一批真实固件构建上给库与版本识别打分；`binary-functions` 从固件镜像还原函数边界（需要 capstone，即 `pip install gangmu-sbom[disasm]`；向量表不在镜像开头时用 `--offset`，MCUboot 头会自动识别）。见 [BINARY-VALIDATION.md](docs/BINARY-VALIDATION.md) |
+| `gangmu binary-eval` / `binary-functions` | 二进制识别：`binary-eval` 在一批真实固件构建上给库与版本识别打分；`binary-functions` 从固件镜像还原函数边界，`rules binary-prints` 据此给规则生成逐函数指纹，扫描时用它做函数级匹配（需要 capstone，即 `pip install gangmu-sbom[disasm]`；向量表不在镜像开头时用 `--offset`，MCUboot 头会自动识别）。见 [BINARY-VALIDATION.md](docs/BINARY-VALIDATION.md) |
 | `gangmu sbom-score` / `eval` / `bench` / `diff` | 质量评分、评测基准、性能、两份 CycloneDX 的差异对比 |
 
 ## 仓库

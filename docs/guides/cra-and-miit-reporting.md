@@ -49,6 +49,6 @@ gangmu cra-check --sbom sbom.cdx.json --vex vex.json   # 逐条对照 CRA，有�
 gangmu evidence --out cra-evidence/                    # 十年留存的技术文档包
 ```
 
-`cra-check` 对十个条款里的五个只会返回 partial、declared 或 out of scope：扫描不是安全测试，配置里的一个 URL 也不是政策被执行的证据。
+`cra-check` 对十个条款里的六个只会返回 partial、declared 或 out of scope：扫描不是安全测试，配置里的一个 URL 也不是政策被执行的证据。
 
 - [CRA 对标](../CRA.md) · [国内合规](../CHINA.md) · [常见问题](../FAQ.md)
