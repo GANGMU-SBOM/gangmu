@@ -2,7 +2,7 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
-## Unreleased
+## 0.13.2
 * **`vuln-fetch --all` now resumes an interrupted full download.** The full download used to write `.gangmu-fetch.state` only at the very end, so a run that broke part-way (network, throttling) started again from record 0 and the shards already on disk were no use. It now records its position and start time after every page; running the same command again goes on from there (one page back, in case records published meanwhile shifted NVD's paging). When the download finishes, the incremental watermark is the **start** time, so records modified while it ran are picked up by the next incremental run. The error message also says to run the same command again.
 
 ## 0.13.1
