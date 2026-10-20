@@ -79,38 +79,16 @@ libpng:
             pngrutil.c, pngset.c, pngtrans.c, pngwio.c, pngwrite.c, pngwtran.c, pngwutil.c]
   include: ["."]
   copy: {scripts/pnglibconf.h.prebuilt: pnglibconf.h}
-miniz:
-  url: https://github.com/richgel999/miniz
-  tags: [2.1.0, 2.2.0, 3.0.2]
-  sources: [miniz.c, miniz_tdef.c, miniz_tinfl.c, miniz_zip.c]
-  include: ["."]
-  write: {miniz_export.h: ""}
 brotli:
   url: https://github.com/google/brotli
   tags: [v1.0.7, v1.0.9, v1.1.0]
   sources: [c/common/*.c, c/dec/*.c, c/enc/*.c]
   include: [c/include]
-libtommath:
-  url: https://github.com/libtom/libtommath
-  tags: [v1.0.1, v1.2.0, v1.3.0]
-  sources: ["*.c"]
-  exclude: ["demo/*.c", "mpi.c"]
-  include: ["."]
 yyjson:
   url: https://github.com/ibireme/yyjson
   tags: [0.6.0, 0.8.0, 0.10.0]
   sources: [src/yyjson.c]
   include: [src]
-http-parser:
-  url: https://github.com/nodejs/http-parser
-  tags: [v2.7.1, v2.8.1, v2.9.4]
-  sources: [http_parser.c]
-  include: ["."]
-tinycrypt:
-  url: https://github.com/intel/tinycrypt
-  tags: [v0.2.6, v0.2.7, v0.2.8]
-  sources: [lib/source/*.c]
-  include: [lib/include]
 pcre2:
   url: https://github.com/PCRE2Project/pcre2
   tags: [pcre2-10.37, pcre2-10.40, pcre2-10.42]
