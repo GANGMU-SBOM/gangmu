@@ -3,6 +3,7 @@
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
 ## 未发布
+* **修复：x86-64 共享库（`.so`）里的立即数被当成地址丢掉。** 共享库链接在地址 0，小于映像大小的数都落在映像里，`fprint` 把它们当指针，函数里的状态号、魔数这类常量就提不出来（zlib 的 `inflate` 在 Ubuntu 的构建里 36 个常量只留 2 个，参考有 37 个）。位置无关的映像里立即数现在算数字。**效果**（同一批 x86-64 指纹，Ubuntu 24.04 的库）：`libz.so.1.3` 由认不出变成 `1.2.11~1.3.2`（88%，真值 1.3）；PCRE2 的区间由 `10.35~10.44` 收窄到 `10.42~10.43`（真值 10.42）；覆盖率 Brotli 17%→42%、bzip2 79%→100%、libpng 76%→85%、zstd 24%→37%、expat 39%→45%。只改 x86-64，固定地址的映像不变。
 * **新增：`build_corpus.py --target x86-64`**（原生 GCC，只含库自己的代码）。免费库里的 zlib、littlefs、Mbed TLS，以及 Lua、zstd、bzip2、libdeflate、expat、libpng、Brotli、yyjson、PCRE2 因此有了 x86-64 的函数指纹（gangmu-rules 2026.10.19，后九个在其后的版本），x86-64 的 ELF 库和 Windows 的 PE 能做函数级识别：Ubuntu 的 `libmbedcrypto.so.2.28.8`（抹掉横幅）报 `2.28.0~3.3.0`，mingw 编的 2.28.8 DLL 报 `2.28.0~2.28.8`。zlib 在 x86-64 上函数特征少，Ubuntu 的 libz 认不出。数据见 BINARY-VALIDATION。
 
 ## 0.13.0
