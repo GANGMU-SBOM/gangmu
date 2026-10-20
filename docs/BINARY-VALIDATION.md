@@ -614,3 +614,43 @@ littlefs 指纹最新到 2.9.3 时，2.10.2 和 2.11.0 的镜像都报 `2.0.4~2.
 **zlib 在 x86-64 上很弱**：只有 25 个函数带至少 2 个特征（x86 的特征只有立即数和 RIP 相对的字符串，不像 Thumb 的字面量池那样丰富），Ubuntu 24.04 的 `libz.so.1.3` 里只有 6 个能对上，认不出。littlefs 没有发行版里的构建可测，只有自检的数字。
 
 复现：`build_corpus.py --target x86-64 --lib <库> --tag … --opt O2 --opt O3`，再用 `gangmu rules binary-prints --ref 发行版:构建=PATH …`；负对照用 cjson、lz4、heatshrink、inih 和另外两个库的 x86-64 构建。
+
+## x86-64 函数指纹：再加九个库（2026-10-20）
+
+同一做法扩到更多桌面和服务器程序静态链接的库：Lua、zstd、bzip2、libdeflate、expat、libpng、Brotli、yyjson、PCRE2。`libs.yaml` 给出构建配方（`copy`、`write` 两步用来放通用的配置头），按库挑发行版，用 `gangmu rules binary-prints` 自检，通过的才进 gangmu-rules。
+
+| 库 | 发行版 | 指纹函数 | 构建 | 自检（跨构建） |
+|---|---|---|---|---|
+| Lua | 9（5.3.0–5.4.8） | 268 | -Os、-O2 | exact 3，区间 15，错 0，认不出 0 |
+| zstd | 8（1.3.8–1.5.7） | 242 | -Os、-O2 | exact 10，区间 6，错 0，认不出 0 |
+| bzip2 | 3（1.0.6–1.0.8） | 17 | -Os、-O2 | 区间 6，错 0，认不出 0 |
+| libdeflate | 9（1.8–1.24） | 68 | -O2、-O1 | exact 2，区间 14，错 0，认不出 0 |
+| expat | 10（2.2.0–2.7.3） | 133 | -Os、-O2 | exact 14，区间 6，错 0，认不出 0 |
+| libpng | 8（1.6.34–1.6.50） | 231 | -Os、-O2 | 区间 16，错 0，认不出 0 |
+| Brotli | 5（1.0.5–1.2.0） | 147 | -Os、-O2 | exact 1，区间 9，错 0，认不出 0 |
+| yyjson | 8（0.5.1–0.12.0） | 75 | -Os、-O2 | exact 2，区间 14，错 0，认不出 0 |
+| PCRE2 | 9（10.34–10.45） | 130 | -O2、-O1 | exact 2，区间 16，错 0，认不出 0 |
+
+负对照（别的库的 x86-64 构建，114 对）都是 0 次误报。libdeflate 和 PCRE2 在 -Os/-O2 下各有认不出或认错的答案，换成 -O2/-O1 才过；yyjson 同构建自检里有 1 个错误答案（跨构建 0 个）。没过的：lz4（114 对负对照里 9 次误报）、libtommath（8 个函数）、http-parser（跨构建全部认不出）、tinycrypt（2 个函数）；miniz 3.0.2 的配方没编出来。
+
+**在参考没见过的构建上的验证。** Ubuntu 24.04 的共享库（发行版编译参数，`-O2`、加固选项），按库抹掉能抹的版本横幅后用 gangmu 扫描，真值是发行版的版本：
+
+| 镜像 | 真值 | 结果 |
+|---|---|---|
+| `libexpat.so.1.9.1`（横幅抹掉） | 2.6.1 | `2.4.1~2.7.3`，12/31 个函数（39%） |
+| `libpng16.so.16.43.0`（横幅抹掉） | 1.6.43 | `1.6.34~1.6.44`，130/170（76%） |
+| `liblua5.4.so.0.0.0`（横幅抹掉） | 5.4.6 | `5.4.4~5.4.8`，84/133（63%） |
+| `libpcre2-8.so.0.11.2` | 10.42 | `10.35~10.44`，26/43（60%） |
+| `libzstd.so.1.5.5` | 1.5.5 | `1.5.2~1.5.7`，16/67（24%）；另有 `.note.package` 给出 1.5.5，置信度 0.9 |
+| `libbz2.so.1.0.4` | 1.0.8 | `1.0.6~1.0.8`，11/14（79%） |
+| `libdeflate.so.0` | 1.19 | `1.17~1.24`，17/22（77%） |
+| `libbrotlienc.so.1.1.0` | 1.1.0 | `1.1.0~1.2.0`，10/60（17%） |
+| `libbrotlicommon.so.1.1.0`、`libbrotlidec.so.1.1.0` | 1.1.0 | 认不出 |
+
+mingw-w64 `-O2` 编成 PE 的 DLL（gangmu 0.13.0 的 `scan`，装了 capstone）：bzip2 1.0.8 报 `1.0.6~1.0.8`（14/14）、libdeflate 1.19 报 `1.17~1.24`（22/22）、Brotli 1.1.0 报 `1.1.0~1.2.0`（33/60）、zstd 1.5.6 报 `1.5.5~1.5.7`（30/67）。每一个区间都含真值。expat、libpng、PCRE2 的 PE 没测（DLL 没编出来）；yyjson 在 Ubuntu 里没有现成的库，只有自检的数字。
+
+**负对照（真实程序）：** 20 个 Ubuntu 的系统库（libc、libstdc++、OpenSSL、SQLite、libxml2、libcurl、GLib、GnuTLS、Python、ICU、FreeType、libjpeg、libtiff、libwebp、libyaml、nghttp2 等）和 bash、python3、git、curl 四个程序，共 24 个文件：这九条新指纹 0 次误报（出现的 OpenSSL、libcurl、libjpeg-turbo 结论是版本横幅识别出来的，和这次无关）。
+
+**局限，别高估：** 覆盖率（匹配的函数占参考函数的比例）在发行版构建上常常只有 17%–40%，因为参考是 `-Os`/`-O2` 的最小构建，发行版带加固和不同的配置宏；区间都含真值，但单个版本不可信，要看区间。Brotli 的 `libbrotlicommon` 和 `libbrotlidec` 认不出，参考里这两部分的函数太少。bzip2 只有 17 个函数、三个几乎相同的版本，区间天然很宽。
+
+复现：`build_corpus.py --target x86-64 --lib <库> --tag … --opt Os --opt O2`，再用 `gangmu rules binary-prints --ref 版本:构建=PATH …`。
