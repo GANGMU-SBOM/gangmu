@@ -104,3 +104,12 @@ pcre2:
   defines: [HAVE_CONFIG_H, PCRE2_CODE_UNIT_WIDTH=8, SUPPORT_UNICODE=1]
   copy: {src/pcre2.h.generic: src/pcre2.h, src/pcre2_chartables.c.dist: src/pcre2_chartables.c,
          src/config.h.generic: src/config.h}
+mbedtls-full:
+  # The TLS and X.509 layers as well as the crypto in `mbedtls`: what libmbedtls and
+  # libmbedx509 contain, and what an application linking all of Mbed TLS statically carries.
+  url: https://github.com/Mbed-TLS/mbedtls
+  tags: [v2.28.0, v2.28.8, v3.6.0]
+  sources: ["library/*.c"]
+  exclude: ["library/net_sockets.c", "library/timing.c", "library/threading.c",
+            "library/entropy_poll.c", "library/psa_*.c", "library/debug.c"]
+  include: [include, library]
