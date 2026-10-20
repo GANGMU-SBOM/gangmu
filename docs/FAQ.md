@@ -117,6 +117,16 @@ CRA（Regulation (EU) 2024/2847）Annex I Part II(1) 要求制造商用通用的
 （`--sbom` 只拉这份 SBOM 用得到的产品，`--all` 拉全量 NVD 并在之后增量更新），再把目录带进内网。
 `vuln-fetch` 只抓 NVD 和 OSV；CNNVD/CNVD 的数据需要自行从对应平台导出。
 
+NVD 的 API key 直接跟在 `--api-key` 后面，不加引号和大括号；也可以设环境变量 `NVD_API_KEY`：
+
+```
+gangmu vuln-fetch --db ~/.cache/gangmu/ --all -v --api-key 你的KEY
+NVD_API_KEY=你的KEY gangmu vuln-fetch --db ~/.cache/gangmu/ --all
+```
+
+key 在 <https://nvd.nist.gov/developers/request-an-api-key> 免费申请。有 key 的速度约是匿名的十倍。
+`--all` 的全量下载中断后，重新运行同一条命令会接着下，不用从头开始。
+
 ## 和 esp-idf-sbom、二进制分析工具有什么区别？
 
 乐鑫的 esp-idf-sbom 只覆盖 ESP-IDF，纲目把它的 `sbom.yml` 当作一等输入。
