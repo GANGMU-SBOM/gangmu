@@ -41,7 +41,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple, cast
 
 from . import disasm, xtensa
 from .binsig import MIN_LEN, _wanted
-from .elf import ElfInfo
+from .elf import ET_DYN, ElfInfo
 from .macho import MachoInfo, parse_macho
 from .pe import PeInfo, parse_pe
 
@@ -85,6 +85,9 @@ class Memory:
     regions: List[Tuple[int, bytes]] = field(default_factory=list)
     ranges: List[Tuple[int, int]] = field(default_factory=list)   # allocated, no bytes (.bss)
     gp: Optional[int] = None    # MIPS global pointer: where ``$gp``-relative loads start from
+    pic: bool = False           # position-independent (a shared object, linked at 0): code
+    #                             reaches addresses relative to itself, so an immediate is a
+    #                             number even when it falls inside the image
 
     def is_address(self, value: int) -> bool:
         """Inside the image or its zero-initialised data: a pointer, not a constant."""
@@ -120,7 +123,7 @@ def memory_from_elf(data: bytes, info: ElfInfo) -> Memory:
                if s.flags & 2 and s.type == 1 and placed(s) and s.size]   # SHF_ALLOC, PROGBITS
     bss = [(s.addr, s.addr + s.size) for s in info.sections
            if s.flags & 2 and s.type == 8 and placed(s) and s.size]       # SHT_NOBITS
-    mem = Memory(regions, bss)
+    mem = Memory(regions, bss, pic=info.etype == ET_DYN)
     if info.machine == disasm.EM_MIPS:
         got = next((sec for sec in info.sections if sec.name == ".got"), None)
         if got is not None:
@@ -199,13 +202,13 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
     bits = 64 if arch in ("aarch64", "riscv64", "x86-64") else 32
     out = FeatureSet()
 
-    def emit(v: int) -> None:
+    def emit(v: int, immediate: bool = False) -> None:
         v = _unsigned(v, bits)
         if v >= (1 << bits) - SMALL_NEGATIVE or (
                 arch == "x86-64" and (1 << 32) - SMALL_NEGATIVE <= v < (1 << 32)):
             return          # -36 is a frame offset or a step, not a constant (x86-64's
             #                 32-bit ``mov`` zero-extends, so there it reads 0xFFFFFFDC)
-        if mem.is_address(v):
+        if mem.is_address(v) and not (immediate and mem.pic):
             s = mem.cstring(v)
             if s:
                 h = _hash(b"s", s)
@@ -395,7 +398,7 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
                 continue
             for op in ops:
                 if op.type == cs.CS_OP_IMM:
-                    emit(op.imm)
+                    emit(op.imm, immediate=True)
                 elif op.type == cs.CS_OP_MEM:
                     base = insn.reg_name(op.mem.base) if op.mem.base else ""
                     if base == "rip":

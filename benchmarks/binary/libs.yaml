@@ -42,3 +42,65 @@ mbedtls:
             "library/entropy_poll.c", "library/psa_*.c", "library/ssl_*.c",
             "library/x509*.c", "library/pkcs*.c", "library/pem.c", "library/debug.c"]
   include: [include, library]
+# Libraries that matter for x86-64 and PE binaries (desktop and server programs link them
+# statically). Releases here are only the default set; the rule packs' fingerprints use more.
+lua:
+  url: https://github.com/lua/lua
+  tags: [v5.3.6, v5.4.0, v5.4.6]
+  sources: [l*.c]
+  exclude: [lua.c, luac.c, onelua.c]
+  include: ["."]
+zstd:
+  url: https://github.com/facebook/zstd
+  tags: [v1.4.9, v1.5.2, v1.5.6]
+  sources: [lib/common/*.c, lib/compress/*.c, lib/decompress/*.c]
+  include: [lib, lib/common]
+  defines: [ZSTD_DISABLE_ASM]
+bzip2:
+  url: https://github.com/libarchive/bzip2
+  tags: [bzip2-1.0.6, bzip2-1.0.8]
+  sources: [blocksort.c, bzlib.c, compress.c, crctable.c, decompress.c, huffman.c, randtable.c]
+  include: ["."]
+libdeflate:
+  url: https://github.com/ebiggers/libdeflate
+  tags: [v1.9, v1.14, v1.19]
+  sources: [lib/*.c, lib/x86/*.c]
+  include: ["."]
+expat:
+  url: https://github.com/libexpat/libexpat
+  tags: [R_2_2_10, R_2_4_8, R_2_6_2]
+  sources: [expat/lib/xmlparse.c, expat/lib/xmlrole.c, expat/lib/xmltok.c]
+  include: [expat/lib]
+  defines: [XML_CONTEXT_BYTES=1024, XML_NS=1, XML_DTD=1, HAVE_MEMMOVE=1]
+libpng:
+  url: https://github.com/pnggroup/libpng
+  tags: [v1.6.37, v1.6.40, v1.6.43]
+  sources: [png.c, pngerror.c, pngget.c, pngmem.c, pngpread.c, pngread.c, pngrio.c, pngrtran.c,
+            pngrutil.c, pngset.c, pngtrans.c, pngwio.c, pngwrite.c, pngwtran.c, pngwutil.c]
+  include: ["."]
+  copy: {scripts/pnglibconf.h.prebuilt: pnglibconf.h}
+brotli:
+  url: https://github.com/google/brotli
+  tags: [v1.0.7, v1.0.9, v1.1.0]
+  sources: [c/common/*.c, c/dec/*.c, c/enc/*.c]
+  include: [c/include]
+yyjson:
+  url: https://github.com/ibireme/yyjson
+  tags: [0.6.0, 0.8.0, 0.10.0]
+  sources: [src/yyjson.c]
+  include: [src]
+pcre2:
+  url: https://github.com/PCRE2Project/pcre2
+  tags: [pcre2-10.37, pcre2-10.40, pcre2-10.42]
+  sources: [src/pcre2_auto_possess.c, src/pcre2_chartables.c, src/pcre2_compile.c,
+            src/pcre2_config.c, src/pcre2_context.c, src/pcre2_convert.c, src/pcre2_dfa_match.c,
+            src/pcre2_error.c, src/pcre2_extuni.c, src/pcre2_find_bracket.c, src/pcre2_maketables.c,
+            src/pcre2_match.c, src/pcre2_match_data.c, src/pcre2_newline.c, src/pcre2_ord2utf.c,
+            src/pcre2_pattern_info.c, src/pcre2_script_run.c, src/pcre2_serialize.c,
+            src/pcre2_string_utils.c, src/pcre2_study.c, src/pcre2_substitute.c,
+            src/pcre2_substring.c, src/pcre2_tables.c, src/pcre2_ucd.c, src/pcre2_valid_utf.c,
+            src/pcre2_xclass.c]
+  include: [src]
+  defines: [HAVE_CONFIG_H, PCRE2_CODE_UNIT_WIDTH=8, SUPPORT_UNICODE=1]
+  copy: {src/pcre2.h.generic: src/pcre2.h, src/pcre2_chartables.c.dist: src/pcre2_chartables.c,
+         src/config.h.generic: src/config.h}

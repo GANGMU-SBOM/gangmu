@@ -253,3 +253,17 @@ def test_low_coverage_note():
     prints = SimpleNamespace(versions=["1", "2", "3"])
     assert binaries._coverage_note(prints, 0.9) == ""
     assert "nearest of the 3 fingerprinted" in binaries._coverage_note(prints, 0.2)
+
+
+def test_an_immediate_inside_a_shared_object_is_a_number_not_an_address():
+    """A shared object is linked at 0, so every value below its size falls inside the image.
+    zlib's inflate stores 0x3f34..0x3f52 (its state numbers) with ``mov $0x3f3f``; read as
+    addresses they all vanished and Ubuntu's libz.so.1.3 kept 2 of its 54 constants. Code
+    in a position-independent image reaches addresses relative to itself, so an immediate
+    there is a number; a fixed-address image still treats it as a pointer."""
+    code = b"\xc7\x07" + struct.pack("<I", 0x3F3F) + b"\xc3"      # movl $0x3f3f, (%rdi)
+    image = (0, b"\0" * 0x4000)
+    fixed = fprint.Memory([image, (0x5000, code)])
+    shared = fprint.Memory([image, (0x5000, code)], pic=True)
+    assert fprint.function_features(fixed, "x86-64", 0x5000, len(code)) == set()
+    assert len(fprint.function_features(shared, "x86-64", 0x5000, len(code))) == 1
