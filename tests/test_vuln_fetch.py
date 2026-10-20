@@ -221,3 +221,28 @@ def test_http_gives_up_with_a_clear_error():
 def test_cli_requires_a_scope(tmp_path, capsys):
     assert main(["vuln-fetch", "--db", str(tmp_path)]) == 2
     assert "--all" in capsys.readouterr().err
+
+
+def test_an_interrupted_full_download_goes_on_where_it_stopped(tmp_path):
+    recs = [_cve(f"CVE-2023-{i:04d}") for i in range(1, 8)]
+    fake = FakeNvd(recs)
+    began = datetime(2026, 5, 1, tzinfo=timezone.utc)
+
+    def breaks_on_third_page(url, headers):
+        if len(fake.urls) == 2:
+            raise FetchError("cannot reach NVD")
+        return fake(url, headers)
+
+    with pytest.raises(FetchError, match="run the same command again"):
+        fetch_nvd(tmp_path, get=breaks_on_third_page, now=began, sleep=lambda s: None)
+    assert {a.id for a in load_database(tmp_path)} == {r["cve"]["id"] for r in recs[:4]}
+
+    again = FakeNvd(recs)
+    later = began + timedelta(hours=3)
+    fetch_nvd(tmp_path, get=again, now=later, sleep=lambda s: None)
+    starts = [int(parse_qs(urlparse(u).query)["startIndex"][0]) for u in again.urls]
+    assert starts == [2, 4, 6]          # one page back from where it broke, not 0
+    assert {a.id for a in load_database(tmp_path)} == {r["cve"]["id"] for r in recs}
+    state = json.loads((tmp_path / ".gangmu-fetch.state").read_text())
+    assert "nvd_full" not in state
+    assert state["nvd_watermark"].startswith("2026-05-01")   # when it began, not ended

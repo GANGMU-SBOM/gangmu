@@ -83,6 +83,17 @@ those directories is the separate `gangmu vuln-fetch` command: run it on a
 connected machine, then carry the directory in. It fetches NVD and OSV only;
 CNNVD/CNVD data has to be exported from those platforms yourself.
 
+Pass the NVD API key bare after `--api-key`, with no quotes or braces, or set `NVD_API_KEY`:
+
+```
+gangmu vuln-fetch --db ~/.cache/gangmu/ --all -v --api-key YOUR-KEY
+NVD_API_KEY=YOUR-KEY gangmu vuln-fetch --db ~/.cache/gangmu/ --all
+```
+
+Keys are free at <https://nvd.nist.gov/developers/request-an-api-key>, and a key is
+about ten times faster than anonymous. If a full `--all` download is interrupted, run
+the same command again and it carries on where it stopped.
+
 ## What does it not do?
 
 No deep binary analysis (only lower-confidence supporting evidence from prebuilt files: banners, exported symbols, function-boundary recovery and per-function fingerprint matching where a rule carries fingerprints, and the dependency lists toolchains write on purpose), no security testing, no legal conclusions, no submission to

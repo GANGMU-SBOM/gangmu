@@ -167,12 +167,12 @@ def _nvd_headers(api_key: Optional[str]) -> Dict[str, str]:
 
 def iter_nvd(params: Dict[str, str], get: JsonGetter, api_key: Optional[str] = None,
              base_url: str = NVD_API, pause: Optional[float] = None,
-             sleep: Callable[[float], None] = time.sleep) -> Iterator[List[dict]]:
-    """Pages of one NVD query. NVD allows 5 requests / 30 s anonymously and 50
-    with a key; the pause keeps a long run inside that."""
+             sleep: Callable[[float], None] = time.sleep,
+             start: int = 0) -> Iterator[List[dict]]:
+    """Pages of one NVD query, from record *start*. NVD allows 5 requests / 30 s
+    anonymously and 50 with a key; the pause keeps a long run inside that."""
     if pause is None:
         pause = 0.7 if api_key else 6.5
-    start = 0
     while True:
         query = dict(params, resultsPerPage=str(_NVD_PAGE), startIndex=str(start))
         url = f"{base_url}?{urllib.parse.urlencode(query)}"
@@ -207,11 +207,17 @@ def fetch_nvd(dest: Path, get: Optional[JsonGetter] = None, products: Sequence[s
     total = 0
     damaged: List[Path] = []
 
-    def run(params: Dict[str, str]) -> int:
+    def run(params: Dict[str, str], first: int = 0, progress: bool = False) -> int:
         n = 0
-        for items in iter_nvd(params, get, api_key, base_url, sleep=sleep):
+        index = first
+        for items in iter_nvd(params, get, api_key, base_url, sleep=sleep, start=first):
             n += merge_nvd(dest, items, damaged)
+            index += len(items)
             log(f"  {len(items)} record(s) fetched")
+            if progress:
+                # The shards already hold these records; remember where to go on from.
+                state["nvd_full"]["next_index"] = index
+                _save_state(dest, state)
         return n
 
     def run_windows(params: Dict[str, str], start: datetime) -> int:
@@ -233,15 +239,37 @@ def fetch_nvd(dest: Path, get: Optional[JsonGetter] = None, products: Sequence[s
             params = {"virtualMatchString": match}
             total += run_windows(params, since) if since is not None else run(params)
     else:
+        mark = now
         start = since or _parse_time(state.get("nvd_watermark"))
         if start is None:
-            log("NVD: full download")
-            total = run({})
+            # A full download is hours at the anonymous rate and can break anywhere. The
+            # shards are merged page by page, so keep the position and the start time:
+            # the next run goes on from there, and the watermark is the start time, so
+            # whatever changed while the download ran is picked up by the incremental run.
+            partial = state.get("nvd_full") or {}
+            began = _parse_time(partial.get("started"))
+            stamp = began or now
+            first = int(partial.get("next_index", 0)) if began else 0
+            if began:
+                # a page back: records published meanwhile can shift the paging
+                first = max(0, first - _NVD_PAGE)
+                log(f"NVD: resuming the full download at record {first}")
+            else:
+                log("NVD: full download")
+            state["nvd_full"] = {"started": stamp.astimezone(timezone.utc).isoformat(),
+                                 "next_index": first}
+            try:
+                total = run({}, first, progress=True)
+            except FetchError as exc:
+                raise FetchError(f"{exc}\nProgress is saved; run the same command "
+                                 f"again to continue the download.") from exc
+            state.pop("nvd_full", None)
+            mark = stamp
             full = True
         else:
             log("NVD: incremental")
             total = run_windows({}, start)
-        state["nvd_watermark"] = now.astimezone(timezone.utc).isoformat()
+        state["nvd_watermark"] = mark.astimezone(timezone.utc).isoformat()
 
     if damaged and not full:
         # What the damaged shards held is not in this run; an incremental run from

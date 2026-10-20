@@ -898,7 +898,8 @@ def build_parser() -> argparse.ArgumentParser:
     vf.add_argument("--since", metavar="YYYY-MM-DD",
                     help="only records modified since (overrides the stored "
                          "watermark)")
-    vf.add_argument("--api-key", help="NVD API key (default: $NVD_API_KEY)")
+    vf.add_argument("--api-key", help="NVD API key, given as is without quotes or braces "
+                         "(default: $NVD_API_KEY)")
     vf.add_argument("--threat", action="store_true",
                     help="also download CISA KEV and EPSS into <db>/threat/ "
                          "(used by `gangmu vuln` to rank findings)")
