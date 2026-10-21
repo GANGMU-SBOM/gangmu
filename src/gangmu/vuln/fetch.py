@@ -22,10 +22,12 @@ that reads like a clean bill of health.
 
 from __future__ import annotations
 
+import http.client
 import json
 import lzma
 import os
 import re
+import socket
 import time
 import urllib.error
 import urllib.parse
@@ -41,6 +43,7 @@ NVD_API = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 OSV_API = "https://api.osv.dev/v1"
 STATE_FILE = ".gangmu-fetch.state"
 _NVD_PAGE = 2000
+_NVD_MIN_PAGE = 100       # the smallest page a failing transfer is cut down to
 _MAX_WINDOW = timedelta(days=119)       # the API rejects ranges over 120 days
 _RETRY_STATUS = {403, 429, 500, 502, 503, 504}
 
@@ -49,6 +52,11 @@ JsonGetter = Callable[[str, Optional[dict]], dict]
 
 class FetchError(RuntimeError):
     pass
+
+
+class TransferError(FetchError):
+    """The connection was made but the body did not arrive whole (cut off, timed out,
+    not JSON). A smaller request can succeed where this one keeps failing."""
 
 
 def http_json(url: str, body: Optional[dict] = None,
@@ -76,8 +84,15 @@ def http_json(url: str, body: Optional[dict] = None,
                 raise FetchError(f"{exc.code} from {url}: {exc.reason}") from exc
             wait = exc.headers.get("Retry-After") if exc.headers else None
             sleep(float(wait) if wait and wait.isdigit() else delay)
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        except (urllib.error.URLError, TimeoutError, socket.timeout, OSError,
+                http.client.HTTPException, ValueError) as exc:
+            # IncompleteRead (a body cut off part-way) is an HTTPException, not an
+            # OSError, and a truncated body fails to parse as JSON.
             if attempt == retries:
+                if isinstance(exc, (http.client.IncompleteRead, TimeoutError,
+                                    socket.timeout, ConnectionResetError, ValueError)):
+                    raise TransferError(f"transfer from {url} failed: "
+                                        f"{type(exc).__name__}: {exc}") from exc
                 raise FetchError(f"cannot reach {url}: {exc}") from exc
             sleep(delay)
         delay = min(delay * 2, 60.0)
@@ -168,15 +183,28 @@ def _nvd_headers(api_key: Optional[str]) -> Dict[str, str]:
 def iter_nvd(params: Dict[str, str], get: JsonGetter, api_key: Optional[str] = None,
              base_url: str = NVD_API, pause: Optional[float] = None,
              sleep: Callable[[float], None] = time.sleep,
-             start: int = 0) -> Iterator[List[dict]]:
+             start: int = 0, page_size: Optional[int] = None,
+             shrunk: Callable[[int], None] = lambda size: None) -> Iterator[List[dict]]:
     """Pages of one NVD query, from record *start*. NVD allows 5 requests / 30 s
-    anonymously and 50 with a key; the pause keeps a long run inside that."""
+    anonymously and 50 with a key; the pause keeps a long run inside that.
+
+    A page is a few MB; on a poor link it may never arrive whole. When a transfer
+    fails after its retries the page size is halved (down to ``_NVD_MIN_PAGE``) and
+    the same records are asked for again; *shrunk* is told the new size."""
     if pause is None:
         pause = 0.7 if api_key else 6.5
+    size = page_size or _NVD_PAGE
     while True:
-        query = dict(params, resultsPerPage=str(_NVD_PAGE), startIndex=str(start))
+        query = dict(params, resultsPerPage=str(size), startIndex=str(start))
         url = f"{base_url}?{urllib.parse.urlencode(query)}"
-        page = get(url, _nvd_headers(api_key))
+        try:
+            page = get(url, _nvd_headers(api_key))
+        except TransferError:
+            if size <= _NVD_MIN_PAGE:
+                raise
+            size = max(size // 2, _NVD_MIN_PAGE)
+            shrunk(size)
+            continue
         items = page.get("vulnerabilities", []) or []
         yield items
         start += len(items)
@@ -206,11 +234,24 @@ def fetch_nvd(dest: Path, get: Optional[JsonGetter] = None, products: Sequence[s
     state = _load_state(dest)
     total = 0
     damaged: List[Path] = []
+    # the page size an earlier run had to shrink to on this link, so a rerun does not
+    # fail its way down again
+    remembered = state.get("nvd_page")
+    page = (remembered if isinstance(remembered, int)
+            and _NVD_MIN_PAGE <= remembered < _NVD_PAGE else _NVD_PAGE)
+
+    def shrunk(size: int) -> None:
+        nonlocal page
+        page = size
+        state["nvd_page"] = size
+        _save_state(dest, state)
+        log(f"  transfer failed; asking for {size} records per page")
 
     def run(params: Dict[str, str], first: int = 0, progress: bool = False) -> int:
         n = 0
         index = first
-        for items in iter_nvd(params, get, api_key, base_url, sleep=sleep, start=first):
+        for items in iter_nvd(params, get, api_key, base_url, sleep=sleep, start=first,
+                              page_size=page, shrunk=shrunk):
             n += merge_nvd(dest, items, damaged)
             index += len(items)
             log(f"  {len(items)} record(s) fetched")
@@ -252,7 +293,7 @@ def fetch_nvd(dest: Path, get: Optional[JsonGetter] = None, products: Sequence[s
             first = int(partial.get("next_index", 0)) if began else 0
             if began:
                 # a page back: records published meanwhile can shift the paging
-                first = max(0, first - _NVD_PAGE)
+                first = max(0, first - page)
                 log(f"NVD: resuming the full download at record {first}")
             else:
                 log("NVD: full download")

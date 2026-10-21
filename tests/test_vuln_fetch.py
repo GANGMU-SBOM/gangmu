@@ -246,3 +246,82 @@ def test_an_interrupted_full_download_goes_on_where_it_stopped(tmp_path):
     state = json.loads((tmp_path / ".gangmu-fetch.state").read_text())
     assert "nvd_full" not in state
     assert state["nvd_watermark"].startswith("2026-05-01")   # when it began, not ended
+
+
+def test_a_body_cut_off_part_way_is_retried_not_a_traceback(monkeypatch):
+    import http.client
+    calls = []
+
+    class Cut:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self):
+            calls.append(1)
+            if len(calls) == 1:
+                raise http.client.IncompleteRead(b"x" * 10, 90)
+            return b'{"ok": true}'
+
+    monkeypatch.setattr("urllib.request.urlopen", lambda *a, **k: Cut())
+    assert http_json("http://x/", sleep=lambda s: None) == {"ok": True}
+    assert len(calls) == 2
+
+
+def test_a_body_that_never_arrives_whole_is_a_fetch_error(monkeypatch):
+    import http.client
+
+    class Cut:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self):
+            raise http.client.IncompleteRead(b"x", 9)
+
+    monkeypatch.setattr("urllib.request.urlopen", lambda *a, **k: Cut())
+    with pytest.raises(FetchError, match="IncompleteRead"):
+        http_json("http://x/", retries=1, sleep=lambda s: None)
+
+
+def test_a_page_that_will_not_transfer_is_asked_for_in_smaller_pieces(tmp_path, monkeypatch):
+    from gangmu.vuln.fetch import TransferError
+    monkeypatch.setattr("gangmu.vuln.fetch._NVD_PAGE", 4)
+    monkeypatch.setattr("gangmu.vuln.fetch._NVD_MIN_PAGE", 1)
+    recs = [_cve(f"CVE-2023-{i:04d}") for i in range(1, 7)]
+    sizes = []
+
+    def get(url, headers):
+        q = {k: v[0] for k, v in parse_qs(urlparse(url).query).items()}
+        size, start = int(q["resultsPerPage"]), int(q["startIndex"])
+        sizes.append(size)
+        if size > 1:
+            raise TransferError("cut off")
+        return {"totalResults": len(recs), "vulnerabilities": recs[start:start + size]}
+
+    n = fetch_nvd(tmp_path, get=get, sleep=lambda s: None)
+    assert n == 6
+    assert sizes[:3] == [4, 2, 1] and set(sizes[3:]) == {1}
+    state = json.loads((tmp_path / ".gangmu-fetch.state").read_text())
+    assert state["nvd_page"] == 1
+
+    # the next run starts at the size that worked
+    sizes.clear()
+    fetch_nvd(tmp_path, get=get, sleep=lambda s: None,
+              now=datetime(2030, 1, 1, tzinfo=timezone.utc))
+    assert sizes and set(sizes) == {1}
+
+
+def test_the_smallest_page_that_still_fails_is_an_error(tmp_path, monkeypatch):
+    from gangmu.vuln.fetch import TransferError
+    monkeypatch.setattr("gangmu.vuln.fetch._NVD_MIN_PAGE", 1)
+
+    def get(url, headers):
+        raise TransferError("cut off")
+
+    with pytest.raises(FetchError):
+        fetch_nvd(tmp_path, get=get, sleep=lambda s: None)
