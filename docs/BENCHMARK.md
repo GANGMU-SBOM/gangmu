@@ -744,9 +744,8 @@ distinction that decides whether it over-reports.
 | 2b | tokenise + winnow k-grams (fallback path only) | 0.59 s |
 
 Pass 2 is lazy: a vendored copy byte-identical to the release a rule records
-never reaches it. Whole-SDK numbers (ESP-IDF 5.4.2 in 11 s single-process,
-2.1 s warm), the rule-count curve and the CI regression check are in
-[PERFORMANCE.md](PERFORMANCE.md).
+never reaches it. Whole-SDK numbers, the rule-count curve and the CI
+regression check are in [PERFORMANCE.md](PERFORMANCE.md).
 
 ## 4b. OSV GIT ranges against real records
 

@@ -6,7 +6,33 @@
 
 ## 整棵 SDK：ESP-IDF v5.4.2
 
-测试对象是 ESP-IDF v5.4.2，带全部子模块，共 10,767 个 `.c`/`.h` 文件。扫描时有 266 个候选目录，识别出 11 个组件。测试机器为 4 核，Python 3.11，没有提供构建信息（这是最慢的情形）。
+测试对象是 ESP-IDF v5.4.2，带全部子模块，共 10,767 个 `.c`/`.h` 文件。下面是**当前版本 0.13.3**、免费规则库 gangmu-rules 2026.10.20（223 条规则）的测量；4 核，Python 3.13，装了 numpy，没有提供构建信息（这是最慢的情形）。扫描得到 304 个候选目录和 20 条识别结果。机器的校准耗时约 0.066 s，比 CI 的 runner（0.033 到 0.060 s）慢，数字只能在同一台机器上比较。
+
+| 设置 | 耗时 | 峰值内存 |
+| --- | --- | --- |
+| 单进程，无缓存 | 60.5 s | 358 MB |
+| 单进程，热缓存（再扫一遍） | 31.6 s | 308 MB |
+| 4 进程，冷缓存 | 49.4 s | 314 MB |
+| 4 进程，热缓存 | 31.8 s | 308 MB |
+
+**这比 0.6 时慢得多**（见下面的历史记录：单进程 11.0 s，热缓存 2.1 s）。原因不是 0.6 的优化失效了，两次测量也不是同一个流水线：0.6 之后，默认的扫描多了几个步骤，其中最大的一块是预编译库和固件镜像的清点。单进程、热缓存下，关掉这些步骤各省多少：
+
+| 设置（单进程，热缓存） | 耗时 |
+| --- | --- |
+| 默认 | 30.5 s |
+| `--no-binaries`（不清点预编译库和固件镜像） | 13.4 s |
+| `--no-unknown`（不报告没有规则认得的外来代码） | 28.4 s |
+| `--no-loose`（不认平铺在目录里的组件） | 30.6 s |
+| 三个都关 | 11.8 s |
+
+* ESP-IDF 树里有 183 个预编译文件要清点（读版本横幅；装了 Capstone 时还要恢复函数边界并比对函数指纹），这一步占了默认耗时的一半多。没有预编译文件的源码树不付这笔钱。
+* 热缓存下 4 进程和单进程一样快（31.8 s 与 31.6 s），说明清点这一步没有并行；4 进程只在冷扫时省下分词的时间。
+* 三个都关以后还剩 11.8 s。规则库也比 0.6 时大（现在 223 条免费规则），所以这一行同样不能直接和 0.6 的 2.1 s 比。
+* 识别结果和 0.6 时不同：当前是免费规则库的 20 条，0.6 的测量用的是带商业版乐鑫规则包的 11 个组件。两者规则集不同，不能当作"变慢了多少倍"来读。
+
+### 历史：0.5 到 0.6
+
+下表测于 0.6，当时的规则集包含商业版乐鑫规则包，**之后没有重测**，也不能用免费规则库复现。它说明的是 0.6 那一轮优化（见下面“做了什么”）买到了什么，不是当前的耗时。
 
 | 设置 | 0.5 | 0.6 | 0.6，不装 numpy |
 | --- | --- | --- | --- |
@@ -18,7 +44,19 @@
 
 ## 规则数与耗时
 
-社区规则库会持续增长，所以规则多了以后扫描不能线性变慢。测法是把已加载的规则复制若干份，并给每份的哈希加盐，使副本不会命中任何真实代码。扫描对象是一棵带种子的合成 SDK：1,152 个文件，59 个组件，其中有嵌套组件，也有完全相同的副本。单进程，无缓存：
+社区规则库会持续增长，所以规则多了以后扫描不能线性变慢。测法是把已加载的规则复制若干份，并给每份的哈希加盐，使副本不会命中任何真实代码。扫描对象是一棵带种子的合成 SDK：1,152 个文件，59 个组件，其中有嵌套组件，也有完全相同的副本。
+
+**当前（0.13.3，免费规则库 223 条规则为 1 倍）**，单进程，无缓存，同一台 4 核机器：
+
+| 规则数 | 耗时 / 峰值内存 |
+| --- | --- |
+| 223（1 倍） | 7.3 s / 123 MB |
+| 892（4 倍） | 10.3 s / 177 MB |
+| 3,568（16 倍） | 24.9 s / 400 MB |
+
+规则多了 16 倍，耗时约 3.4 倍。1 倍时热缓存重扫 3.0 s。规则预筛让绝大多数规则根本不执行：1 倍时实际匹配 0 次，跳过 12,934 次；16 倍时跳过 206,944 次。CI 里的基线用 90、360、1440 条规则（规则库加测试夹具），见 `benchmarks/perf-baseline.json`。
+
+**历史（0.6，27 / 108 / 432 条规则）**，同一棵合成树：
 
 | 规则数 | 0.5 | 0.6 |
 | --- | --- | --- |
@@ -26,9 +64,7 @@
 | 108 | 27.1 s / 190 MB | **3.8 s / 87 MB** |
 | 432 | 56.8 s / 281 MB | **6.8 s / 181 MB** |
 
-这是 0.6 时的测量，之后没有重测这张表。CI 里的基线现在用 90、360、1440 条规则（规则库加测试夹具），见 `benchmarks/perf-baseline.json`。
-
-0.6 中，规则从 27 条增加到 432 条，增加的时间主要花在跨规则的代码切分和预筛上。真正对每个目录执行完整匹配的规则，从 0.5 的"每条都跑"变成了"只跑可能命中的"。在这棵树上，16 倍规则时一共只跑了 16 次匹配，跳过了 26,864 次。
+0.6 中，规则从 27 条增加到 432 条，增加的时间主要花在跨规则的代码切分和预筛上。真正对每个目录执行完整匹配的规则，从 0.5 的"每条都跑"变成了"只跑可能命中的"。在那棵树上，16 倍规则时一共只跑了 16 次匹配，跳过了 26,864 次。
 
 ## 漏洞比对：全量 NVD
 
@@ -39,9 +75,11 @@
 | NVD 2.0 JSON（解压后 3.0 GB） | 200.8 s / 3,902 MB | **8.9 s / 25 MB**（工作进程各约 100 MB） |
 | fkie-cad 镜像（`.json.xz`，106 MB） | 读不了，0 条 | **14.1 s / 48 MB** |
 
-两种格式得到的 38 条结果与 0.5 读解压版时完全一致。0.6 一条一条地流式解码，只要记录里没有出现 SBOM 中任何一个 CPE 产品或 purl，就直接丢掉，不建对象；年份文件由多个进程并行读取。
+**这一节测于 0.6，之后没有重测**（全量 NVD 镜像解压后约 3 GB，本次没有重新下载）。两种格式得到的 38 条结果与 0.5 读解压版时完全一致。0.6 一条一条地流式解码，只要记录里没有出现 SBOM 中任何一个 CPE 产品或 purl，就直接丢掉，不建对象；年份文件由多个进程并行读取。
 
 ## 做了什么
+
+以下是 0.6 那一轮做的优化，仍然是现在的做法；0.6 之后新增的默认步骤（预编译库清点等）见上面 ESP-IDF 一节的分解。
 
 | 改动 | 解决的问题 |
 | --- | --- |
@@ -98,16 +136,50 @@ gangmu perf --rules .gangmu-rules/rules --rules tests/fixtures/rules \
 
 ## Performance (in English)
 
-ESP-IDF v5.4.2 with submodules has 10,767 sources and 266 candidate directories. On a 4-core machine it now scans in 11.0 s single-process (0.5: 72.5 s), 5.5 s with 4 workers (0.5: 35.8 s), and 2.1 s on a warm rescan (0.5: 10.2 s). Peak memory falls from 366 MB to 123 MB. Every finding is identical.
+**Whole SDK, ESP-IDF v5.4.2** (with submodules, 10,767 `.c`/`.h` files). Measured on the current release, 0.13.3, with the free rule base gangmu-rules 2026.10.20 (223 rules); 4 cores, Python 3.13, numpy installed, no build facts. The scan sees 304 candidate directories and reports 20 findings. This machine's calibration is about 0.066 s, slower than the CI runners (0.033 to 0.060 s), so compare numbers only on one machine.
 
-On a seeded synthetic SDK, going from 27 to 432 rules costs 3.2 s → 6.8 s (0.5: 21.3 s → 56.8 s). That is possible because rules that share no function, sketch value, anchor file or file set with a directory are never evaluated.
+| Setting | Time | Peak memory |
+| --- | --- | --- |
+| 1 process, no cache | 60.5 s | 358 MB |
+| 1 process, warm cache | 31.6 s | 308 MB |
+| 4 processes, cold cache | 49.4 s | 314 MB |
+| 4 processes, warm cache | 31.8 s | 308 MB |
 
-The main changes:
+**This is much slower than the 0.6 figures** (below: 11.0 s single-process, 2.1 s warm). The 0.6 optimisations did not stop working, and the two measurements are not the same pipeline: since 0.6 a default scan does more, and the largest addition is the inventory of prebuilt libraries and firmware images. Single process, warm cache, with each step switched off:
+
+| Setting | Time |
+| --- | --- |
+| default | 30.5 s |
+| `--no-binaries` | 13.4 s |
+| `--no-unknown` | 28.4 s |
+| `--no-loose` | 30.6 s |
+| all three off | 11.8 s |
+
+* The tree has 183 prebuilt files to inventory (banners; with Capstone installed also function-boundary recovery and per-function fingerprint matching). That is more than half of the default time. A source tree with no prebuilt files does not pay it.
+* With a warm cache, 4 processes are as fast as 1 (31.8 s against 31.6 s): the inventory step does not run in parallel. Extra processes only save tokenising time on a cold scan.
+* With all three off, 11.8 s remain. The rule base is also larger than at 0.6 (223 free rules now), so that row is not comparable with 0.6's 2.1 s either.
+* The findings differ: 20 from the free rule base now, 11 components in the 0.6 run, which also used the commercial Espressif pack. The rule sets differ, so this is not a "how many times slower" figure.
+
+**History, 0.5 to 0.6.** Measured at 0.6 with the rule set of that time, which included the commercial Espressif pack, **not re-measured since** and not reproducible with the free rule base. It shows what the 0.6 optimisations bought, not today's times: ESP-IDF single-process 72.5 s → 11.0 s (366 MB → 123 MB), 4 workers 35.8 s → 5.5 s, warm rescan 10.2 s → 2.1 s, every finding identical.
+
+**Rule count** (seeded synthetic SDK, 1,152 files, single process, no cache, same machine, current release; the 223-rule free base is 1x):
+
+| Rules | Time / peak memory |
+| --- | --- |
+| 223 (1x) | 7.3 s / 123 MB |
+| 892 (4x) | 10.3 s / 177 MB |
+| 3,568 (16x) | 24.9 s / 400 MB |
+
+16 times the rules cost about 3.4 times the time; the warm rescan at 1x is 3.0 s. This works because rules that share no function, sketch value, anchor file or file set with a directory are never evaluated: 0 full matches and 12,934 skipped at 1x, 206,944 skipped at 16x. At 0.6, going from 27 to 432 rules cost 3.2 s → 6.8 s (0.5: 21.3 s → 56.8 s).
+
+**Vulnerability matching against a full NVD mirror** (measured at 0.6, **not re-measured since**; the unpacked mirror is about 3 GB and was not downloaded again): `gangmu vuln` streams a plain or `.json.xz` mirror and keeps only records naming the SBOM's products: 200.8 s / 3.9 GB → 8.9 s / 25 MB.
+
+The 0.6 optimisations, still how it works today:
 * per-file analysis keyed by content hash, with one walk and one pool per scan;
 * per-file bottom-k sketches, which give exactly the same directory sketch;
 * an incremental SQLite cache, keyed by content and by a digest of the analysing code;
 * the rule prefilter;
-* `gangmu vuln` streams a full NVD mirror (plain or `.json.xz`) and keeps only records naming the SBOM's products: 200.8 s / 3.9 GB → 8.9 s / 25 MB;
+* `gangmu vuln` streams a full NVD mirror (plain or `.json.xz`) and keeps only records naming the SBOM's products (the figures above, measured at 0.6);
 * an optional numpy path that is checked value for value against the pure-Python one.
 * the prefilter first tests a rule's sketch values against the union of the files' stored bottom values (formed once per directory) and builds the exact sketch only when they meet; every sketch value is among those, so exactly the same rules are skipped;
 * function-signature sidecars are decoded table at once, and the rule-base segmentation compares neighbours in C. Together these cut the synthetic benchmark by about 20% cold and warm, with every counter and finding unchanged.
