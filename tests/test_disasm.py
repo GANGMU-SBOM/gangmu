@@ -229,3 +229,40 @@ def test_mips16_code_is_reported_as_unsupported_not_decoded_as_mips32():
     info = parse_elf(bytes(image))
     rec = disasm.recover_elf(bytes(image), info)
     assert rec.arch == "unsupported" and "MIPS16" in rec.note
+
+
+def _image_with_strings(count, base, size=20000):
+    """A Cortex-M image whose literal pool holds the addresses of *count* strings, linked at
+    *base*, so only that base turns the pool's words into string starts."""
+    body = bytearray(0x55 for _ in range(size))
+    struct.pack_into("<16I", body, 0, 0x20010000,
+                     *[(base + 0x100 + 2 * i) | 1 for i in range(15)])
+    starts, pos = [], 0x100
+    for i in range(count):
+        text = b"message %d from the firmware" % i
+        if pos + len(text) + 2 >= size - 0x400:
+            break
+        body[pos - 1] = 0
+        body[pos:pos + len(text)] = text
+        body[pos + len(text)] = 0
+        starts.append(pos)
+        pos += len(text) + 2
+    at = size - 0x300
+    for start in starts[:(size - at) // 4 - 1]:
+        struct.pack_into("<I", body, at, base + start)
+        at += 4
+    return bytes(body)
+
+
+@pytest.mark.parametrize("strings", [6, 700])        # fewer strings than candidate bases, and more
+@pytest.mark.parametrize("base", [0x08000000, 0x08008000, 0x0800C400])
+def test_the_link_address_is_recovered_from_the_strings_the_image_points_at(strings, base):
+    layout = disasm.cortex_m_layout(_image_with_strings(strings, base))
+    assert layout is not None and (layout.offset, layout.base) == (0, base)
+
+
+def test_a_layout_is_remembered_but_each_caller_gets_its_own_copy():
+    image = _image_with_strings(6, 0x08008000)
+    first = disasm.cortex_m_layout(image)
+    first.base = 0
+    assert disasm.cortex_m_layout(bytes(image)).base == 0x08008000

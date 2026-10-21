@@ -25,7 +25,9 @@ import re
 import struct
 import sys
 from array import array
-from dataclasses import dataclass, field
+from collections import Counter
+from dataclasses import dataclass, field, replace
+from functools import lru_cache
 from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 from . import xtensa
@@ -723,8 +725,25 @@ def _table_base(body: bytes, handlers: List[int]) -> Optional[int]:
         return old
     starts, pointers = _string_pointers(body, min(candidates), max(candidates) + n)
 
-    def score(base: int) -> int:
-        return sum(1 for w in pointers if base <= w < base + n and (w - base) in starts)
+    # Each pointer word counted once however often it repeats, and the work bounded by the
+    # smaller of "candidates" and "string starts": a base scores for a pointer exactly when
+    # (pointer - base) is the start of a string, so with fewer strings than candidates it is
+    # quicker to ask which candidate each (pointer, string) pair implies.
+    weights = Counter(pointers)
+    if len(starts) < len(candidates):
+        wanted = set(candidates)
+        scored: Counter = Counter()
+        for w, count in weights.items():
+            for start in starts:
+                if w - start in wanted:
+                    scored[w - start] += count
+
+        def score(base: int) -> int:
+            return scored[base]
+    else:
+        def score(base: int) -> int:
+            return sum(count for w, count in weights.items()
+                       if base <= w < base + n and (w - base) in starts)
 
     best, best_score = None, 0
     for base in candidates:
@@ -740,6 +759,18 @@ def _table_base(body: bytes, handlers: List[int]) -> Optional[int]:
 
 
 def cortex_m_layout(image: bytes) -> Optional[VectorTable]:
+    """Where the vector table of a raw Cortex-M image is and what address it is linked at.
+
+    Asked several times about one image (the banner pass, the function pass and the
+    recovery each need it), so the answer for the last few images is kept."""
+    if not isinstance(image, bytes):
+        return _cortex_m_layout.__wrapped__(image)
+    found = _cortex_m_layout(image)
+    return replace(found) if found is not None else None
+
+
+@lru_cache(maxsize=4)
+def _cortex_m_layout(image: bytes) -> Optional[VectorTable]:
     """Where the vector table of a raw Cortex-M image is and what address it is linked at.
 
     A bare image has it at offset 0. A bootloader's wrapper (an MCUboot header, whose size

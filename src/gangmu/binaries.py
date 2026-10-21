@@ -28,7 +28,7 @@ import zlib
 from urllib.parse import quote
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Sequence, Set
+from typing import Any, List, Optional, Sequence, Set
 
 from . import disasm
 from .carve import carve, mask
@@ -451,6 +451,45 @@ def _resource_names(data: bytes) -> dict:
     return managed_resources(data, pe) if pe is not None and pe.is_dotnet else {}
 
 
+_NEEDLES: dict = {}
+
+
+def _needle(pattern) -> Optional[bytes]:
+    """The longest byte string every match of *pattern* must contain, or None.
+
+    Only literals at the top level of the pattern count (not inside a group, an alternative
+    or a repeat), so a file without the needle cannot match. ``bytes in bytes`` is much
+    quicker than a regex search that begins with a lookbehind or a character class, and most
+    files hold none of the banners, so most searches are skipped."""
+    if pattern in _NEEDLES:
+        return _NEEDLES[pattern]
+    needle: Optional[bytes] = None
+    try:
+        if not pattern.flags & re.IGNORECASE:
+            parser: Any = getattr(re, "_parser", None)
+            if parser is None:                                   # before Python 3.11
+                import sre_parse
+                parser = sre_parse
+            best = run = b""
+            for op, arg in parser.parse(pattern.pattern, pattern.flags):
+                if str(op) == "LITERAL" and arg < 256:
+                    run += bytes([arg])
+                else:
+                    best, run = (run if len(run) > len(best) else best), b""
+            best = run if len(run) > len(best) else best
+            needle = best or None
+    except Exception:                                            # noqa: BLE001
+        needle = None
+    _NEEDLES[pattern] = needle
+    return needle
+
+
+def _nul_tokens(data: bytes) -> Set[bytes]:
+    """Every run of bytes that has a NUL on both sides: ``\\0name\\0`` is in *data* exactly
+    when ``name`` is one of these."""
+    return set(data.split(b"\0")[1:-1])
+
+
 def _banners(data: bytes, elf: Optional[ElfInfo] = None, managed: bool = False,
              extra: Sequence = ()) -> List[Embedded]:
     found: List[Embedded] = []
@@ -459,12 +498,16 @@ def _banners(data: bytes, elf: Optional[ElfInfo] = None, managed: bool = False,
     for name, display, pattern in list(_COMPILED) + list(extra):
         if name in seen:
             continue
+        needle = _needle(pattern)
+        if needle is not None and needle not in data:
+            continue
         m = pattern.search(data)
         if m:
             version = m.group(1).decode("ascii")
             found.append(Embedded(name, display, version,
                                   m.group(0).decode("ascii", "replace")))
             seen.add(name)
+    tokens: Optional[Set[bytes]] = None
     for name, display, need, wanted in ([] if managed else _SYMBOL_SETS):
         # a .NET assembly defines no native symbols: the names in its metadata are P/Invoke
         # declarations of what it calls, and the library is a separate file (or a carved one)
@@ -474,7 +517,9 @@ def _banners(data: bytes, elf: Optional[ElfInfo] = None, managed: bool = False,
             # a real symbol table: count what the file defines, not any string that matches
             hits = sum(1 for w in wanted if w[1:-1].decode() in elf.defined)
         else:
-            hits = sum(1 for w in wanted if w in data)
+            if tokens is None:
+                tokens = _nul_tokens(data)
+            hits = sum(1 for w in wanted if w[1:-1] in tokens)
         if hits >= need:
             series = _SERIES[name].search(data) if name in _SERIES else None
             found.append(Embedded(name, display, "",

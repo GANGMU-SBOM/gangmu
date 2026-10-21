@@ -6,28 +6,29 @@
 
 ## 整棵 SDK：ESP-IDF v5.4.2
 
-测试对象是 ESP-IDF v5.4.2，带全部子模块，共 10,767 个 `.c`/`.h` 文件。下面是**当前版本 0.13.3**、免费规则库 gangmu-rules 2026.10.20（223 条规则）的测量；4 核，Python 3.13，装了 numpy，没有提供构建信息（这是最慢的情形）。扫描得到 304 个候选目录和 20 条识别结果。机器的校准耗时约 0.066 s，比 CI 的 runner（0.033 到 0.060 s）慢，数字只能在同一台机器上比较。
+测试对象是 ESP-IDF v5.4.2，带全部子模块，共 10,767 个 `.c`/`.h` 文件。下面是免费规则库 gangmu-rules 2026.10.20（223 条规则）的测量，版本为优化预编译文件清点**之后**的 `main`（0.13.3 之上）；4 核，Python 3.13，装了 numpy，没有提供构建信息（这是最慢的情形）。扫描得到 304 个候选目录和 20 条识别结果。机器的校准耗时约 0.067 s，比 CI 的 runner（0.033 到 0.060 s）慢，数字只能在同一台机器上比较。
 
 | 设置 | 耗时 | 峰值内存 |
 | --- | --- | --- |
-| 单进程，无缓存 | 60.5 s | 358 MB |
-| 单进程，热缓存（再扫一遍） | 31.6 s | 308 MB |
-| 4 进程，冷缓存 | 49.4 s | 314 MB |
-| 4 进程，热缓存 | 31.8 s | 308 MB |
+| 单进程，无缓存 | 50.1 s | 375 MB |
+| 单进程，热缓存（再扫一遍） | 17.5 s | 336 MB |
+| 4 进程，冷缓存 | 37.7 s | 345 MB |
+| 4 进程，热缓存 | 18.4 s | 338 MB |
 
-**这比 0.6 时慢得多**（见下面的历史记录：单进程 11.0 s，热缓存 2.1 s）。原因不是 0.6 的优化失效了，两次测量也不是同一个流水线：0.6 之后，默认的扫描多了几个步骤，其中最大的一块是预编译库和固件镜像的清点。单进程、热缓存下，关掉这些步骤各省多少：
+**这仍然比 0.6 时慢**（见下面的历史记录：单进程 11.0 s，热缓存 2.1 s）。两次测量不是同一个流水线：0.6 之后，默认的扫描多了几个步骤，其中最大的一块是预编译库和固件镜像的清点。单进程、热缓存下，关掉这些步骤各省多少：
 
 | 设置（单进程，热缓存） | 耗时 |
 | --- | --- |
-| 默认 | 30.5 s |
+| 默认 | 18.4 s |
 | `--no-binaries`（不清点预编译库和固件镜像） | 13.4 s |
-| `--no-unknown`（不报告没有规则认得的外来代码） | 28.4 s |
-| `--no-loose`（不认平铺在目录里的组件） | 30.6 s |
-| 三个都关 | 11.8 s |
+| `--no-unknown`（不报告没有规则认得的外来代码） | 15.2 s |
+| `--no-loose`（不认平铺在目录里的组件） | 17.4 s |
+| 三个都关 | 12.0 s |
 
-* ESP-IDF 树里有 183 个预编译文件要清点（读版本横幅；装了 Capstone 时还要恢复函数边界并比对函数指纹），这一步占了默认耗时的一半多。没有预编译文件的源码树不付这笔钱。
-* 热缓存下 4 进程和单进程一样快（31.8 s 与 31.6 s），说明清点这一步没有并行；4 进程只在冷扫时省下分词的时间。
-* 三个都关以后还剩 11.8 s。规则库也比 0.6 时大（现在 223 条免费规则），所以这一行同样不能直接和 0.6 的 2.1 s 比。
+* ESP-IDF 树里有 183 个预编译文件要清点（读版本横幅；装了 Capstone 时还要恢复函数边界并比对函数指纹）。**优化前这一步要 17.7 s，现在 3.6 s**，输出逐项相同（183 个文件的清点结果与优化前比较过）。优化前这一步占默认耗时的一半多（单进程热缓存 30.5 s，冷扫 60.5 s，4 进程冷扫 49.4 s）。没有预编译文件的源码树不付这笔钱。
+* 省下的时间主要来自三处：一个 32 KB 的分区表镜像被当成 Cortex-M 固件，在 64 个偏移上各做一次基址搜索，单这一个文件就占了 8.8 s（现在 0.05 s）；版本横幅的正则先用普通的字节查找排除不含对应字面量的文件；API 符号集合改为一次切分后查表，不再对每个符号扫一遍整个文件。
+* 热缓存下 4 进程和单进程一样快（18.4 s 与 17.5 s），说明清点这一步没有并行；4 进程只在冷扫时省下分词的时间。
+* 三个都关以后还剩 12.0 s。规则库也比 0.6 时大（现在 223 条免费规则），所以这一行同样不能直接和 0.6 的 2.1 s 比。
 * 识别结果和 0.6 时不同：当前是免费规则库的 20 条，0.6 的测量用的是带商业版乐鑫规则包的 11 个组件。两者规则集不同，不能当作"变慢了多少倍"来读。
 
 ### 历史：0.5 到 0.6
@@ -136,28 +137,29 @@ gangmu perf --rules .gangmu-rules/rules --rules tests/fixtures/rules \
 
 ## Performance (in English)
 
-**Whole SDK, ESP-IDF v5.4.2** (with submodules, 10,767 `.c`/`.h` files). Measured on the current release, 0.13.3, with the free rule base gangmu-rules 2026.10.20 (223 rules); 4 cores, Python 3.13, numpy installed, no build facts. The scan sees 304 candidate directories and reports 20 findings. This machine's calibration is about 0.066 s, slower than the CI runners (0.033 to 0.060 s), so compare numbers only on one machine.
+**Whole SDK, ESP-IDF v5.4.2** (with submodules, 10,767 `.c`/`.h` files). Measured with the free rule base gangmu-rules 2026.10.20 (223 rules) on `main` after the prebuilt-file inventory was optimised (on top of 0.13.3); 4 cores, Python 3.13, numpy installed, no build facts. The scan sees 304 candidate directories and reports 20 findings. This machine's calibration is about 0.067 s, slower than the CI runners (0.033 to 0.060 s), so compare numbers only on one machine.
 
 | Setting | Time | Peak memory |
 | --- | --- | --- |
-| 1 process, no cache | 60.5 s | 358 MB |
-| 1 process, warm cache | 31.6 s | 308 MB |
-| 4 processes, cold cache | 49.4 s | 314 MB |
-| 4 processes, warm cache | 31.8 s | 308 MB |
+| 1 process, no cache | 50.1 s | 375 MB |
+| 1 process, warm cache | 17.5 s | 336 MB |
+| 4 processes, cold cache | 37.7 s | 345 MB |
+| 4 processes, warm cache | 18.4 s | 338 MB |
 
-**This is much slower than the 0.6 figures** (below: 11.0 s single-process, 2.1 s warm). The 0.6 optimisations did not stop working, and the two measurements are not the same pipeline: since 0.6 a default scan does more, and the largest addition is the inventory of prebuilt libraries and firmware images. Single process, warm cache, with each step switched off:
+**This is still slower than the 0.6 figures** (below: 11.0 s single-process, 2.1 s warm). The two measurements are not the same pipeline: since 0.6 a default scan does more, and the largest addition is the inventory of prebuilt libraries and firmware images. Single process, warm cache, with each step switched off:
 
 | Setting | Time |
 | --- | --- |
-| default | 30.5 s |
+| default | 18.4 s |
 | `--no-binaries` | 13.4 s |
-| `--no-unknown` | 28.4 s |
-| `--no-loose` | 30.6 s |
-| all three off | 11.8 s |
+| `--no-unknown` | 15.2 s |
+| `--no-loose` | 17.4 s |
+| all three off | 12.0 s |
 
-* The tree has 183 prebuilt files to inventory (banners; with Capstone installed also function-boundary recovery and per-function fingerprint matching). That is more than half of the default time. A source tree with no prebuilt files does not pay it.
-* With a warm cache, 4 processes are as fast as 1 (31.8 s against 31.6 s): the inventory step does not run in parallel. Extra processes only save tokenising time on a cold scan.
-* With all three off, 11.8 s remain. The rule base is also larger than at 0.6 (223 free rules now), so that row is not comparable with 0.6's 2.1 s either.
+* The tree has 183 prebuilt files to inventory (banners; with Capstone installed also function-boundary recovery and per-function fingerprint matching). **That step took 17.7 s before the optimisation and takes 3.6 s now**, with identical output (the inventory of all 183 files was compared with the old code's). Before it, the step was more than half of the default time (single process 30.5 s warm and 60.5 s cold; 49.4 s cold with 4 processes). A source tree with no prebuilt files does not pay it.
+* The time came back from three places: one 32 KB partition-table image was read as Cortex-M firmware and had its link address searched for at 64 offsets, which alone took 8.8 s (now 0.05 s); version-banner patterns are first screened with a plain byte search for the literal they must contain; and API-symbol sets are checked against the file's NUL-delimited names, split once, instead of one scan of the whole file per symbol.
+* With a warm cache, 4 processes are as fast as 1 (18.4 s against 17.5 s): the inventory step does not run in parallel. Extra processes only save tokenising time on a cold scan.
+* With all three off, 12.0 s remain. The rule base is also larger than at 0.6 (223 free rules now), so that row is not comparable with 0.6's 2.1 s either.
 * The findings differ: 20 from the free rule base now, 11 components in the 0.6 run, which also used the commercial Espressif pack. The rule sets differ, so this is not a "how many times slower" figure.
 
 **History, 0.5 to 0.6.** Measured at 0.6 with the rule set of that time, which included the commercial Espressif pack, **not re-measured since** and not reproducible with the free rule base. It shows what the 0.6 optimisations bought, not today's times: ESP-IDF single-process 72.5 s → 11.0 s (366 MB → 123 MB), 4 workers 35.8 s → 5.5 s, warm rescan 10.2 s → 2.1 s, every finding identical.
