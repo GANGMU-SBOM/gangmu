@@ -2,7 +2,7 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
-## Unreleased
+## 0.13.3
 * **Fix: `vuln-fetch` crashed on `IncompleteRead` part-way through a download (#118).** A response body cut off mid-transfer raises `http.client.IncompleteRead`, which is not an `OSError`, so `http_json` did not catch it: no retry, a traceback and exit. A truncated body that then fails to parse as JSON (`ValueError`) was the same. Both are now retried like any network error, and a clear message is given once the retries run out.
 * **`vuln-fetch` halves its page size when a transfer keeps failing (#119).** A 2000-record NVD page is several MB, and on a poor link it is often cut off near the end and then fails the same way on every retry. When a page's retries run out on a transfer failure (cut off, read timeout, connection reset, not JSON), the page size is halved and the same records are requested again, down to 100; the size is stored as `nvd_page` in `.gangmu-fetch.state` so the next run starts there instead of failing its way down again. On a good link it stays 2000 per page.
 
