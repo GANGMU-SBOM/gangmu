@@ -3,6 +3,10 @@
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
 ## Unreleased
+* **`vuln-fetch --all`: progress, batched saves and retry options (#124, #125, #119).**
+  * Each page prints where it is: `200 record(s) fetched, next index 105200, total 413013`; a save prints `2000 record(s) saved, next index 105200`.
+  * Every fetched page used to be merged at once (200 records with small pages), rewriting each year shard it touched in full, and compressing a large shard takes ten seconds or more: merging 200 records into a 14,000-record shard took 12 s and merging 2,000 took 12.5 s, almost independent of the batch. Records are now gathered and merged 2,000 at a time (a simulated download of 5,000 records at 200 per page: 44.9 s → 7.9 s). The position kept for a resume only moves once the records are saved, and what was fetched is saved before an error or Ctrl+C ends the run, so nothing is lost or skipped.
+  * New `--page-size N` (1 to 2000) and `--retries N` (default 5; 0 keeps trying until it works, stop it with Ctrl+C); with `-v` every retry is printed with its cause and wait. A network error now waits at most 16 s (was up to 60 s); throttling still waits as the server says, or up to 60 s.
 * **The inventory of prebuilt libraries and firmware images is about 5 times faster (the 183 files of ESP-IDF v5.4.2: 17.7 s → 3.6 s), with identical output.** One 32 KB partition-table image was read as Cortex-M firmware and had its link address searched for at 64 offsets, 8.8 s for that file alone: the base is now scored for all candidates in one pass, and an image's layout is no longer computed again for each caller. Version-banner patterns are first screened with a byte search for the literal they must contain, and API-symbol sets are checked against the file's NUL-delimited names, split once. Whole tree, single process: cold 60.5 s → 50.1 s, warm 31.6 s → 17.5 s (peak memory about 17 to 28 MB higher). Numbers in PERFORMANCE.md, which is also re-measured on the current release (it still quoted 0.5/0.6).
 
 ## 0.13.3

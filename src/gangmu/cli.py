@@ -900,6 +900,13 @@ def build_parser() -> argparse.ArgumentParser:
                          "watermark)")
     vf.add_argument("--api-key", help="NVD API key, given as is without quotes or braces "
                          "(default: $NVD_API_KEY)")
+    vf.add_argument("--page-size", type=int, metavar="N",
+                    help="NVD records asked for per request, 1 to 2000 (default 2000, or the "
+                         "smaller size an earlier run on this link had to fall back to); a "
+                         "poor connection does better with 200")
+    vf.add_argument("--retries", type=int, default=5, metavar="N",
+                    help="how often a failed request is tried again (default 5; 0 keeps "
+                         "trying until it works, stop it with Ctrl+C; -v shows each retry)")
     vf.add_argument("--threat", action="store_true",
                     help="also download CISA KEV and EPSS into <db>/threat/ "
                          "(used by `gangmu vuln` to rank findings)")
