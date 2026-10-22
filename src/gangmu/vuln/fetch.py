@@ -45,6 +45,8 @@ STATE_FILE = ".gangmu-fetch.state"
 _NVD_PAGE = 2000
 _NVD_MIN_PAGE = 100       # the smallest page a failing transfer is cut down to
 _SAVE_BATCH = 2000        # records gathered before the year shards are rewritten
+_XZ_PRESET = 3            # xz level of a shard: about 10x quicker to write than the default 6,
+#                           for a file about a third larger
 _NETWORK_MAX_DELAY = 16.0  # longest wait after a network error; throttling may wait longer
 _MAX_WINDOW = timedelta(days=119)       # the API rejects ranges over 120 days
 _RETRY_STATUS = {403, 429, 500, 502, 503, 504}
@@ -145,7 +147,7 @@ def _write_shard(path: Path, records: Dict[str, dict]) -> None:
     doc = {"format": "NVD_CVE", "version": "2.0",
            "vulnerabilities": [records[k] for k in sorted(records)]}
     tmp = path.with_suffix(path.suffix + ".tmp")
-    with lzma.open(tmp, "wt", encoding="utf-8") as fh:
+    with lzma.open(tmp, "wt", encoding="utf-8", preset=_XZ_PRESET) as fh:
         json.dump(doc, fh, separators=(",", ":"))
     os.replace(tmp, path)
 
