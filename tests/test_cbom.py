@@ -405,6 +405,34 @@ def test_builtin_patterns_do_not_confuse_neighbours():
     ("TLS_RSA_WITH_RC4_128_SHA", "rc4"),
     ("TLS_RSA_WITH_3DES_EDE_CBC_SHA", "des"),
     ('"ECDHE-ECDSA-AES256-GCM-SHA384"', "ecdsa"),
+    ("atcab_sign(key_id, digest, signature);", "ecdsa"),               # Microchip cryptoauthlib
+    ("atcab_ecdh(key_id, pubkey, secret);", "ecdh"),
+    ("atcab_sha(len, msg, digest);", "sha-256"),
+    ("atcab_aes_cbc_encrypt_block(&ctx, in, out);", "aes"),
+    ("optiga_crypt_ecdsa_sign(me, digest, 32, key, sig, &len);", "ecdsa"),   # Infineon OPTIGA Trust M
+    ("optiga_crypt_rsa_sign(me, scheme, digest, 32, key, sig, &len, 0);", "rsa"),
+    ("optiga_crypt_hmac(me, type, key, in, n, out, 32);", "hmac"),
+    ("HAL_HMACEx_SHA256_Start(&hhash, in, n, out, 1000);", "hmac"),            # STM32 HAL
+    ("HAL_CRYP_Init(&hcryp); CRYP_TDES_CBC", "des"),
+    ("cap.cipher_algo = CRYPTO_CIPHER_ALGO_AES;", "aes"),                      # Zephyr
+    ("hash_algo = CRYPTO_HASH_ALGO_SHA384;", "sha-512"),
+    ("esp_ecdsa_hw_sign(&key, hash, sig);", "ecdsa"),                          # ESP-IDF
+    ("esp_hmac_calculate(key_id, msg, n, out);", "hmac"),
+    ("esp_ds_start_sign(msg, data, key_id, &ctx);", "rsa"),
+    ("TPM2_ALG_ECDSA", "ecdsa"),                                               # TPM 2.0
+    ("TPM_ALG_RSASSA", "rsa"),
+    ("TPM2_ALG_SHA256", "sha-256"),
+    ("TPM_ALG_MLKEM", "ml-kem"),
+    ('"ssh-rsa"', "rsa"),                                                      # SSH algorithm names
+    ('"ecdsa-sha2-nistp256"', "ecdsa"),
+    ('"ssh-ed25519"', "ed25519"),
+    ('"curve25519-sha256"', "x25519"),
+    ('"diffie-hellman-group14-sha256"', "dh"),
+    ('"aes128-ctr"', "aes"),
+    ('"hmac-sha2-256"', "hmac"),
+    ('"chacha20-poly1305@openssh.com"', "chacha20-poly1305"),
+    ("aes_expandkey(&ctx, key, 32);", "aes"),                                  # Linux kernel
+    ("arc4_setkey(&ctx, key, 16);", "rc4"),
 ])
 def test_builtin_patterns_know_more_libraries_and_suite_names(text, key):
     algo = {a.key: a for a in DEFAULT_ALGOS.algos}[key]
@@ -419,6 +447,12 @@ def test_builtin_patterns_know_more_libraries_and_suite_names(text, key):
     ("TLS_PSK_WITH_AES_128_GCM_SHA256", "rsa"),
     ("crypto_hash_sha256x(x);", "sha-512"),
     ("hmacsha256_helper(x);", "hmac"),
+    ("int atcab_signal = 0;", "ecdsa"),                      # atcab_sign is a whole identifier
+    ("TPM2_ALG_RSAX", "rsa"),
+    ("xssh-rsa", "rsa"),                                    # a longer name
+    ("ssh-rsax", "rsa"),
+    ("my_hmac-sha1x", "hmac"),
+    ("myesp_hmac_calculate(x);", "hmac"),
 ])
 def test_the_added_builtin_patterns_leave_neighbours_alone(text, key):
     algo = {a.key: a for a in DEFAULT_ALGOS.algos}[key]
