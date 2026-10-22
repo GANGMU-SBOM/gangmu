@@ -70,18 +70,22 @@ ALGOS: Tuple[Algo, ...] = (
     Algo("aes", "AES", "block-cipher", SYMMETRIC, (
         _B + r"(?:mbedtls_aes_|esp_aes_|wc_Aes|tc_aes_|HAL_CRYP|AES_(?:set_)?(?:en|de)crypt_key|"
         r"AES_(?:encrypt|decrypt|ecb_encrypt|cbc_encrypt|ctr128_encrypt)\b|MBEDTLS_AES_C\b|"
-        r"CONFIG_MBEDTLS_AES\w*|CONFIG_CRYPTO_AES\w*|PSA_KEY_TYPE_AES\b)",),
+        r"CONFIG_MBEDTLS_AES\w*|CONFIG_CRYPTO_AES\w*|PSA_KEY_TYPE_AES\b|"
+        r"br_aes_\w+|tc_aes\d+_\w+|rijndael_(?:setup|ecb_encrypt|ecb_decrypt)\b|EVP_aes_\d+_(?:cbc|ecb|ctr|cfb\w*|ofb)\b)",),
         "A 128-bit key leaves about 64 bits of quantum security; 256-bit keys are the usual advice."),
     Algo("des", "DES/3DES", "block-cipher", BROKEN, (
         _B + r"(?:mbedtls_des3?_|DES_(?:ecb|cbc|ede3|set_key)\w*|wc_Des3?_\w+|MBEDTLS_DES_C\b|"
-        r"CONFIG_MBEDTLS_DES_C\b)",),
+        r"CONFIG_MBEDTLS_DES_C\b|"
+        r"br_des_\w+|des3?_(?:setup|ecb_encrypt|ecb_decrypt)\b|EVP_des_\w+|(?:MBEDTLS_|BR_)?TLS_\w+_WITH_3DES_EDE_CBC_\w+)",),
         "DES and 3DES are legacy; avoid them in new designs."),
     Algo("rc4", "RC4", "stream-cipher", BROKEN, (
-        _B + r"(?:mbedtls_arc4_|RC4_set_key|RC4\(|wc_Arc4\w*|MBEDTLS_ARC4_C\b)",),
+        _B + r"(?:mbedtls_arc4_|RC4_set_key|RC4\(|wc_Arc4\w*|MBEDTLS_ARC4_C\b|"
+        r"(?:MBEDTLS_|BR_)?TLS_\w+_WITH_RC4_\w+)",),
         "RC4 has practical attacks; remove it."),
     Algo("chacha20-poly1305", "ChaCha20-Poly1305", "ae", SYMMETRIC, (
         _B + r"(?:mbedtls_chacha20\w*|mbedtls_poly1305\w*|wc_Chacha\w*|wc_Poly1305\w*|"
-        r"EVP_chacha20\w*|MBEDTLS_CHACHA20_C\b|MBEDTLS_CHACHAPOLY_C\b|crypto_aead_chacha20poly1305\w*)",),
+        r"EVP_chacha20\w*|MBEDTLS_CHACHA20_C\b|MBEDTLS_CHACHAPOLY_C\b|crypto_aead_chacha20poly1305\w*|"
+        r"crypto_chacha20\w*|crypto_stream_chacha20\w*|br_chacha20_\w+|chacha20poly1305_\w+|chacha_(?:setup|crypt)\b)",),
         "A 256-bit key."),
     Algo("sm4", "SM4", "block-cipher", SYMMETRIC, (
         _B + r"(?:sm4_(?:setkey|crypt|encrypt|decrypt|set_key)\w*|SM4_(?:set_key|encrypt|decrypt|CTX)\w*|"
@@ -97,61 +101,74 @@ ALGOS: Tuple[Algo, ...] = (
         "Elliptic-curve scheme: a quantum computer breaks it like ECDSA."),
     Algo("md5", "MD5", "hash", BROKEN, (
         _B + r"(?:mbedtls_md5\w*|MD5_(?:Init|Update|Final)\b|MD5Init\b|MD5Update\b|wc_Md5\w+|"
-        r"MBEDTLS_MD5_C\b|CONFIG_MBEDTLS_MD5_C\b|\bMD5\(|\bMD5 digest\b)",),
+        r"MBEDTLS_MD5_C\b|CONFIG_MBEDTLS_MD5_C\b|\bMD5\(|\bMD5 digest\b|"
+        r"br_md5_\w+|md5_(?:init|process|done)\b|EVP_md5\b)",),
         "Collisions are practical; not for signatures or integrity."),
     Algo("sha1", "SHA-1", "hash", BROKEN, (
         _B + r"(?:mbedtls_sha1\w*|SHA1_(?:Init|Update|Final)\b|SHA1\(|wc_Sha\b|wc_ShaUpdate\b|"
-        r"MBEDTLS_SHA1_C\b|CONFIG_MBEDTLS_SHA1_C\b|PSA_ALG_SHA_1\b|\bSHA-?1 digest\b)",),
+        r"MBEDTLS_SHA1_C\b|CONFIG_MBEDTLS_SHA1_C\b|PSA_ALG_SHA_1\b|\bSHA-?1 digest\b|"
+        r"br_sha1_\w+|sha1_(?:init|process|done)\b|SHA1(?:Init|Update|Final|Transform)\b|EVP_sha1\b)",),
         "Collisions are practical; avoid in signatures."),
     Algo("sha-256", "SHA-256", "hash", SYMMETRIC, (
         _B + r"(?:mbedtls_sha256\w*|SHA256_(?:Init|Update|Final)\b|SHA256\(|wc_Sha256\w*|"
         r"MBEDTLS_SHA256_C\b|CONFIG_MBEDTLS_SHA256_C\b|PSA_ALG_SHA_256\b|esp_sha\b|"
-        r"HAL_HASH\w*|CRYP_SHA256\w*)",),
+        r"HAL_HASH\w*|CRYP_SHA256\w*|"
+        r"tc_sha256_\w+|br_sha(?:224|256)_\w+|crypto_hash_sha256\w*|sha256_(?:init|process|done)\b|EVP_sha(?:224|256)\b)",),
         "Fine today; 128-bit collision strength is the figure to weigh long-lived signatures against."),
     Algo("sha-512", "SHA-384/SHA-512", "hash", SYMMETRIC, (
         _B + r"(?:mbedtls_sha512\w*|SHA384_(?:Init|Update|Final)\b|SHA512_(?:Init|Update|Final)\b|"
         r"SHA512\(|wc_Sha(?:384|512)\w*|MBEDTLS_SHA512_C\b|CONFIG_MBEDTLS_SHA512_C\b|"
-        r"PSA_ALG_SHA_(?:384|512)\b)",),
+        r"PSA_ALG_SHA_(?:384|512)\b|"
+        r"crypto_hash_sha512\w*|crypto_sha512\w*|br_sha(?:384|512)_\w+|sha(?:384|512)_(?:init|process|done)\b|EVP_sha(?:384|512)\b)",),
         "SHA-384 and up are the sizes the post-quantum guidance names."),
     Algo("sha-3", "SHA-3", "hash", SYMMETRIC, (
         _B + r"(?:mbedtls_sha3_\w+|SHA3_\w+|wc_Sha3_\w+|MBEDTLS_SHA3_C\b|keccak_\w+|PSA_ALG_SHA3_\w+)",),
         ""),
     Algo("hmac", "HMAC", "mac", SYMMETRIC, (
         _B + r"(?:mbedtls_md_hmac\w*|HMAC_(?:Init|Update|Final|CTX)\w*|wc_Hmac\w+|PSA_ALG_HMAC\b|"
-        r"hmac_sha\w*|CONFIG_MBEDTLS_HMAC\w*)",),
+        r"hmac_sha\w*|CONFIG_MBEDTLS_HMAC\w*|"
+        r"tc_hmac_\w+|br_hmac_(?:init|update|out|key_init)\w*|crypto_auth_hmacsha\w*|hmac_(?:init|process|done|memory)\b)",),
         ""),
     Algo("kdf", "HKDF/PBKDF2", "kdf", NEUTRAL, (
         _B + r"(?:mbedtls_hkdf\w*|HKDF\w*|mbedtls_pkcs5_pbkdf2\w*|PKCS5_PBKDF2\w*|wc_PBKDF2\w*|"
-        r"wc_HKDF\w*|PSA_ALG_HKDF\b|PSA_ALG_PBKDF2\w*|MBEDTLS_HKDF_C\b|MBEDTLS_PKCS5_C\b)",),
+        r"wc_HKDF\w*|PSA_ALG_HKDF\b|PSA_ALG_PBKDF2\w*|MBEDTLS_HKDF_C\b|MBEDTLS_PKCS5_C\b|"
+        r"crypto_kdf_hkdf_\w+)",),
         ""),
     Algo("drbg", "CTR_DRBG/HMAC_DRBG", "drbg", NEUTRAL, (
         _B + r"(?:mbedtls_ctr_drbg_\w+|mbedtls_hmac_drbg_\w+|MBEDTLS_CTR_DRBG_C\b|"
-        r"MBEDTLS_HMAC_DRBG_C\b|wc_InitRng\w*|RAND_DRBG\w*)",),
+        r"MBEDTLS_HMAC_DRBG_C\b|wc_InitRng\w*|RAND_DRBG\w*|"
+        r"br_hmac_drbg_\w+|tc_(?:hmac|ctr)_prng_\w+)",),
         ""),
     Algo("rsa", "RSA", "pke", VULNERABLE, (
         _B + r"(?:mbedtls_rsa_\w+|RSA_(?:new|generate_key\w*|public_encrypt|private_decrypt|sign|verify)\b|"
         r"wc_(?:Init)?Rsa\w+|MBEDTLS_RSA_C\b|CONFIG_MBEDTLS_RSA_C\b|PSA_ALG_RSA_\w+|PSA_KEY_TYPE_RSA\w*|"
-        r"\brsaEncryption\b|\bsha\d+WithRSAEncryption\b)",),
+        r"\brsaEncryption\b|\bsha\d+WithRSAEncryption\b|"
+        r"br_rsa_\w+|rsa_(?:make_key|sign_hash|verify_hash|encrypt_key|decrypt_key)(?:_ex)?\b|(?:MBEDTLS_|BR_)?TLS_(?:RSA|(?:ECDHE|DHE)_RSA)_WITH_\w+|(?:ECDHE|DHE)-RSA-[A-Z0-9-]+)",),
         "Broken by Shor's algorithm at every key size."),
     Algo("ecdsa", "ECDSA", "signature", VULNERABLE, (
         _B + r"(?:mbedtls_ecdsa_\w+|ECDSA_(?:do_)?(?:sign|verify|SIG_\w+)\b|wc_ecc_(?:sign|verify)_hash\w*|"
         r"uECC_(?:sign|verify)\w*|MBEDTLS_ECDSA_C\b|CONFIG_MBEDTLS_ECDSA_C\b|PSA_ALG_ECDSA\b|"
-        r"PSA_ALG_DETERMINISTIC_ECDSA\b|\becdsa-with-SHA\d+\b)",),
+        r"PSA_ALG_DETERMINISTIC_ECDSA\b|\becdsa-with-SHA\d+\b|"
+        r"br_ecdsa_\w+|ecc_(?:sign|verify)_hash\b|(?:MBEDTLS_|BR_)?TLS_ECDHE_ECDSA_WITH_\w+|ECDHE-ECDSA-[A-Z0-9-]+)",),
         "Broken by Shor's algorithm at every curve."),
     Algo("ecdh", "ECDH", "key-agree", VULNERABLE, (
         _B + r"(?:mbedtls_ecdh_\w+|ECDH_compute_key\b|wc_ecc_shared_secret\w*|uECC_shared_secret\b|"
-        r"MBEDTLS_ECDH_C\b|CONFIG_MBEDTLS_ECDH_C\b|PSA_ALG_ECDH\b)",),
+        r"MBEDTLS_ECDH_C\b|CONFIG_MBEDTLS_ECDH_C\b|PSA_ALG_ECDH\b|"
+        r"ecc_shared_secret\b|(?:MBEDTLS_|BR_)?TLS_ECDHE?_(?:RSA|ECDSA|PSK)_WITH_\w+|ECDHE-[A-Z]+-[A-Z0-9-]+)",),
         "Broken by Shor's algorithm at every curve."),
     Algo("ed25519", "Ed25519", "signature", VULNERABLE, (
         _B + r"(?:ed25519_(?:sign|verify|create_keypair|publickey)\w*|wc_ed25519_\w+|"
-        r"crypto_sign_ed25519\w*|\bEd25519\b)",),
+        r"crypto_sign_ed25519\w*|\bEd25519\b|"
+        r"crypto_ed25519_\w+)",),
         "Elliptic-curve scheme: broken by Shor's algorithm."),
     Algo("x25519", "X25519", "key-agree", VULNERABLE, (
         _B + r"(?:curve25519_\w+|x25519_\w+|wc_curve25519\w*|crypto_scalarmult_curve25519\w*|"
-        r"MBEDTLS_ECP_DP_CURVE25519\w*|X25519\b)",),
+        r"MBEDTLS_ECP_DP_CURVE25519\w*|X25519\b|"
+        r"crypto_x25519\w*)",),
         "Elliptic-curve key agreement: broken by Shor's algorithm."),
     Algo("dh", "Diffie-Hellman", "key-agree", VULNERABLE, (
-        _B + r"(?:mbedtls_dhm_\w+|DH_(?:generate_key|compute_key)\b|wc_Dh\w+|MBEDTLS_DHM_C\b)",),
+        _B + r"(?:mbedtls_dhm_\w+|DH_(?:generate_key|compute_key)\b|wc_Dh\w+|MBEDTLS_DHM_C\b|"
+        r"dh_(?:make_key|shared_secret|set_pg)\w*|(?:MBEDTLS_|BR_)?TLS_DHE_(?:RSA|DSS|PSK)_WITH_\w+|DHE-[A-Z]+-[A-Z0-9-]+)",),
         "Finite-field key agreement: broken by Shor's algorithm."),
     Algo("ml-kem", "ML-KEM (Kyber)", "kem", PQC, (
         _B + r"(?:ML[-_]KEM\w*|mlkem\w*|PQCLEAN_MLKEM\w*|OQS_KEM_alg_(?:ml_kem|kyber)\w*|"
@@ -162,11 +179,13 @@ ALGOS: Tuple[Algo, ...] = (
         r"pqcrystals_dilithium\w*|wc_MlDsa\w*|wc_dilithium\w*)",),
         "NIST FIPS 204."),
     Algo("slh-dsa", "SLH-DSA (SPHINCS+)", "signature", PQC, (
-        _B + r"(?:SLH[-_]DSA\w*|slhdsa\w*|SPHINCS\w*|sphincs\w*|PQCLEAN_SPHINCS\w*)",),
+        _B + r"(?:SLH[-_]DSA\w*|slhdsa\w*|SPHINCS\w*|sphincs\w*|PQCLEAN_SPHINCS\w*|"
+        r"OQS_SIG_(?:alg_)?slh_dsa\w*)",),
         "NIST FIPS 205."),
     Algo("hash-based-sig", "LMS/XMSS", "signature", PQC, (
         _B + r"(?:mbedtls_lms_\w+|wc_Lms\w+|wc_Xmss\w+|\bXMSS\w*|HSS_(?:generate|sign|verify)\w*|"
-        r"MBEDTLS_LMS_C\b)",),
+        r"MBEDTLS_LMS_C\b|"
+        r"OQS_SIG_STFL_alg_\w+|OQS_LMS_ID_\w+)",),
         "Stateful hash-based signatures (NIST SP 800-208), the scheme CNSA 2.0 names for firmware signing."),
 )
 

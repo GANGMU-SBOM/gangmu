@@ -377,6 +377,55 @@ def test_builtin_patterns_do_not_confuse_neighbours():
     assert not any(re.search(p, "MBEDTLS_ECP_DP_CURVE448") for p in by_key["ed25519"].patterns)
 
 
+@pytest.mark.parametrize("text, key", [
+    ("br_aes_ct_cbcenc_init(&ctx, key, 16);", "aes"),                  # BearSSL
+    ("tc_aes128_set_encrypt_key(&s, key);", "aes"),                    # TinyCrypt
+    ("rijndael_setup(key, 16, 0, &skey);", "aes"),                     # LibTomCrypt
+    ("EVP_aes_256_cbc()", "aes"),                                      # OpenSSL
+    ("tc_sha256_init(&s);", "sha-256"),
+    ("crypto_hash_sha256(out, in, n);", "sha-256"),                    # libsodium
+    ("br_sha384_init(&ctx);", "sha-512"),
+    ("crypto_sha512(hash, msg, len);", "sha-512"),                     # Monocypher
+    ("tc_hmac_init(&h);", "hmac"),
+    ("crypto_auth_hmacsha256(out, in, n, key);", "hmac"),
+    ("br_hmac_drbg_init(&rng, &br_sha256_vtable, seed, n);", "drbg"),
+    ("br_rsa_i31_pkcs1_vrfy(sig, n, id, 32, &pk, h);", "rsa"),
+    ("rsa_make_key(&prng, wprng, 256, 65537, &key);", "rsa"),          # LibTomCrypt
+    ("br_ecdsa_i31_sign_asn1(&br_ec_prime_i31, &br_sha256_vtable, h, &sk, sig);", "ecdsa"),
+    ("ecc_shared_secret(&a, &b, out, &len);", "ecdh"),
+    ("crypto_x25519(shared, secret, pk);", "x25519"),                  # Monocypher
+    ("crypto_ed25519_sign(sig, key, msg, n);", "ed25519"),
+    ("crypto_chacha20_ietf(out, in, n, key, nonce, 0);", "chacha20-poly1305"),
+    ("OQS_SIG_alg_slh_dsa_pure_sha2_128s", "slh-dsa"),                 # liboqs
+    ("OQS_SIG_STFL_alg_xmss_sha256_h10", "hash-based-sig"),
+    ("OQS_LMS_ID_sha256_h10_w1", "hash-based-sig"),
+    ("BR_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "rsa"),               # cipher suites carry the key exchange
+    ("BR_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "ecdh"),
+    ("MBEDTLS_TLS_DHE_RSA_WITH_AES_256_CCM", "dh"),
+    ("TLS_RSA_WITH_RC4_128_SHA", "rc4"),
+    ("TLS_RSA_WITH_3DES_EDE_CBC_SHA", "des"),
+    ('"ECDHE-ECDSA-AES256-GCM-SHA384"', "ecdsa"),
+])
+def test_builtin_patterns_know_more_libraries_and_suite_names(text, key):
+    algo = {a.key: a for a in DEFAULT_ALGOS.algos}[key]
+    import re
+    assert re.search(algo.patterns[0].encode(), text.encode())
+
+
+@pytest.mark.parametrize("text, key", [
+    ("my_tc_aes_helper();", "aes"),
+    ("int rsa_make_keyboard = 0;", "rsa"),                  # rsa_make_key is a whole identifier
+    ("BR_TLS_RSA_WITH_AES_128_GCM_SHA256_X", "dh"),         # no ephemeral DH in the suite
+    ("TLS_PSK_WITH_AES_128_GCM_SHA256", "rsa"),
+    ("crypto_hash_sha256x(x);", "sha-512"),
+    ("hmacsha256_helper(x);", "hmac"),
+])
+def test_the_added_builtin_patterns_leave_neighbours_alone(text, key):
+    algo = {a.key: a for a in DEFAULT_ALGOS.algos}[key]
+    import re
+    assert not re.search(algo.patterns[0].encode(), text.encode())
+
+
 def test_readiness_report_groups_by_action(tmp_path, capsys):
     root = _tree(tmp_path)
     assert main(["cbom", str(root), "--format", "readiness"]) == 0
