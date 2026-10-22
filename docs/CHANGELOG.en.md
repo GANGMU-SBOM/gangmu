@@ -2,7 +2,7 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
-## Unreleased
+## 0.13.4
 * **NVD year shards are written at xz level 3 (was the default, 6).** Compressing a large shard goes from 10.5 s to 1.0 s, for a file about a third larger (a simulated download of 5,000 records: 45.8 s merging every page at level 6, 7.9 s batched, 2.1 s batched at level 3; total shard size 0.29 MB → 0.38 MB). Reading is unaffected and existing shards stay readable; a shard changes level the next time it is rewritten.
 * **`vuln-fetch --all`: progress, batched saves and retry options (#124, #125, #119).**
   * Each page prints where it is: `200 record(s) fetched, next index 105200, total 413013`; a save prints `2000 record(s) saved, next index 105200`.
