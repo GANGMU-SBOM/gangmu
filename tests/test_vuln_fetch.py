@@ -442,3 +442,20 @@ def test_cli_passes_the_page_size_and_retries_on_and_checks_them(tmp_path, monke
     assert seen["page_size"] is None and seen["retries"] == 5
     assert main(["vuln-fetch", "--db", str(tmp_path), "--all", "--page-size", "5000"]) == 2
     assert "1 to 2000" in capsys.readouterr().err
+
+
+def test_a_shard_is_written_at_the_quick_xz_level_and_reads_back_the_same(tmp_path, monkeypatch):
+    import lzma
+    seen = []
+    real = lzma.open
+
+    def spy(*args, **kwargs):
+        seen.append(kwargs.get("preset"))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr("gangmu.vuln.fetch.lzma.open", spy)
+    recs = [_cve(f"CVE-2023-{i:04d}") for i in range(1, 6)]
+    fetch_nvd(tmp_path, get=FakeNvd(recs), sleep=lambda s: None)
+    assert 3 in seen
+    monkeypatch.undo()
+    assert {a.id for a in load_database(tmp_path)} == {r["cve"]["id"] for r in recs}
