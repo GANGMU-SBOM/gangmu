@@ -44,6 +44,8 @@ OSV_API = "https://api.osv.dev/v1"
 STATE_FILE = ".gangmu-fetch.state"
 _NVD_PAGE = 2000
 _NVD_MIN_PAGE = 100       # the smallest page a failing transfer is cut down to
+_SAVE_BATCH = 2000        # records gathered before the year shards are rewritten
+_NETWORK_MAX_DELAY = 16.0  # longest wait after a network error; throttling may wait longer
 _MAX_WINDOW = timedelta(days=119)       # the API rejects ranges over 120 days
 _RETRY_STATUS = {403, 429, 500, 502, 503, 504}
 
@@ -61,9 +63,15 @@ class TransferError(FetchError):
 
 def http_json(url: str, body: Optional[dict] = None,
               headers: Optional[Dict[str, str]] = None,
-              retries: int = 5, sleep: Callable[[float], None] = time.sleep,
-              timeout: float = 60.0) -> dict:
+              retries: Optional[int] = 5, sleep: Callable[[float], None] = time.sleep,
+              timeout: float = 60.0,
+              log: Callable[[str], None] = lambda m: None) -> dict:
     """GET (or POST, with *body*) a JSON document, backing off on throttling.
+
+    *retries* is how many times to try again (None: until it works; the caller stops it with
+    Ctrl+C). Each retry is reported to *log* with its cause. A network error waits at most
+    ``_NETWORK_MAX_DELAY`` seconds, which is still inside NVD's rate limit; a throttling
+    answer waits as long as the server says, or backs off up to a minute.
 
     The system proxy settings are honoured by urllib, which is what an
     intranet-adjacent build host needs.
@@ -74,29 +82,35 @@ def http_json(url: str, body: Optional[dict] = None,
         hdrs["Content-Type"] = "application/json"
     hdrs.update(headers or {})
     delay = 2.0
-    for attempt in range(retries + 1):
+    attempt = 0
+    while True:
+        last = retries is not None and attempt >= retries
+        attempt += 1
         req = urllib.request.Request(url, data=data, headers=hdrs)
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
-            if exc.code not in _RETRY_STATUS or attempt == retries:
+            if exc.code not in _RETRY_STATUS or last:
                 raise FetchError(f"{exc.code} from {url}: {exc.reason}") from exc
             wait = exc.headers.get("Retry-After") if exc.headers else None
-            sleep(float(wait) if wait and wait.isdigit() else delay)
+            pause = float(wait) if wait and wait.isdigit() else delay
+            log(f"  retry {attempt}: HTTP {exc.code}, again in {pause:g}s")
+            sleep(pause)
         except (urllib.error.URLError, TimeoutError, socket.timeout, OSError,
                 http.client.HTTPException, ValueError) as exc:
             # IncompleteRead (a body cut off part-way) is an HTTPException, not an
             # OSError, and a truncated body fails to parse as JSON.
-            if attempt == retries:
+            if last:
                 if isinstance(exc, (http.client.IncompleteRead, TimeoutError,
                                     socket.timeout, ConnectionResetError, ValueError)):
                     raise TransferError(f"transfer from {url} failed: "
                                         f"{type(exc).__name__}: {exc}") from exc
                 raise FetchError(f"cannot reach {url}: {exc}") from exc
-            sleep(delay)
+            pause = min(delay, _NETWORK_MAX_DELAY)
+            log(f"  retry {attempt}: {type(exc).__name__}: {exc}, again in {pause:g}s")
+            sleep(pause)
         delay = min(delay * 2, 60.0)
-    raise FetchError(f"gave up on {url}")      # pragma: no cover
 
 
 # ---------------------------------------------------------------- shards
@@ -184,13 +198,16 @@ def iter_nvd(params: Dict[str, str], get: JsonGetter, api_key: Optional[str] = N
              base_url: str = NVD_API, pause: Optional[float] = None,
              sleep: Callable[[float], None] = time.sleep,
              start: int = 0, page_size: Optional[int] = None,
-             shrunk: Callable[[int], None] = lambda size: None) -> Iterator[List[dict]]:
+             shrunk: Callable[[int], None] = lambda size: None,
+             progress: Callable[[int, int], None] = lambda nxt, total: None
+             ) -> Iterator[List[dict]]:
     """Pages of one NVD query, from record *start*. NVD allows 5 requests / 30 s
     anonymously and 50 with a key; the pause keeps a long run inside that.
 
     A page is a few MB; on a poor link it may never arrive whole. When a transfer
     fails after its retries the page size is halved (down to ``_NVD_MIN_PAGE``) and
-    the same records are asked for again; *shrunk* is told the new size."""
+    the same records are asked for again; *shrunk* is told the new size. *progress* is told,
+    after each page, the index of the next record and how many records the query has."""
     if pause is None:
         pause = 0.7 if api_key else 6.5
     size = page_size or _NVD_PAGE
@@ -206,9 +223,11 @@ def iter_nvd(params: Dict[str, str], get: JsonGetter, api_key: Optional[str] = N
             shrunk(size)
             continue
         items = page.get("vulnerabilities", []) or []
+        total = int(page.get("totalResults", 0))
+        progress(start + len(items), total)
         yield items
         start += len(items)
-        if not items or start >= int(page.get("totalResults", 0)):
+        if not items or start >= total:
             return
         sleep(pause)
 
@@ -221,15 +240,19 @@ def fetch_nvd(dest: Path, get: Optional[JsonGetter] = None, products: Sequence[s
               api_key: Optional[str] = None, since: Optional[datetime] = None,
               now: Optional[datetime] = None, base_url: str = NVD_API,
               sleep: Callable[[float], None] = time.sleep,
-              log: Callable[[str], None] = lambda m: None) -> int:
+              log: Callable[[str], None] = lambda m: None,
+              page_size: Optional[int] = None, retries: Optional[int] = 5) -> int:
     """Fetch NVD records into *dest*; returns the count new or changed.
 
     *products* are ``part:vendor:product`` keys (what the matcher indexes). With
-    none, this is a full / incremental sync of the whole NVD.
+    none, this is a full / incremental sync of the whole NVD. *page_size* is the
+    records asked for per request (default: 2000, or the size an earlier run had to shrink
+    to); *retries* how often a failed request is tried again (None: until it works).
     """
     dest = Path(dest)
     dest.mkdir(parents=True, exist_ok=True)
-    get = get or (lambda url, headers: http_json(url, headers=headers, sleep=sleep))
+    get = get or (lambda url, headers: http_json(url, headers=headers, sleep=sleep,
+                                                 retries=retries, log=log))
     now = now or datetime.now(timezone.utc)
     state = _load_state(dest)
     total = 0
@@ -237,8 +260,8 @@ def fetch_nvd(dest: Path, get: Optional[JsonGetter] = None, products: Sequence[s
     # the page size an earlier run had to shrink to on this link, so a rerun does not
     # fail its way down again
     remembered = state.get("nvd_page")
-    page = (remembered if isinstance(remembered, int)
-            and _NVD_MIN_PAGE <= remembered < _NVD_PAGE else _NVD_PAGE)
+    page = page_size or (remembered if isinstance(remembered, int)
+                         and _NVD_MIN_PAGE <= remembered < _NVD_PAGE else _NVD_PAGE)
 
     def shrunk(size: int) -> None:
         nonlocal page
@@ -248,17 +271,42 @@ def fetch_nvd(dest: Path, get: Optional[JsonGetter] = None, products: Sequence[s
         log(f"  transfer failed; asking for {size} records per page")
 
     def run(params: Dict[str, str], first: int = 0, progress: bool = False) -> int:
+        # A page is a few hundred to 2000 records and every year shard it touches is
+        # rewritten whole (xz-compressing a big shard takes seconds), so pages are gathered
+        # and merged _SAVE_BATCH records at a time. What was fetched is saved before an error
+        # or Ctrl+C leaves; the position kept for a resume only ever covers saved records.
         n = 0
         index = first
-        for items in iter_nvd(params, get, api_key, base_url, sleep=sleep, start=first,
-                              page_size=page, shrunk=shrunk):
-            n += merge_nvd(dest, items, damaged)
-            index += len(items)
-            log(f"  {len(items)} record(s) fetched")
+        pending: List[dict] = []
+        total = 0
+
+        def fetched(next_index: int, count: int) -> None:
+            nonlocal total
+            total = count
+            log(f"  {next_index - index} record(s) fetched, next index {next_index}, "
+                f"total {count}")
+
+        def save() -> None:
+            nonlocal n
+            if not pending:
+                return
+            n += merge_nvd(dest, pending, damaged)
+            log(f"  {len(pending)} record(s) saved, next index {index}")
+            pending.clear()
             if progress:
-                # The shards already hold these records; remember where to go on from.
+                # The shards now hold these records; remember where to go on from.
                 state["nvd_full"]["next_index"] = index
                 _save_state(dest, state)
+
+        try:
+            for items in iter_nvd(params, get, api_key, base_url, sleep=sleep, start=first,
+                                  page_size=page, shrunk=shrunk, progress=fetched):
+                pending.extend(items)
+                index += len(items)
+                if len(pending) >= _SAVE_BATCH:
+                    save()
+        finally:
+            save()
         return n
 
     def run_windows(params: Dict[str, str], start: datetime) -> int:

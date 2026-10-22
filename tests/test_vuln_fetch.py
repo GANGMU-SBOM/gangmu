@@ -325,3 +325,120 @@ def test_the_smallest_page_that_still_fails_is_an_error(tmp_path, monkeypatch):
 
     with pytest.raises(FetchError):
         fetch_nvd(tmp_path, get=get, sleep=lambda s: None)
+
+
+def test_each_fetched_page_reports_where_it_is_and_how_far_there_is_to_go(tmp_path):
+    recs = [_cve(f"CVE-2023-{i:04d}") for i in range(1, 8)]
+    lines = []
+    fetch_nvd(tmp_path, get=FakeNvd(recs), sleep=lambda s: None, log=lines.append)
+    fetched = [m for m in lines if "fetched" in m]
+    assert fetched[0].strip() == "2 record(s) fetched, next index 2, total 7"
+    assert fetched[-1].strip() == "1 record(s) fetched, next index 7, total 7"
+
+
+def test_pages_are_merged_in_batches_and_the_position_only_moves_when_they_are_saved(
+        tmp_path, monkeypatch):
+    monkeypatch.setattr("gangmu.vuln.fetch._SAVE_BATCH", 4)
+    merges = []
+    real = merge_nvd
+
+    def counting(dest, items, damaged=None):
+        merges.append(len(list(items)))
+        return real(dest, items, damaged)
+
+    monkeypatch.setattr("gangmu.vuln.fetch.merge_nvd", counting)
+    recs = [_cve(f"CVE-2023-{i:04d}") for i in range(1, 10)]       # pages of 2: 2,2,2,2,1
+    lines = []
+    fetch_nvd(tmp_path, get=FakeNvd(recs), sleep=lambda s: None, log=lines.append)
+    assert merges == [4, 4, 1]                                      # not once per page
+    saved = [m.strip() for m in lines if "saved" in m]
+    assert saved == ["4 record(s) saved, next index 4", "4 record(s) saved, next index 8",
+                     "1 record(s) saved, next index 9"]
+    assert {a.id for a in load_database(tmp_path)} == {r["cve"]["id"] for r in recs}
+
+
+def test_what_was_fetched_is_saved_before_an_error_ends_the_run(tmp_path, monkeypatch):
+    monkeypatch.setattr("gangmu.vuln.fetch._SAVE_BATCH", 100)       # never reached by size
+    recs = [_cve(f"CVE-2023-{i:04d}") for i in range(1, 8)]
+    fake = FakeNvd(recs)
+
+    def breaks_on_third_page(url, headers):
+        if len(fake.urls) == 2:
+            raise FetchError("cannot reach NVD")
+        return fake(url, headers)
+
+    with pytest.raises(FetchError):
+        fetch_nvd(tmp_path, get=breaks_on_third_page, sleep=lambda s: None)
+    assert {a.id for a in load_database(tmp_path)} == {r["cve"]["id"] for r in recs[:4]}
+    state = json.loads((tmp_path / ".gangmu-fetch.state").read_text())
+    assert state["nvd_full"]["next_index"] == 4                     # exactly what is on disk
+
+    fetch_nvd(tmp_path, get=FakeNvd(recs), sleep=lambda s: None,
+              now=datetime(2030, 1, 1, tzinfo=timezone.utc))
+    assert {a.id for a in load_database(tmp_path)} == {r["cve"]["id"] for r in recs}
+
+
+def test_an_explicit_page_size_is_what_is_asked_for(tmp_path):
+    fake = FakeNvd([_cve(f"CVE-2023-{i:04d}") for i in range(1, 6)], page=3)
+    fetch_nvd(tmp_path, get=fake, sleep=lambda s: None, page_size=3)
+    assert all(parse_qs(urlparse(u).query)["resultsPerPage"] == ["3"] for u in fake.urls)
+
+
+def _flaky(monkeypatch, failures, error):
+    calls = []
+
+    class Reply:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self):
+            return b'{"ok": true}'
+
+    def urlopen(*a, **k):
+        calls.append(1)
+        if len(calls) <= failures:
+            raise error
+        return Reply()
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen)
+    return calls
+
+
+def test_every_retry_is_logged_with_its_cause_and_network_waits_are_capped(monkeypatch):
+    import urllib.error
+    calls = _flaky(monkeypatch, 8, urllib.error.URLError("handshake timed out"))
+    waits, lines = [], []
+    assert http_json("http://x/", retries=None, sleep=waits.append, log=lines.append) \
+        == {"ok": True}
+    assert len(calls) == 9 and len(lines) == 8          # None: as many retries as it takes
+    assert "retry 1: URLError" in lines[0] and "handshake timed out" in lines[0]
+    assert waits[:5] == [2.0, 4.0, 8.0, 16.0, 16.0] and max(waits) == 16.0
+
+
+def test_a_throttling_answer_still_backs_off_beyond_the_network_cap(monkeypatch):
+    import urllib.error
+    err = urllib.error.HTTPError("http://x/", 429, "Too Many Requests", {}, None)
+    _flaky(monkeypatch, 7, err)
+    waits = []
+    http_json("http://x/", retries=None, sleep=waits.append)
+    assert waits == [2.0, 4.0, 8.0, 16.0, 32.0, 60.0, 60.0]
+
+
+def test_cli_passes_the_page_size_and_retries_on_and_checks_them(tmp_path, monkeypatch, capsys):
+    seen = {}
+
+    def fake(dest, **kwargs):
+        seen.update(kwargs)
+        return 0
+
+    monkeypatch.setattr("gangmu.vuln.fetch.fetch_nvd", fake)
+    assert main(["vuln-fetch", "--db", str(tmp_path), "--all", "--no-osv",
+                 "--page-size", "200", "--retries", "0"]) == 0
+    assert seen["page_size"] == 200 and seen["retries"] is None     # 0: until it works
+    assert main(["vuln-fetch", "--db", str(tmp_path), "--all", "--no-osv"]) == 0
+    assert seen["page_size"] is None and seen["retries"] == 5
+    assert main(["vuln-fetch", "--db", str(tmp_path), "--all", "--page-size", "5000"]) == 2
+    assert "1 to 2000" in capsys.readouterr().err

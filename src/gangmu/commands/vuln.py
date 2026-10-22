@@ -544,11 +544,21 @@ def cmd_vuln_fetch(args: argparse.Namespace) -> int:
                   file=sys.stderr)
             return 2
     api_key = args.api_key or os.environ.get("NVD_API_KEY")
+    page_size = getattr(args, "page_size", None)
+    if page_size is not None and not 1 <= page_size <= 2000:
+        print(f"error: --page-size wants 1 to 2000 (NVD's limit), got {page_size}",
+              file=sys.stderr)
+        return 2
+    retries = getattr(args, "retries", 5)
+    if retries < 0:
+        print(f"error: --retries wants 0 or more, got {retries}", file=sys.stderr)
+        return 2
     try:
         nvd_new = 0
         if not args.no_nvd and (products or args.all):
             nvd_new = fetch_nvd(dest, products=products if scoped else (),
-                                api_key=api_key, since=since, log=log)
+                                api_key=api_key, since=since, log=log,
+                                page_size=page_size, retries=retries or None)
         osv_new = 0
         if not args.no_osv and purls:
             osv_new = fetch_osv(dest, purls, log=log)

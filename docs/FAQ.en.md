@@ -93,6 +93,9 @@ NVD_API_KEY=YOUR-KEY gangmu vuln-fetch --db ~/.cache/gangmu/ --all
 Keys are free at <https://nvd.nist.gov/developers/request-an-api-key>, and a key is
 about ten times faster than anonymous. If a full `--all` download is interrupted, run
 the same command again and it carries on where it stopped.
+On a poor link add `--page-size 200` (records per request, 1 to 2000) and `--retries 0`
+(keep retrying until it works; stop with Ctrl+C); `-v` prints each page's position and the
+total, and the cause of every retry.
 
 ## What does it not do?
 
