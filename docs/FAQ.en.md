@@ -96,6 +96,9 @@ the same command again and it carries on where it stopped.
 On a poor link add `--page-size 200` (records per request, 1 to 2000) and `--retries 0`
 (keep retrying until it works; stop with Ctrl+C); `-v` prints each page's position and the
 total, and the cause of every retry.
+On a large database each save rewrites the whole database and can take minutes; `--save-batch 20000`
+saves less often (a held record takes about 15 KB, so 20,000 is about 300 MB). Ctrl+C saves what was
+fetched before it exits.
 
 ## What does it not do?
 

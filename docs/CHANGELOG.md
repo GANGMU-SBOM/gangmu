@@ -8,6 +8,11 @@
 ## 0.13.5
 * **CBOM 内置算法表认得更多库的函数名和 TLS 密码套件名。** 原来 AES、SHA、HMAC、RSA 等只认 Mbed TLS、wolfSSL、OpenSSL 的写法，现在补上 BearSSL（`br_aes_*`、`br_sha256_*`、`br_rsa_*`、`br_ecdsa_*`、`br_hmac_drbg_*`）、TinyCrypt（`tc_aes128_*`、`tc_sha256_*`、`tc_hmac_*`、`tc_ctr_prng_*`）、LibTomCrypt（`rijndael_*`、`rsa_make_key`、`ecc_sign_hash`、`sha256_init`）、libsodium（`crypto_hash_sha256`、`crypto_auth_hmacsha256`、`crypto_kdf_hkdf_*`）、Monocypher（`crypto_x25519`、`crypto_ed25519_*`、`crypto_chacha20_*`、`crypto_sha512`）和 OpenSSL 的 `EVP_aes_*_cbc`、`EVP_sha256` 等。liboqs 里小写的 `OQS_SIG_alg_slh_dsa_*`、`OQS_SIG_STFL_alg_xmss_*`、`OQS_LMS_ID_*` 也算进 SLH-DSA 和 LMS/XMSS。TLS 密码套件名（`TLS_ECDHE_RSA_WITH_…`，含 mbedTLS 的 `MBEDTLS_TLS_…`、BearSSL 的 `BR_TLS_…` 和 OpenSSL 风格的 `ECDHE-RSA-…`）按它带的密钥交换和认证算法计入 RSA、ECDSA、ECDH、DH，含 RC4、3DES 的套件计入对应的弱算法。对 BearSSL、Mbed TLS、OpenSSL、wolfSSL 和 hostap 的源码做了新旧对比，新命中的都是真实的接口名或套件名。规则库 gangmu-cbom-rules 的种子文件同步重新导出。
 
+## 未发布
+* **`vuln-fetch --all`：存盘批量可调、停止时有提示（#131）。**
+  * 新增 `--save-batch N`（默认 2000）：攒够 N 条才重写一次年份分片。每次存盘要重写它涉及的每个分片，而 NVD 返回的记录散落在所有年份里，所以全量库上一次存盘就是把整个库读出、解析、再压缩一遍，耗时只取决于库有多大，和这一批多少条无关；批量越大，存盘次数越少。每条记录在内存里约占 15 KB（在真实 NVD 页面上量的：500 条 7.7 MB），2 万条约 300 MB。默认值没变。
+  * Ctrl+C 或出错退出时，如果还有没存的记录，不加 `-v` 也会提示“正在保存已取到的 N 条记录，大库上可能要几分钟，请不要强制结束”；保存完后提示重跑同一条命令即可继续，并以退出码 130 结束，不再打印 Python 的 traceback。`-v` 时，每次存盘的日志行带上耗时。
+
 ## 0.13.4
 * **NVD 年份分片改用 xz 级别 3 写盘（原来是默认的 6）。** 压缩一个大分片从 10.5 s 降到 1.0 s，文件大约大三分之一（5000 条记录的模拟下载：每页都写盘、级别 6 要 45.8 s，攒批后 7.9 s，再加上级别 3 是 2.1 s；分片总大小 0.29 MB → 0.38 MB）。读取不受影响，已有的分片照常可读，下次重写时才换成新级别。
 * **`vuln-fetch --all` 的全量下载：进度、批量写盘、重试选项（#124、#125、#119）。**

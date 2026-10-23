@@ -351,9 +351,10 @@ def test_pages_are_merged_in_batches_and_the_position_only_moves_when_they_are_s
     lines = []
     fetch_nvd(tmp_path, get=FakeNvd(recs), sleep=lambda s: None, log=lines.append)
     assert merges == [4, 4, 1]                                      # not once per page
-    saved = [m.strip() for m in lines if "saved" in m]
+    saved = [m.strip().split(", took")[0] for m in lines if "saved" in m]
     assert saved == ["4 record(s) saved, next index 4", "4 record(s) saved, next index 8",
                      "1 record(s) saved, next index 9"]
+    assert all(", took " in m and m.endswith("s") for m in lines if "saved" in m)
     assert {a.id for a in load_database(tmp_path)} == {r["cve"]["id"] for r in recs}
 
 
@@ -459,3 +460,73 @@ def test_a_shard_is_written_at_the_quick_xz_level_and_reads_back_the_same(tmp_pa
     assert 3 in seen
     monkeypatch.undo()
     assert {a.id for a in load_database(tmp_path)} == {r["cve"]["id"] for r in recs}
+
+
+def test_a_stop_says_it_is_saving_even_without_verbose_and_a_normal_end_does_not(tmp_path,
+                                                                                 monkeypatch):
+    monkeypatch.setattr("gangmu.vuln.fetch._SAVE_BATCH", 100)
+    recs = [_cve(f"CVE-2023-{i:04d}") for i in range(1, 8)]
+    fake = FakeNvd(recs)
+
+    def breaks_on_third_page(url, headers):
+        if len(fake.urls) == 2:
+            raise KeyboardInterrupt()
+        return fake(url, headers)
+
+    notices = []
+    with pytest.raises(KeyboardInterrupt):
+        fetch_nvd(tmp_path, get=breaks_on_third_page, sleep=lambda s: None,
+                  notice=notices.append)                        # log is the silent default
+    assert len(notices) == 1 and "saving the 4 record(s)" in notices[0]
+    assert "do not kill" in notices[0]
+    assert {a.id for a in load_database(tmp_path)} == {r["cve"]["id"] for r in recs[:4]}
+
+    notices.clear()
+    fetch_nvd(tmp_path, get=FakeNvd(recs), sleep=lambda s: None, notice=notices.append,
+              now=datetime(2030, 1, 1, tzinfo=timezone.utc))
+    assert notices == []
+
+
+def test_the_save_batch_option_decides_how_many_records_are_held_before_a_save(tmp_path):
+    merges = []
+    import gangmu.vuln.fetch as fetch_module
+    real = fetch_module.merge_nvd
+
+    def counting(dest, items, damaged=None):
+        merges.append(len(list(items)))
+        return real(dest, items, damaged)
+
+    fetch_module.merge_nvd = counting
+    try:
+        recs = [_cve(f"CVE-2023-{i:04d}") for i in range(1, 12)]     # pages of 2
+        fetch_nvd(tmp_path, get=FakeNvd(recs), sleep=lambda s: None, save_batch=6)
+    finally:
+        fetch_module.merge_nvd = real
+    assert merges == [6, 5]
+
+
+def test_cli_passes_the_save_batch_on_and_checks_it(tmp_path, monkeypatch, capsys):
+    seen = {}
+
+    def fake(dest, **kwargs):
+        seen.update(kwargs)
+        return 0
+
+    monkeypatch.setattr("gangmu.vuln.fetch.fetch_nvd", fake)
+    assert main(["vuln-fetch", "--db", str(tmp_path), "--all", "--no-osv",
+                 "--save-batch", "20000"]) == 0
+    assert seen["save_batch"] == 20000 and callable(seen["notice"])
+    assert main(["vuln-fetch", "--db", str(tmp_path), "--all", "--no-osv"]) == 0
+    assert seen["save_batch"] is None
+    assert main(["vuln-fetch", "--db", str(tmp_path), "--all", "--save-batch", "0"]) == 2
+    assert "1 or more" in capsys.readouterr().err
+
+
+def test_ctrl_c_ends_vuln_fetch_with_a_message_and_not_a_traceback(tmp_path, monkeypatch, capsys):
+    def interrupted(dest, **kwargs):
+        raise KeyboardInterrupt()
+
+    monkeypatch.setattr("gangmu.vuln.fetch.fetch_nvd", interrupted)
+    assert main(["vuln-fetch", "--db", str(tmp_path), "--all", "--no-osv"]) == 130
+    err = capsys.readouterr().err
+    assert "run the same command again" in err and "Traceback" not in err
