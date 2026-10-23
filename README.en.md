@@ -19,7 +19,7 @@ machine-learning models (AIBOM).
 [![CycloneDX 1.6](https://img.shields.io/badge/CycloneDX-1.6-green.svg)](https://cyclonedx.org/)
 [![SPDX 2.3](https://img.shields.io/badge/SPDX-2.3-green.svg)](https://spdx.dev/)
 
-[中文](README.md) · [Rules: gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules) · [Benchmark: gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench) · [FAQ](docs/FAQ.en.md) · [Glossary](docs/GLOSSARY.md) · [Rule format](docs/RULE-FORMAT.md) · [Benchmark](docs/BENCHMARK.md) · [CRA](docs/CRA.md) · [China](docs/CHINA.md) · [Example output](examples/output/) · [Comparison](docs/COMPARE.md) · [CBOM guide (中文)](docs/guides/cbom-post-quantum.md) · [AIBOM guide (中文)](docs/guides/aibom.md) · [Policy check (中文)](docs/guides/policy.md)
+[中文](README.md) · [Website](https://gangmu-sbom.github.io) · [Docs site](https://gangmu-sbom.github.io/gangmu/) · [Rules: gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules) · [Benchmark: gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench) · [FAQ](docs/FAQ.en.md) · [Glossary](docs/GLOSSARY.md) · [Rule format](docs/RULE-FORMAT.md) · [Benchmark](docs/BENCHMARK.md) · [CRA](docs/CRA.md) · [China](docs/CHINA.md) · [Example output](examples/output/) · [Comparison](docs/COMPARE.md) · [CBOM guide (中文)](docs/guides/cbom-post-quantum.md) · [AIBOM guide (中文)](docs/guides/aibom.md) · [Policy check (中文)](docs/guides/policy.md)
 
 The Chinese README is the primary document; this is a shorter English version.
 
@@ -254,6 +254,7 @@ Gangmu is a set of public repositories, released independently (`gangmu-sbom` an
 | **[gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench)** | The benchmark: pinned real upstream releases with their correct answers and a scoring script anyone can re-run | Apache-2.0 |
 | **[gangmu-cbom-rules](https://github.com/GANGMU-SBOM/gangmu-cbom-rules)** | CBOM rules: the algorithm table and library capability tables, loaded with `gangmu cbom --rules`; not on PyPI yet | CDLA-Permissive-2.0 (rules), Apache-2.0 (packaging code) |
 | **[gangmu-action](https://github.com/GANGMU-SBOM/gangmu-action)** | GitHub Action: SBOM, CBOM and post-quantum summary in one step, with an optional fail gate | Apache-2.0 |
+| **[gangmu-sbom.github.io](https://github.com/GANGMU-SBOM/gangmu-sbom.github.io)** | The project website's landing page ([gangmu-sbom.github.io](https://gangmu-sbom.github.io), one HTML page) linking to the [docs site](https://gangmu-sbom.github.io/gangmu/) (built from this repository's `docs/`), GitHub and PyPI | none declared |
 | **[gangmu-aibom-rules](https://github.com/GANGMU-SBOM/gangmu-aibom-rules)** | The free AIBOM rule base: the model formats and inference runtimes `gangmu aibom` recognises, as a rule pack; not on PyPI yet | CDLA-Permissive-2.0 (rules), Apache-2.0 (packaging code) |
 
 The commercial edition lives in private repositories, not in the ones above: the per-company commercial rule packs (gangmu-rules-pro; rule ids match the free base and the packs overlay automatically once installed), the compliance policy packs (gangmu-policy-pro), and licensing and enterprise services (gangmu-enterprise). See [docs/EDITIONS.md](docs/EDITIONS.md).

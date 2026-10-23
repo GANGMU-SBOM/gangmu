@@ -14,7 +14,7 @@
 [![CycloneDX 1.6](https://img.shields.io/badge/CycloneDX-1.6-green.svg)](https://cyclonedx.org/)
 [![SPDX 2.3](https://img.shields.io/badge/SPDX-2.3-green.svg)](https://spdx.dev/)
 
-[English](README.en.md) · [规则库 gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules) · [评测 gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench) · [常见问题](docs/FAQ.md) · [术语表](docs/GLOSSARY.md) · [规则格式](docs/RULE-FORMAT.md) · [评测基准](docs/BENCHMARK.md) · [CRA 对标](docs/CRA.md) · [国内合规](docs/CHINA.md) · [示例产物](examples/output/) · [与同类工具对比](docs/COMPARE.md) · [密码清单 CBOM](docs/guides/cbom-post-quantum.md) · [AI 清单 AIBOM](docs/guides/aibom.md) · [策略检查](docs/guides/policy.md)
+[English](README.en.md) · [项目网站](https://gangmu-sbom.github.io) · [文档站](https://gangmu-sbom.github.io/gangmu/) · [规则库 gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules) · [评测 gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench) · [常见问题](docs/FAQ.md) · [术语表](docs/GLOSSARY.md) · [规则格式](docs/RULE-FORMAT.md) · [评测基准](docs/BENCHMARK.md) · [CRA 对标](docs/CRA.md) · [国内合规](docs/CHINA.md) · [示例产物](examples/output/) · [与同类工具对比](docs/COMPARE.md) · [密码清单 CBOM](docs/guides/cbom-post-quantum.md) · [AI 清单 AIBOM](docs/guides/aibom.md) · [策略检查](docs/guides/policy.md)
 
 > **名称由来**：「纲目」取自李时珍《本草纲目》。那部书把近两千种药物按「纲」分部、按「目」列种，
 > 每一味都写明出处、形态与性味，后世才能辨认、比对、追溯。
@@ -405,6 +405,7 @@ ONEKEY、Finite State、Cybellum、NetRise 面向大型企业做固件二进制�
 | **[gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench)** | 评测基准：固定的真实上游版本和正确答案，加评分脚本，任何人都能复现 | Apache-2.0 |
 | **[gangmu-cbom-rules](https://github.com/GANGMU-SBOM/gangmu-cbom-rules)** | CBOM 规则：算法表和库能力表，`gangmu cbom --rules` 加载；尚未发布到 PyPI | CDLA-Permissive-2.0（规则），Apache-2.0（打包代码） |
 | **[gangmu-action](https://github.com/GANGMU-SBOM/gangmu-action)** | GitHub Action：一步出 SBOM、CBOM 和后量子迁移摘要，可按算法让 job 失败 | Apache-2.0 |
+| **[gangmu-sbom.github.io](https://github.com/GANGMU-SBOM/gangmu-sbom.github.io)** | 项目网站的着陆页（[gangmu-sbom.github.io](https://gangmu-sbom.github.io)，一页 HTML），链到[文档站](https://gangmu-sbom.github.io/gangmu/)（由本仓库的 `docs/` 生成）、GitHub 和 PyPI | 未声明 |
 | **[gangmu-aibom-rules](https://github.com/GANGMU-SBOM/gangmu-aibom-rules)** | 免费的 AIBOM 规则库：`gangmu aibom` 认的模型格式和推理库，规则包形式，尚未发布到 PyPI | CDLA-Permissive-2.0（规则），Apache-2.0（打包代码） |
 
 商业版放在私有仓库里，不在上面这些公开仓库中：按公司分包的商业版规则包（gangmu-rules-pro，规则 id 与免费库一致，装上后自动叠加）、合规策略包（gangmu-policy-pro）、授权校验与企业服务（gangmu-enterprise）。对比见 [docs/EDITIONS.md](docs/EDITIONS.md)。
