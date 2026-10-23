@@ -904,6 +904,11 @@ def build_parser() -> argparse.ArgumentParser:
                     help="NVD records asked for per request, 1 to 2000 (default 2000, or the "
                          "smaller size an earlier run on this link had to fall back to); a "
                          "poor connection does better with 200")
+    vf.add_argument("--save-batch", type=int, metavar="N",
+                    help="records gathered before the year shards are rewritten (default "
+                         "2000). Saving rewrites every shard it touches, which on a full "
+                         "NVD takes minutes, so a larger value saves less often; each held "
+                         "record takes about 15 KB of memory (20000 is about 300 MB)")
     vf.add_argument("--retries", type=int, default=5, metavar="N",
                     help="how often a failed request is tried again (default 5; 0 keeps "
                          "trying until it works, stop it with Ctrl+C; -v shows each retry)")

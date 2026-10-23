@@ -127,6 +127,7 @@ NVD_API_KEY=你的KEY gangmu vuln-fetch --db ~/.cache/gangmu/ --all
 key 在 <https://nvd.nist.gov/developers/request-an-api-key> 免费申请。有 key 的速度约是匿名的十倍。
 `--all` 的全量下载中断后，重新运行同一条命令会接着下，不用从头开始。
 网络差时可以加 `--page-size 200`（一次请求取多少条，1 到 2000）和 `--retries 0`（失败了一直重试，直到 Ctrl+C）；`-v` 会打印每页的位置和总数、每次重试的原因。
+库很大时每次存盘要重写整个库、可能要几分钟，可以用 `--save-batch 20000` 少存几次（每条记录约占 15 KB 内存，2 万条约 300 MB）；Ctrl+C 时会先把已取到的记录存下来，再退出。
 
 ## 和 esp-idf-sbom、二进制分析工具有什么区别？
 

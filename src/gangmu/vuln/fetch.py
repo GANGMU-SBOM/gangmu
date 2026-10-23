@@ -243,13 +243,18 @@ def fetch_nvd(dest: Path, get: Optional[JsonGetter] = None, products: Sequence[s
               now: Optional[datetime] = None, base_url: str = NVD_API,
               sleep: Callable[[float], None] = time.sleep,
               log: Callable[[str], None] = lambda m: None,
-              page_size: Optional[int] = None, retries: Optional[int] = 5) -> int:
+              page_size: Optional[int] = None, retries: Optional[int] = 5,
+              save_batch: Optional[int] = None,
+              notice: Callable[[str], None] = lambda m: None) -> int:
     """Fetch NVD records into *dest*; returns the count new or changed.
 
     *products* are ``part:vendor:product`` keys (what the matcher indexes). With
     none, this is a full / incremental sync of the whole NVD. *page_size* is the
     records asked for per request (default: 2000, or the size an earlier run had to shrink
     to); *retries* how often a failed request is tried again (None: until it works).
+    *save_batch* is how many records are gathered before the year shards are rewritten
+    (default 2000; each held record takes about 15 KB of memory). *notice* is told what the
+    user must not miss even without -v: that a stop is being saved first.
     """
     dest = Path(dest)
     dest.mkdir(parents=True, exist_ok=True)
@@ -281,6 +286,7 @@ def fetch_nvd(dest: Path, get: Optional[JsonGetter] = None, products: Sequence[s
         index = first
         pending: List[dict] = []
         total = 0
+        batch = save_batch or _SAVE_BATCH
 
         def fetched(next_index: int, count: int) -> None:
             nonlocal total
@@ -292,8 +298,10 @@ def fetch_nvd(dest: Path, get: Optional[JsonGetter] = None, products: Sequence[s
             nonlocal n
             if not pending:
                 return
+            began = time.monotonic()
             n += merge_nvd(dest, pending, damaged)
-            log(f"  {len(pending)} record(s) saved, next index {index}")
+            log(f"  {len(pending)} record(s) saved, next index {index}, "
+                f"took {time.monotonic() - began:.0f}s")
             pending.clear()
             if progress:
                 # The shards now hold these records; remember where to go on from.
@@ -305,10 +313,17 @@ def fetch_nvd(dest: Path, get: Optional[JsonGetter] = None, products: Sequence[s
                                   page_size=page, shrunk=shrunk, progress=fetched):
                 pending.extend(items)
                 index += len(items)
-                if len(pending) >= _SAVE_BATCH:
+                if len(pending) >= batch:
                     save()
-        finally:
+        except BaseException:
+            if pending:
+                notice(f"saving the {len(pending)} record(s) already fetched before stopping; "
+                       f"this can take several minutes on a large database, so please wait "
+                       f"and do not kill the process (Ctrl+C again gives them up; the next "
+                       f"run fetches them again)")
             save()
+            raise
+        save()
         return n
 
     def run_windows(params: Dict[str, str], start: datetime) -> int:

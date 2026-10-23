@@ -549,6 +549,10 @@ def cmd_vuln_fetch(args: argparse.Namespace) -> int:
         print(f"error: --page-size wants 1 to 2000 (NVD's limit), got {page_size}",
               file=sys.stderr)
         return 2
+    save_batch = getattr(args, "save_batch", None)
+    if save_batch is not None and save_batch < 1:
+        print(f"error: --save-batch wants 1 or more, got {save_batch}", file=sys.stderr)
+        return 2
     retries = getattr(args, "retries", 5)
     if retries < 0:
         print(f"error: --retries wants 0 or more, got {retries}", file=sys.stderr)
@@ -558,7 +562,9 @@ def cmd_vuln_fetch(args: argparse.Namespace) -> int:
         if not args.no_nvd and (products or args.all):
             nvd_new = fetch_nvd(dest, products=products if scoped else (),
                                 api_key=api_key, since=since, log=log,
-                                page_size=page_size, retries=retries or None)
+                                page_size=page_size, retries=retries or None,
+                                save_batch=save_batch,
+                                notice=lambda m: print(m, file=sys.stderr))
         osv_new = 0
         if not args.no_osv and purls:
             osv_new = fetch_osv(dest, purls, log=log)
@@ -575,6 +581,10 @@ def cmd_vuln_fetch(args: argparse.Namespace) -> int:
               f"replaced atomically, so the directory is still usable.",
               file=sys.stderr)
         return 1
+    except KeyboardInterrupt:
+        print("stopped. What was fetched is saved; run the same command again to go on "
+              "from there.", file=sys.stderr)
+        return 130
     print(f"{nvd_new} NVD record(s) new or changed, {osv_new} OSV record(s) "
           f"written under {dest}")
     if not api_key and not scoped:
