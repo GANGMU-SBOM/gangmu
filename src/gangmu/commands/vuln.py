@@ -7,7 +7,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from ..core.packs import default_roots
 from ..vuln.model import VexState
@@ -74,8 +74,12 @@ def cmd_vuln(args: argparse.Namespace) -> int:
         else:
             threat = None
 
+    records: dict = {}
     if args.patches or args.source:
-        rc = _apply_patches(args, matches)
+        records, rc = _load_patch_records(args)
+        if rc:
+            return rc
+        rc = _apply_patches(args, matches, records)
         if rc:
             return rc
 
@@ -84,7 +88,7 @@ def cmd_vuln(args: argparse.Namespace) -> int:
               "source's functions reached the image)", file=sys.stderr)
         return 2
     if args.source:
-        rc = _apply_reachability(args, matches)
+        rc = _apply_reachability(args, matches, records)
         if rc:
             return rc
 
@@ -190,18 +194,9 @@ def cmd_vuln(args: argparse.Namespace) -> int:
     return 0
 
 
-def _apply_patches(args: argparse.Namespace, matches) -> int:
-    """Test the code, not the version, for every advisory that has a patch record."""
-    from ..patchtest import (PatchError, assess, load_pack_patches, load_patches,
-                            near_names, records_for)
-    if not args.source:
-        print("error: --patches needs --source: the patch test reads the tree "
-              "that was scanned", file=sys.stderr)
-        return 2
-    root = Path(args.source)
-    if not root.is_dir():
-        print(f"error: --source {root} is not a directory", file=sys.stderr)
-        return 2
+def _load_patch_records(args: argparse.Namespace):
+    """(records, exit code): the patch records of the rule packs and ``--patches``."""
+    from ..patchtest import PatchError, load_pack_patches, load_patches
     records: dict = {}
     if not args.no_pack_patches:
         # Records the installed rule packs ship (patches/*.json): the community
@@ -213,13 +208,27 @@ def _apply_patches(args: argparse.Namespace, matches) -> int:
             records.update(load_pack_patches(roots))
         except PatchError as exc:
             print(f"error: {exc}", file=sys.stderr)
-            return 2
+            return {}, 2
     for path in args.patches or []:
         try:
             records.update(load_patches(Path(path)))
         except PatchError as exc:
             print(f"error: {exc}", file=sys.stderr)
-            return 2
+            return {}, 2
+    return records, 0
+
+
+def _apply_patches(args: argparse.Namespace, matches, records: dict) -> int:
+    """Test the code, not the version, for every advisory that has a patch record."""
+    from ..patchtest import assess, near_names, records_for
+    if not args.source:
+        print("error: --patches needs --source: the patch test reads the tree "
+              "that was scanned", file=sys.stderr)
+        return 2
+    root = Path(args.source)
+    if not root.is_dir():
+        print(f"error: --source {root} is not a directory", file=sys.stderr)
+        return 2
     if not records:
         return 0
     cache: dict = {}
@@ -328,7 +337,9 @@ def _fix_from_advisory(cve: str, db: Path):
     return "", []
 
 
-def _apply_reachability(args: argparse.Namespace, matches) -> int:
+def _apply_reachability(args: argparse.Namespace, matches,
+                        records: Optional[dict] = None) -> int:
+    from ..patchtest import records_for
     from ..reach import apply_image, assess, build_graph, load_symbols, mine_symbols
     root = Path(args.source)
     if not root.is_dir():
@@ -384,6 +395,10 @@ def _apply_reachability(args: argparse.Namespace, matches) -> int:
             if str(key).upper() in curated:
                 names, basis = curated[str(key).upper()], "curated"
                 break
+        if names is None and records:
+            record = records_for(adv.id, adv.aliases, records)
+            if record is not None and record.vulnerable_functions():
+                names, basis = record.vulnerable_functions(), "patch record"
         if names is None:
             names, basis = mine_symbols(adv.summary), "advisory text"
         match.reach = assess(graph, match.directory, names, basis, cache)

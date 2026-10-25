@@ -116,6 +116,15 @@ class PatchRecord:
     note: str = ""
     first_parent: bool = False        # a merge's net change against its first parent
 
+    def vulnerable_functions(self) -> List[str]:
+        """Names of the functions the fix changed or removed, i.e. that existed in the
+        vulnerable code (a function the fix only added has no vulnerable body)."""
+        seen: List[str] = []
+        for f in self.functions:
+            if (f.vulnerable or f.vulnerable_abstract) and f.function not in seen:
+                seen.append(f.function)
+        return seen
+
     def to_dict(self) -> dict:
         out: dict = {"functions": [f.to_dict() for f in self.functions]}
         if self.first_parent:

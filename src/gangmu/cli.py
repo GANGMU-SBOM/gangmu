@@ -799,8 +799,10 @@ def build_parser() -> argparse.ArgumentParser:
                         "but unreferenced, or reachable from the product's code")
     v.add_argument("--symbols", action="append", metavar="FILE",
                    help="JSON {\"CVE-...\": [\"function\", ...]} naming the "
-                        "vulnerable functions; without it they are guessed from "
-                        "the advisory text. Repeatable")
+                        "vulnerable functions; without it the functions a patch "
+                        "record says the fix changed are used, and without one "
+                        "of those they are guessed from the advisory text. "
+                        "Repeatable")
     v.add_argument("--config", action="append", metavar="FILE",
                    help="with --source: the build's configuration, a Kconfig answer file "
                         "(sdkconfig, .config) or a C header (mbedtls_config.h, "

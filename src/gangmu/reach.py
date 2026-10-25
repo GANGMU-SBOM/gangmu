@@ -230,7 +230,7 @@ class Reach:
     detail: str
     symbols: List[str] = field(default_factory=list)
     path: List[str] = field(default_factory=list)
-    basis: str = ""                   # "curated" | "advisory text"
+    basis: str = ""                   # "curated" | "patch record" | "advisory text"
     image: str = ""                   # linked | discarded | unknown, when an image was read
 
     def to_dict(self) -> dict:
@@ -320,7 +320,10 @@ def assess(graph: Graph, directory: str, symbols: Sequence[str],
 
     ``basis`` decides what a missing definition means: for a curated list the
     function must exist in a complete copy, so its absence is informative; for
-    names mined from advisory text it only means the guess was wrong.
+    names mined from advisory text it only means the guess was wrong; for the
+    functions a fix's patch record says were changed it may mean a pruned copy or
+    a vendor rename, so it is not trusted either (a build configuration that
+    compiles the function out still is)
     """
     if not symbols:
         return Reach("unknown", "no vulnerable function is recorded for this advisory")
@@ -348,8 +351,11 @@ def assess(graph: Graph, directory: str, symbols: Sequence[str],
                          f"{', '.join(absent[:4])} is not defined anywhere under "
                          f"{directory or '.'}: this copy does not contain it",
                          list(symbols), basis=basis)
-        return Reach("unknown", "the functions named in the advisory text are not "
-                                "defined in this component", list(symbols), basis=basis)
+        source = ("recorded for the fix" if basis == "patch record"
+                  else "named in the advisory text")
+        return Reach("unknown", f"the functions {source} are not defined in this "
+                                "component (a pruned copy, a rename, or a wrong guess)",
+                     list(symbols), basis=basis)
     hit = [s for s in present if s in parent]
     if hit:
         chain = _path(parent, hit[0])
