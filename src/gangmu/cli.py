@@ -924,6 +924,19 @@ def build_parser() -> argparse.ArgumentParser:
     vf.add_argument("--retries", type=int, default=5, metavar="N",
                     help="how often a failed request is tried again (default 5; 0 keeps "
                          "trying until it works, stop it with Ctrl+C; -v shows each retry)")
+    vf.add_argument("--build-patches", metavar="FILE",
+                    help="with --sbom: after fetching, build a patch record (the functions "
+                         "the fix changed) for each advisory this SBOM matches whose OSV "
+                         "record names the fix commit, and save them in FILE for `vuln "
+                         "--patches`. Needs git and reads the upstream repository, so it is "
+                         "online. Records already in FILE, and advisories that could not be "
+                         "recorded, are not tried again; run it again to go on")
+    vf.add_argument("--patch-limit", type=int, default=25, metavar="N",
+                    help="with --build-patches: at most N advisories per run (default 25); "
+                         "each one fetches from the upstream repository")
+    vf.add_argument("--patch-refresh", action="store_true",
+                    help="with --build-patches: build again the records FILE already has and "
+                         "the advisories it marked as not recordable")
     vf.add_argument("--threat", action="store_true",
                     help="also download CISA KEV and EPSS into <db>/threat/ "
                          "(used by `gangmu vuln` to rank findings)")

@@ -2,6 +2,9 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
+## 未发布
+* **`vuln-fetch --sbom FILE --build-patches PATCHES.json`：为 SBOM 匹配到的公告批量生成补丁记录。** 抓取完成后，对 SBOM 匹配到的每条公告，如果它的 OSV 记录写明了修复（带 `fixed` 提交的 `GIT` 范围），就从修复提交生成一条记录（改动了哪些函数，修复前后各取哈希，和 `patch-build` 相同），存给 `vuln --patches` 用。记录以 CVE 编号为键，每生成一条就存盘，下次接着上次的进度做：文件里已有的记录，以及无法记录的公告（修复没改任何 C 函数、改动大到属于重构、仓库连不上；原因记在文件里）都不会再试。`--patch-limit N`（默认 25）限制单次运行的条数，`--patch-refresh` 重新生成；刷新失败时保留原有记录。只用数据库明确写出的修复，不用从引用链接里找到的提交网址。需要 `git` 并读取上游仓库，所以属于联网步骤；单次 `git` 调用超过 300 秒现在只算该公告失败，不会拖住整批。
+
 ## 0.13.7
 * **`vuln --source`：补丁记录里修复改过的函数就是漏洞函数。** 以前可达性分析要靠 `--symbols`，或从公告文字里猜函数名。公告有补丁记录时（`--patches`，或已安装规则包的 `patches/`），改用修复改动或删除的函数（修复新增的函数没有漏洞版本，不算），结果的依据标为 `patch record`。优先级：`--symbols`、补丁记录、公告文字。记录里的函数在树里找不到时给 `unknown` 而不是 `absent`，因为可能是裁剪过的副本或厂商改了名；只有构建配置把它编译掉时才仍判 `absent`。
 * **`gangmu vuln --source --link-map FILE --elf FILE`：漏洞函数不只在源码里，还要看它在不在镜像里。** 用 `-ffunction-sections --gc-sections` 构建时，GNU ld 的 map 会逐个列出 `.text.函数名` 段是被保留还是被丢弃（含来自哪个目标文件）；链接后的 ELF 符号表则列出镜像里有的函数。漏洞函数被链接器丢弃、且没有同名副本被保留（两个静态函数重名时按目标文件区分），无论调用图怎么说，都报 `discarded`，`--reachability-vex` 会把它写成 `not_affected` / `code_not_present`；在镜像里找到的函数保留源码结论并标 `image: linked`。符号表里没有只算提示（编译器可能内联了它）。看不到的：内联进被保留代码里的副本，以及没开函数分段的构建（map 里没有信息，得 `unknown`）。目前只读 GNU ld 的 map。VEX 带 `gangmu:reachabilityImage` 属性。
