@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Collection, Dict, List, Optional, Set, Tuple
+from typing import Collection, List, Optional, Set, Tuple
 
 from .build.facts import _object_stem
 from .build.linkmap import FunctionSections, parse_function_sections
