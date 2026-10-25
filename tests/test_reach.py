@@ -109,3 +109,64 @@ def test_vex_carries_the_justification(tmp_path, capsys):
     assert vuln["analysis"]["justification"] == "code_not_reachable"
     props = {p["name"]: p["value"] for p in vuln["properties"]}
     assert props["gangmu:reachability"] == "unreachable"
+
+
+# ------------------------------------------------ patch records name the functions
+
+def _record(tmp_path, entries):
+    path = tmp_path / "patches.json"
+    path.write_text(json.dumps({"format": 1, "patches": {
+        cve: {"functions": [dict({"function": fn, "file": "lwip/core.c"}, **hashes)
+                            for fn, hashes in funcs.items()]}
+        for cve, funcs in entries.items()}}))
+    return path
+
+
+def _run_records(tmp_path, capsys, entries, *extra):
+    db = _db(tmp_path, {"CVE-2021-0001": "an overflow in the parser",
+                        "CVE-2021-0002": "a flaw in the callback table"})
+    patches = _record(tmp_path, entries)
+    assert main(["vuln", str(_sbom(tmp_path)), "--db", str(db), "--format", "json",
+                 "--source", str(_tree(tmp_path)), "--patches", str(patches),
+                 "--no-pack-patches", *extra]) == 0
+    return {m["id"]: m for m in json.loads(capsys.readouterr().out)["matches"]}
+
+
+def test_a_patch_record_names_the_vulnerable_functions(tmp_path, capsys):
+    got = _run_records(tmp_path, capsys, {
+        "CVE-2021-0001": {"vuln_parse": {"vulnerable": ["00000000000000aa"]}},
+        "CVE-2021-0002": {"vuln_cb": {"vulnerable": ["00000000000000bb"]}}})
+    first, second = got["CVE-2021-0001"]["reachability"], got["CVE-2021-0002"]["reachability"]
+    assert (first["status"], first["basis"], first["symbols"]) == \
+        ("unreachable", "patch record", ["vuln_parse"])
+    assert second["status"] == "reachable" and second["basis"] == "patch record"
+
+
+def test_a_function_the_fix_only_added_is_not_vulnerable_code(tmp_path, capsys):
+    got = _run_records(tmp_path, capsys, {
+        "CVE-2021-0001": {"vuln_parse": {"vulnerable": ["00000000000000aa"]},
+                          "brand_new_check": {"fixed": ["00000000000000cc"]}}})
+    assert got["CVE-2021-0001"]["reachability"]["symbols"] == ["vuln_parse"]
+
+
+def test_a_recorded_function_missing_from_the_tree_is_not_proof_of_absence(tmp_path, capsys):
+    got = _run_records(tmp_path, capsys, {
+        "CVE-2021-0001": {"renamed_by_vendor": {"vulnerable": ["00000000000000aa"]}}},
+        "--reachability-vex")
+    reach = got["CVE-2021-0001"]["reachability"]
+    assert reach["status"] == "unknown" and reach["basis"] == "patch record"
+    assert got["CVE-2021-0001"]["state"] == "exploitable"        # a rename is not a fix
+
+
+def test_curated_symbols_beat_a_patch_record(tmp_path, capsys):
+    sym = tmp_path / "sym.json"
+    sym.write_text(json.dumps({"CVE-2021-0001": ["vuln_cb"]}))
+    got = _run_records(tmp_path, capsys, {
+        "CVE-2021-0001": {"vuln_parse": {"vulnerable": ["00000000000000aa"]}}},
+        "--symbols", str(sym))
+    assert got["CVE-2021-0001"]["reachability"]["basis"] == "curated"
+
+
+def test_reachability_without_a_record_still_reads_the_advisory_text(tmp_path, capsys):
+    got = _run(tmp_path, capsys)
+    assert got["CVE-2021-0001"]["reachability"]["basis"] == "advisory text"
