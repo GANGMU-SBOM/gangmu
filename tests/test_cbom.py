@@ -546,3 +546,46 @@ def test_compile_flags_decide_a_branch(tmp_path):
     from gangmu.ifdef import Macros
     result = scan_cbom(tmp_path, facts, macros=Macros(assume_undefined=True))
     assert "RC4" not in _names(result)
+
+
+# ---------------------------------------------- function-level link evidence
+
+def _fn_tree(tmp_path: Path) -> Path:
+    (tmp_path / "crypto.c").write_text(
+        "int used_hash(const char *p) { return mbedtls_md5(p, 3, 0); }\n"
+        "int dead_sign(const char *p) { return mbedtls_rsa_pkcs1_sign(0) + p[0]; }\n"
+        "int main(void) { return used_hash(0); }\n")
+    return tmp_path
+
+
+def test_algorithm_in_a_discarded_function_is_not_counted(tmp_path):
+    from gangmu.image import ImageFunctions
+    from gangmu.build.linkmap import FunctionSections
+    image = ImageFunctions(sections=FunctionSections(
+        kept={"used_hash": {"crypto.c.obj"}, "main": {"crypto.c.obj"}},
+        discarded={"dead_sign": {"crypto.c.obj"}}))
+    result = scan_cbom(_fn_tree(tmp_path), image=image)
+    names = _names(result)
+    assert names["RSA"].verdict() == "not-linked"
+    assert names["MD5"].verdict() == "linked"
+    assert [a.name for a in result.counted()] == ["MD5"]
+    assert any("Function-level" in n for n in result.notes)
+    # without the image nothing is ruled out
+    assert {a.verdict() for a in scan_cbom(tmp_path).assets} == {"unverified"}
+
+
+def test_cli_link_map_drops_discarded_function(tmp_path, capsys):
+    root = _fn_tree(tmp_path)
+    (tmp_path / "fw.map").write_text(
+        "Discarded input sections\n\n .text.dead_sign\n"
+        "                0x0000000000000000       0x20 crypto.c.obj\n\n"
+        "Memory Configuration\n\nLinker script and memory map\n\n .text.used_hash\n"
+        "                0x0000000008000100       0x20 crypto.c.obj\n")
+    assert main(["cbom", str(root), "--link-map", str(tmp_path / "fw.map"),
+                 "--format", "cyclonedx", "-o", str(tmp_path / "cbom.json")]) == 0
+    doc = json.loads((tmp_path / "cbom.json").read_text())
+    linkage = {c["name"]: {p["name"]: p["value"] for p in c["properties"]}["gangmu:linkage"]
+               for c in doc["components"] if c.get("type") == "cryptographic-asset"}
+    assert linkage["MD5"] == "linked" and linkage["RSA"] == "not-linked"
+    ref = {d["ref"]: d["dependsOn"] for d in doc["dependencies"]}["firmware"]
+    assert "crypto/rsa" not in ref and "crypto/md5" in ref

@@ -31,6 +31,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 from . import __version__
 from .binaries import FIXTURE_DIRS, IMAGE_SUFFIXES, MAX_BANNER_BYTES, SKIP_DIRS
 from .build.facts import BuildFacts
+from .functions import function_ranges
 from .ifdef import Macros, mask_comments, strip_inactive
 from .core.packs import RuleRoot, check_manifest, default_roots, read_manifest
 from .core.unpack import expand
@@ -522,9 +523,35 @@ def _line_of(offsets: Sequence[int], pos: int) -> int:
     return bisect.bisect_right(offsets, pos) + 1
 
 
+def _function_states(data: bytes, rel: str, image: Any):
+    """A lookup from a byte offset to the linkage of the function it lies in, or None.
+
+    The result is ``"not-linked"`` inside a function the linker discarded, ``"linked"``
+    inside one the image has, and None where the image says nothing or the offset is
+    outside any function (a table, a macro, a declaration). Built on first use: only
+    files with a hit pay for tokenizing."""
+    ranges: List[Tuple[str, int, int]] = []
+    starts: List[int] = []
+    loaded = [False]
+    stem = Path(rel).stem
+
+    def lookup(pos: int) -> Optional[str]:
+        if not loaded[0]:
+            loaded[0] = True
+            ranges.extend(sorted(function_ranges(data), key=lambda r: r[1]))
+            starts.extend(r[1] for r in ranges)
+        i = bisect.bisect_right(starts, pos) - 1
+        if i < 0 or pos >= ranges[i][2]:
+            return None
+        verdict, _why = image.state(ranges[i][0], {stem})
+        return {"discarded": "not-linked", "linked": "linked"}.get(verdict)
+    return lookup
+
+
 def _scan_bytes(data: bytes, path: str, kind: str, state: str,
                 assets: Dict[Tuple[str, str], Asset], with_lines: bool,
-                image: bool = False, algos: AlgoSet = DEFAULT_ALGOS) -> None:
+                image: bool = False, algos: AlgoSet = DEFAULT_ALGOS,
+                state_at: Any = None) -> None:
     offsets: List[int] = []
     if with_lines:
         offsets = [m.start() for m in re.finditer(b"\n", data)]
@@ -532,7 +559,8 @@ def _scan_bytes(data: bytes, path: str, kind: str, state: str,
         for m in regex.finditer(data):
             asset = assets.setdefault((algo.key, ""), Asset(algo))
             asset.add(Occurrence(path, _line_of(offsets, m.start()) if with_lines else None,
-                                 m.group(0).decode("ascii", "replace")[:80], kind, state, image))
+                                 m.group(0).decode("ascii", "replace")[:80], kind,
+                                 (state_at(m.start()) if state_at else None) or state, image))
     if b"AES" not in data and b"aes" not in data:
         return
     for m in _AES_VARIANT.finditer(data):
@@ -541,7 +569,8 @@ def _scan_bytes(data: bytes, path: str, kind: str, state: str,
         label = f"AES-{bits}-{mode}"
         asset = assets.setdefault(("aes", label), Asset(algos.by_key["aes"], label, bits, mode))
         asset.add(Occurrence(path, _line_of(offsets, m.start()) if with_lines else None,
-                             m.group(0).decode("ascii", "replace")[:80], kind, state, image))
+                             m.group(0).decode("ascii", "replace")[:80], kind,
+                             (state_at(m.start()) if state_at else None) or state, image))
 
 
 _CONFIG_OFF = re.compile(rb"^[ \t]*CONFIG_\w+[ \t]*=[ \t]*n[ \t]*$", re.M)
@@ -601,7 +630,8 @@ def scan_cbom(root: Path, facts: Optional[BuildFacts] = None,
               include_tests: bool = False, binaries: bool = True,
               algos: AlgoSet = DEFAULT_ALGOS,
               components: Optional[Sequence[Any]] = None,
-              macros: Optional[Macros] = None) -> CbomResult:
+              macros: Optional[Macros] = None,
+              image: Any = None) -> CbomResult:
     root = Path(root).resolve()
     flags_of: Dict[Path, Sequence[str]] = {}
     if facts is not None and facts.db is not None:
@@ -640,7 +670,10 @@ def scan_cbom(root: Path, facts: Optional[BuildFacts] = None,
                     text, dead = _live_text(path.read_bytes(), kind, macros,
                                             flags_of.get(path.resolve()))
                     inactive += dead
-                    _scan_bytes(text, rel, kind, state, assets, True, algos=algos)
+                    _scan_bytes(text, rel, kind, state, assets, True, algos=algos,
+                                state_at=(_function_states(text, rel, image)
+                                          if image is not None and kind == "code"
+                                          and state != "not-linked" else None))
                     scanned += 1
                 elif binaries and suffix in BLOB_SUFFIXES and size <= MAX_BANNER_BYTES:
                     state = _blob_state(path, facts)
@@ -655,10 +688,14 @@ def scan_cbom(root: Path, facts: Optional[BuildFacts] = None,
                         images += 1
             except OSError:
                 continue
-    if facts is None:
+    if facts is None and image is None:
         notes.append("No compile database or link map was given, so this lists what the tree "
                      "contains, not what ships: every algorithm in a crypto library's source "
                      "appears. Pass --compile-db / --link-map to count only what was built.")
+    if image is not None:
+        notes.append("Function-level link evidence (--link-map / --elf) was applied: a name "
+                     "inside a function the linker discarded is not counted. A copy inlined "
+                     "into kept code is not visible to it.")
     if inactive:
         notes.append(f"{inactive} source line(s) were not read: the build configuration "
                      "(--config, --define, the compile database) rules them out.")

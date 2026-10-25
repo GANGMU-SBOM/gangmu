@@ -981,6 +981,10 @@ def build_parser() -> argparse.ArgumentParser:
     cb.add_argument("root", nargs="?", default=".")
     cb.add_argument("--compile-db", help="count only source files this build compiled")
     cb.add_argument("--link-map", help="count only what the link map kept")
+    cb.add_argument("--elf", metavar="FILE",
+                    help="the linked ELF (not stripped). With it and/or a GNU ld --link-map "
+                         "built with -ffunction-sections, an algorithm named only inside a "
+                         "function the linker discarded is not counted")
     cb.add_argument("--format", choices=["table", "cyclonedx", "readiness"], default="table",
                     help="readiness: a Markdown post-quantum migration summary")
     cb.add_argument("--output", "-o")
