@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 from ..core.packs import default_roots
+from ..vuln.match import vulnerability_key
 from ..vuln.model import VexState
 from ..vuln import (apply_linkage, candidates_from_cyclonedx, enrich as cn_enrich, load_cn_report,
                     load_database, match as match_vulns, wanted_for, summary as vex_summary,
@@ -510,6 +511,42 @@ def cmd_vuln_coverage(args: argparse.Namespace) -> int:
     return 0
 
 
+def _build_patches(args: argparse.Namespace, dest: Path, candidates: list, log) -> int:
+    """Patch records for the advisories the SBOM matches (the second online step)."""
+    from ..patchfetch import build_missing, fix_sources
+    from ..patchtest import PatchError, load_patches, load_skipped
+    out = Path(args.build_patches)
+    records: dict = {}
+    if out.exists():
+        try:
+            records = load_patches(out)
+        except PatchError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+    skipped = load_skipped(out)
+    advisories = load_database(dest, wanted_for(candidates))
+    matches = match_vulns(candidates, advisories)
+    sources = fix_sources(matches, advisories)
+    no_fix = len({vulnerability_key(m.advisory) for m in matches}) - len(sources)
+    try:
+        result = build_missing(sources, out, records, skipped, args.patch_limit,
+                               refresh=args.patch_refresh,
+                               log=lambda m: print(m, file=sys.stderr))
+    except KeyboardInterrupt:
+        print(f"stopped. The records built so far are saved in {out}; run the same "
+              "command again to go on.", file=sys.stderr)
+        return 130
+    for key, why in sorted(result.skipped.items()):
+        log(f"{key}: no record: {why}")
+    print(f"patch records: {len(result.built)} built, {len(result.skipped)} could not be "
+          f"recorded, {result.already} already in {out}, {result.deferred} left for the "
+          f"next run (--patch-limit {args.patch_limit}); {max(no_fix, 0)} matched "
+          "advisor(ies) name no fix commit")
+    for key, why in sorted(result.skipped.items())[:5]:
+        print(f"  {key}: {why}", file=sys.stderr)
+    return 0
+
+
 def cmd_vuln_fetch(args: argparse.Namespace) -> int:
     """Fill (or refresh) a local advisory directory; the one online step."""
     from datetime import datetime, timezone
@@ -519,13 +556,19 @@ def cmd_vuln_fetch(args: argparse.Namespace) -> int:
            else (lambda m: None))
     products: list = list(args.product or [])
     purls: list = list(args.purl or [])
+    if getattr(args, "build_patches", None) and not args.sbom:
+        print("error: --build-patches needs --sbom: records are built for the advisories "
+              "that SBOM matches", file=sys.stderr)
+        return 2
+    candidates: list = []
     if args.sbom:
         try:
             bom = json.loads(Path(args.sbom).read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             print(f"error: cannot read SBOM {args.sbom}: {exc}", file=sys.stderr)
             return 2
-        wanted = wanted_for(candidates_from_cyclonedx(bom))
+        candidates = candidates_from_cyclonedx(bom)
+        wanted = wanted_for(candidates)
         products += sorted(wanted.cpe_keys)
         purls += sorted(wanted.purl_keys)
     scoped = bool(products or purls)
@@ -596,6 +639,10 @@ def cmd_vuln_fetch(args: argparse.Namespace) -> int:
         return 130
     print(f"{nvd_new} NVD record(s) new or changed, {osv_new} OSV record(s) "
           f"written under {dest}")
+    if getattr(args, "build_patches", None):
+        rc = _build_patches(args, dest, candidates, log)
+        if rc:
+            return rc
     if not api_key and not scoped:
         print("note: no NVD API key; a full download is paced at 5 requests per "
               "30 s. Set NVD_API_KEY to go roughly ten times faster.",
