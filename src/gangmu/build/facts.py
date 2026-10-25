@@ -43,6 +43,7 @@ class BuildFacts:
     have_link_map: bool = False
     linked_archives: Set[str] = field(default_factory=set)   # archive paths the link map names
     link_map_stem: str = ""          # fw.map -> "fw": the build's own product is fw.elf / fw.bin
+    db: Optional[CompileDB] = None   # the compile database the facts came from
 
     def sources_under(self, directory: Path) -> Set[Path]:
         directory = directory.resolve()
@@ -82,6 +83,7 @@ def collect_build_facts(root: Path, compile_db: Optional[Path] = None,
 
     if db is None and compile_db is not None:
         db = load_compile_db(compile_db)
+    facts.db = db
     if db is not None:
         facts.compiled = {s for s in db.sources if _is_under(s, root)}
 

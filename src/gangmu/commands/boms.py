@@ -16,7 +16,7 @@ from ..cbom import (CbomRuleError, cbom_roots, cbom_table, failing, load_algo_ro
 from ..core.packs import RulePackError
 from ..scan import scan
 
-from .common import (_load_rulebase, _write)
+from .common import (_build_macros, _load_rulebase, _write)
 
 
 def _identified_components(root: Path, facts) -> list:
@@ -51,8 +51,10 @@ def cmd_cbom(args: argparse.Namespace) -> int:
     except (CbomRuleError, RulePackError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+    macros = _build_macros(args, root)
     result = scan_cbom(root, facts, include_tests=args.include_tests,
-                       binaries=not args.no_binaries, algos=algos, components=components)
+                       binaries=not args.no_binaries, algos=algos, components=components,
+                       macros=macros)
     if args.format == "table":
         _write(cbom_table(result), args.output)
     elif args.format == "readiness":

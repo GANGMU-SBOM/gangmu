@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import sys
@@ -163,3 +164,30 @@ def _load_json(path, what: str):
     except (OSError, json.JSONDecodeError) as exc:
         print(f"warning: cannot read {what} {path}: {exc}", file=sys.stderr)
         return None
+
+
+def _build_macros(args: argparse.Namespace, root: Path):
+    """The configuration to evaluate ``#if`` with, or None when none was given."""
+    from ..build.kconfig import find_kconfig, read_kconfig
+    from ..ifdef import Macros, collect_tree_defines, find_config_headers
+    paths = [Path(p) for p in (args.config or [])]
+    headers = [p for p in paths if p.suffix in (".h", ".hpp", ".hh")]
+    paths = [p for p in paths if p not in headers]
+    if not args.config:
+        found = find_kconfig(root)
+        paths = [found] if found else []
+        headers = find_config_headers(root)
+    defines = list(args.define or [])
+    if not (paths or headers or defines or args.assume_undefined_off):
+        return None
+    macros = Macros(assume_undefined=args.assume_undefined_off)
+    for path in paths:
+        try:
+            macros.add_kconfig(read_kconfig(path).values)
+        except OSError as exc:
+            print(f"warning: cannot read --config {path}: {exc}", file=sys.stderr)
+    for item in defines:
+        name, _, text = item.partition("=")
+        macros.define(name, text if "=" in item else "1")
+    collect_tree_defines(root, macros, headers)
+    return macros

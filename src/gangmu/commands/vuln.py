@@ -15,7 +15,7 @@ from ..vuln import (apply_linkage, candidates_from_cyclonedx, enrich as cn_enric
                     load_database, match as match_vulns, wanted_for, summary as vex_summary,
                     to_vex, unmatched_components, without_cpe)
 
-from .common import (_resolve_jobs, _write)
+from .common import (_build_macros, _resolve_jobs, _write)
 
 
 def cmd_vuln(args: argparse.Namespace) -> int:
@@ -79,6 +79,10 @@ def cmd_vuln(args: argparse.Namespace) -> int:
         if rc:
             return rc
 
+    if (args.link_map or args.elf) and not args.source:
+        print("error: --link-map and --elf on `vuln` need --source (they say which of the "
+              "source's functions reached the image)", file=sys.stderr)
+        return 2
     if args.source:
         rc = _apply_reachability(args, matches)
         if rc:
@@ -324,35 +328,8 @@ def _fix_from_advisory(cve: str, db: Path):
     return "", []
 
 
-def _build_macros(args: argparse.Namespace, root: Path):
-    """The configuration to evaluate ``#if`` with, or None when none was given."""
-    from ..build.kconfig import find_kconfig, read_kconfig
-    from ..ifdef import Macros, collect_tree_defines, find_config_headers
-    paths = [Path(p) for p in (args.config or [])]
-    headers = [p for p in paths if p.suffix in (".h", ".hpp", ".hh")]
-    paths = [p for p in paths if p not in headers]
-    if not args.config:
-        found = find_kconfig(root)
-        paths = [found] if found else []
-        headers = find_config_headers(root)
-    defines = list(args.define or [])
-    if not (paths or headers or defines or args.assume_undefined_off):
-        return None
-    macros = Macros(assume_undefined=args.assume_undefined_off)
-    for path in paths:
-        try:
-            macros.add_kconfig(read_kconfig(path).values)
-        except OSError as exc:
-            print(f"warning: cannot read --config {path}: {exc}", file=sys.stderr)
-    for item in defines:
-        name, _, text = item.partition("=")
-        macros.define(name, text if "=" in item else "1")
-    collect_tree_defines(root, macros, headers)
-    return macros
-
-
 def _apply_reachability(args: argparse.Namespace, matches) -> int:
-    from ..reach import assess, build_graph, load_symbols, mine_symbols
+    from ..reach import apply_image, assess, build_graph, load_symbols, mine_symbols
     root = Path(args.source)
     if not root.is_dir():
         print(f"error: --source {root} is not a directory", file=sys.stderr)
@@ -374,6 +351,19 @@ def _apply_reachability(args: argparse.Namespace, matches) -> int:
             print(f"error: cannot read --compile-db {args.compile_db}: {exc}",
                   file=sys.stderr)
             return 2
+    image = None
+    if args.link_map or args.elf:
+        from ..image import load_image
+        try:
+            image = load_image(Path(args.link_map) if args.link_map else None,
+                               Path(args.elf) if args.elf else None)
+        except OSError as exc:
+            print(f"error: cannot read the image: {exc}", file=sys.stderr)
+            return 2
+        for note in image.notes:
+            print(f"image: {note}", file=sys.stderr)
+        if not image.informative():
+            image = None
     graph = build_graph(root, macros, db)
     if db is not None and not graph.compile_db_used:
         print("reachability: --compile-db names none of the files under --source; "
@@ -397,9 +387,13 @@ def _apply_reachability(args: argparse.Namespace, matches) -> int:
         if names is None:
             names, basis = mine_symbols(adv.summary), "advisory text"
         match.reach = assess(graph, match.directory, names, basis, cache)
+        if image is not None:
+            apply_image(match.reach, image, graph, match.directory)
         tally[match.reach.status] = tally.get(match.reach.status, 0) + 1
         if args.reachability_vex and match.state.value in ("in_triage", "exploitable"):
             if match.reach.status == "absent":
+                match.state, match.justification = VexState.NOT_AFFECTED, "code_not_present"
+            elif match.reach.status == "discarded":
                 match.state, match.justification = VexState.NOT_AFFECTED, "code_not_present"
             elif match.reach.status == "unreachable":
                 match.state, match.justification = VexState.NOT_AFFECTED, "code_not_reachable"

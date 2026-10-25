@@ -823,11 +823,21 @@ def build_parser() -> argparse.ArgumentParser:
                         "product's config header is named with --config (Mbed "
                         "TLS mbedtls_config.h); wrong when the toolchain "
                         "defines it")
+    v.add_argument("--link-map", metavar="FILE",
+                   help="with --source: the GNU ld map of the real build. Built with "
+                        "-ffunction-sections, it says per function whether the linker "
+                        "kept or discarded it; a vulnerable function it discarded is "
+                        "reported `discarded` (not in the image)")
+    v.add_argument("--elf", metavar="FILE",
+                   help="with --source: the linked ELF (not stripped). A function "
+                        "symbol of the vulnerable function's name shows it is in the "
+                        "image; without one, the symbol table is a hint only")
     v.add_argument("--reachability-vex", action="store_true",
-                   help="with --source: mark findings whose function is absent or "
-                        "unreferenced not_affected (code_not_present / "
-                        "code_not_reachable). Off by default: a source-level "
-                        "call graph cannot see binary blobs or assembly")
+                   help="with --source: mark findings whose function is absent, "
+                        "discarded by the linker or unreferenced not_affected "
+                        "(code_not_present / code_not_reachable). Off by default: a "
+                        "source-level call graph cannot see binary blobs or assembly, "
+                        "and a map cannot see a copy inlined into kept code")
     v.add_argument("--patches", action="append", metavar="FILE",
                    help="patch records (from `gangmu patch-build`); with --source, "
                         "tests whether each advisory's fix is in the code: the "
@@ -984,6 +994,18 @@ def build_parser() -> argparse.ArgumentParser:
                     help="a rule pack directory whose algorithms/*.yaml add to or replace the "
                          "built-in algorithm table (default: installed packs of kind 'cbom'); "
                          "repeatable")
+    cb.add_argument("--config", action="append", metavar="FILE",
+                    help="the build's configuration, a Kconfig answer file (sdkconfig, .config) "
+                         "or a C header (mbedtls_config.h, sdkconfig.h). Branches it rules out "
+                         "are not read. Default: the sdkconfig/.config and sdkconfig.h/"
+                         "autoconf.h found under the tree. Repeatable")
+    cb.add_argument("--define", "-D", action="append", metavar="NAME[=VALUE]",
+                    help="a macro the build defines on its command line; repeatable")
+    cb.add_argument("--assume-undefined-off", action="store_true",
+                    help="treat a macro that nothing in the tree, --config or --define "
+                         "mentions as off. Right when the product's config header is named "
+                         "with --config (Mbed TLS mbedtls_config.h); wrong when the "
+                         "toolchain defines it")
     cb.add_argument("--libraries", action="store_true",
                     help="also run the SBOM scan and add the algorithms that the identified "
                          "libraries' capability tables list (needs a cbom rule pack with "

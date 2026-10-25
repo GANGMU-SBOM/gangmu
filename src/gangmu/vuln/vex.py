@@ -97,6 +97,9 @@ def _vulnerability(match: Match, bom: Optional[dict]) -> Dict[str, Any]:
                            "value": match.reach.detail})
         properties.append({"name": "gangmu:reachabilityBasis",
                            "value": match.reach.basis or "none"})
+        if getattr(match.reach, "image", ""):
+            properties.append({"name": "gangmu:reachabilityImage",
+                               "value": match.reach.image})
     if match.patch is not None:
         properties.append({"name": "gangmu:patchPresence", "value": match.patch.status})
         properties.append({"name": "gangmu:patchPresenceDetail",

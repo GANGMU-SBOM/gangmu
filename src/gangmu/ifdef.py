@@ -398,6 +398,31 @@ def strip_inactive(data: bytes, macros: Macros) -> Tuple[bytes, int]:
     return b"\n".join(lines), len(dead)
 
 
+_COMMENT_OR_LITERAL = re.compile(
+    rb'"(?:\\.|[^"\\\n])*"|\'(?:\\.|[^\'\\\n])*\'|/\*.*?\*/|//[^\n]*', re.S)
+_UNDEF_LINE = re.compile(rb"^[ \t]*#[ \t]*undef\b[^\n]*", re.M)
+
+
+def mask_comments(data: bytes) -> bytes:
+    """``data`` with C comments and ``#undef`` lines blanked (newlines kept, so line
+    numbers stay), string and character literals left alone.
+
+    A name inside a comment (``//#define MBEDTLS_DES_C``, ``/* uses RC4 */``) is not
+    something the build has, and a ``#undef`` line names a feature only to turn it off.
+    A literal such as ``"AES-128-GCM"`` is real data and stays."""
+    if b"/" not in data and b"undef" not in data:
+        return data
+
+    def blank(m: "re.Match[bytes]") -> bytes:
+        text = m.group(0)
+        if text[:1] in (b'"', b"'"):
+            return text
+        return re.sub(rb"[^\n]", b" ", text)
+
+    data = _COMMENT_OR_LITERAL.sub(blank, data)
+    return _UNDEF_LINE.sub(lambda m: b" " * len(m.group(0)), data)
+
+
 # -------------------------------------------------- defines found in the tree
 
 _SKIP = {".git", ".svn", "node_modules", "__pycache__"}

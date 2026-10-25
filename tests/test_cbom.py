@@ -478,3 +478,71 @@ def test_readiness_report_clean_tree(tmp_path, capsys):
     text = capsys.readouterr().out
     assert "No quantum-vulnerable algorithm found" in text
     assert "## Migrate" not in text
+
+
+# ------------------------------------------------ comments and configuration
+
+def _config_tree(tmp_path: Path) -> Path:
+    (tmp_path / "include").mkdir()
+    (tmp_path / "include" / "mbedtls_config.h").write_text(
+        "//#define MBEDTLS_DES_C\n"
+        "/* #define MBEDTLS_ARC4_C */\n"
+        "#undef MBEDTLS_MD5_C\n"
+        "#define MBEDTLS_AES_C\n")
+    (tmp_path / "main.c").write_text(
+        '#include "mbedtls_config.h"\n'
+        "#if defined(MBEDTLS_DES_C)\n"
+        "void f(void) { mbedtls_des_init(0); }\n"
+        "#endif\n"
+        'const char *suite = "AES-256-GCM"; // not RC4 any more\n'
+        "int main(void) { return 0; }\n")
+    return tmp_path
+
+
+def test_names_in_comments_and_undef_are_not_algorithms(tmp_path):
+    names = _names(scan_cbom(_config_tree(tmp_path)))
+    assert "RC4" not in names and "MD5" not in names       # comment, #undef
+    assert "AES-256-GCM" in names                          # a string literal stays
+    assert names["AES-256-GCM"].occurrences[0].line == 5   # line numbers survive the masking
+    assert "DES/3DES" in names                             # no configuration: the branch stays
+
+
+def test_configuration_rules_out_a_branch(tmp_path):
+    from gangmu.ifdef import Macros, collect_tree_defines
+    root = _config_tree(tmp_path)
+    macros = Macros(assume_undefined=True)
+    collect_tree_defines(root, macros, [root / "include" / "mbedtls_config.h"])
+    result = scan_cbom(root, macros=macros)
+    assert "DES/3DES" not in _names(result)
+    assert result.inactive_lines >= 1
+    assert any("not read" in n for n in result.notes)
+
+
+def test_cli_config_flag(tmp_path, capsys):
+    root = _config_tree(tmp_path)
+    assert main(["cbom", str(root), "--config", str(root / "include" / "mbedtls_config.h"),
+                 "--assume-undefined-off"]) == 0
+    out = capsys.readouterr().out
+    assert "DES/3DES" not in out and "AES" in out
+
+
+def test_kconfig_off_lines_are_not_algorithms(tmp_path):
+    (tmp_path / "sdkconfig").write_text(
+        "# CONFIG_MBEDTLS_DES_C is not set\n"
+        "CONFIG_MBEDTLS_ARC4_C=n\n"
+        "CONFIG_MBEDTLS_AES_C=y\n")
+    names = _names(scan_cbom(tmp_path))
+    assert "DES/3DES" not in names and "RC4" not in names
+    assert "AES" in names
+
+
+def test_compile_flags_decide_a_branch(tmp_path):
+    from gangmu.build.facts import collect_build_facts
+    (tmp_path / "a.c").write_text(
+        "#ifdef USE_RC4\nvoid f(void){ RC4_set_key(0,0,0); }\n#endif\nint main(void){return 0;}\n")
+    (tmp_path / "compile_commands.json").write_text(json.dumps([{
+        "directory": str(tmp_path), "command": "cc -DUSE_AES -c a.c -o a.o", "file": "a.c"}]))
+    facts = collect_build_facts(tmp_path, tmp_path / "compile_commands.json")
+    from gangmu.ifdef import Macros
+    result = scan_cbom(tmp_path, facts, macros=Macros(assume_undefined=True))
+    assert "RC4" not in _names(result)
