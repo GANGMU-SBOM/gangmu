@@ -16,7 +16,7 @@ from ..cbom import (CbomRuleError, cbom_roots, cbom_table, failing, load_algo_ro
 from ..core.packs import RulePackError
 from ..scan import scan
 
-from .common import (_load_rulebase, _write)
+from .common import (_build_macros, _load_rulebase, _write)
 
 
 def _identified_components(root: Path, facts) -> list:
@@ -38,11 +38,13 @@ def cmd_cbom(args: argparse.Namespace) -> int:
         print(f"error: {args.root} is not a directory", file=sys.stderr)
         return 2
     facts = None
-    if args.compile_db or args.link_map:
-        facts = collect_build_facts(root,
-                                    Path(args.compile_db) if args.compile_db else None,
+    if args.compile_db:
+        facts = collect_build_facts(root, Path(args.compile_db),
                                     Path(args.link_map) if args.link_map else None)
         print(f"build facts: {facts.summary()}", file=sys.stderr)
+    elif args.link_map:
+        print("note: a link map joins to sources through a compile database; without "
+              "--compile-db it is used only for function-level evidence", file=sys.stderr)
     components = None
     if args.libraries:
         components = _identified_components(root, facts)
@@ -51,8 +53,23 @@ def cmd_cbom(args: argparse.Namespace) -> int:
     except (CbomRuleError, RulePackError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+    macros = _build_macros(args, root)
+    image = None
+    if args.link_map or args.elf:
+        from ..image import load_image
+        try:
+            image = load_image(Path(args.link_map) if args.link_map else None,
+                               Path(args.elf) if args.elf else None)
+        except OSError as exc:
+            print(f"error: cannot read the image: {exc}", file=sys.stderr)
+            return 2
+        for note in image.notes:
+            print(f"image: {note}", file=sys.stderr)
+        if not image.informative():
+            image = None
     result = scan_cbom(root, facts, include_tests=args.include_tests,
-                       binaries=not args.no_binaries, algos=algos, components=components)
+                       binaries=not args.no_binaries, algos=algos, components=components,
+                       macros=macros, image=image)
     if args.format == "table":
         _write(cbom_table(result), args.output)
     elif args.format == "readiness":

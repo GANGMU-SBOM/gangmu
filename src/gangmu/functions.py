@@ -39,7 +39,7 @@ import hashlib
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
-from .normalize import tokenize
+from .normalize import tokenize, tokenize_spans
 
 # Keywords that can precede a parenthesised group and a brace without being a
 # function definition.
@@ -223,6 +223,13 @@ def extract_functions(data: bytes, tokens: Optional[List[bytes]] = None,
                                 span=(start, end)))
         i = end
     return out
+
+
+def function_ranges(data: bytes) -> List[Tuple[str, int, int]]:
+    """(name, first byte, last byte + 1) of each function definition in ``data``."""
+    toks, starts, ends = tokenize_spans(data)
+    return [(f.name, starts[f.span[0]], ends[f.span[1] - 1])
+            for f in extract_functions(data, toks, min_tokens=1)]
 
 
 def function_hashes(data: bytes) -> Set[int]:

@@ -20,7 +20,7 @@ time on a 300-file tree.
 from __future__ import annotations
 
 import re
-from typing import List
+from typing import List, Tuple
 
 _TOKEN = re.compile(
     rb"""
@@ -74,6 +74,25 @@ def tokenize(data: bytes) -> List[bytes]:
             tok = _strip_numeric_suffix(tok)            # a numeric literal
         append(tok)
     return tokens
+
+
+def tokenize_spans(data: bytes) -> Tuple[List[bytes], List[int], List[int]]:
+    """``tokenize`` plus where each token starts and ends in ``data``."""
+    tokens: List[bytes] = []
+    starts: List[int] = []
+    ends: List[int] = []
+    for m in _TOKEN_PLAIN.finditer(data):
+        tok = m.group(0)
+        first = tok[0]
+        if first == _SLASH and len(tok) > 1 and tok[1] in (_STAR, _SLASH):
+            continue
+        if (48 <= first <= 57 or (first == _DOT and len(tok) > 1)) \
+                and tok[-1] in _NUM_SUFFIX:
+            tok = _strip_numeric_suffix(tok)
+        tokens.append(tok)
+        starts.append(m.start())
+        ends.append(m.end())
+    return tokens, starts, ends
 
 
 def strip_c_comments(data: bytes) -> bytes:

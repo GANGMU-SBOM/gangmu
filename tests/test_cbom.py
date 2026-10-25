@@ -478,3 +478,114 @@ def test_readiness_report_clean_tree(tmp_path, capsys):
     text = capsys.readouterr().out
     assert "No quantum-vulnerable algorithm found" in text
     assert "## Migrate" not in text
+
+
+# ------------------------------------------------ comments and configuration
+
+def _config_tree(tmp_path: Path) -> Path:
+    (tmp_path / "include").mkdir()
+    (tmp_path / "include" / "mbedtls_config.h").write_text(
+        "//#define MBEDTLS_DES_C\n"
+        "/* #define MBEDTLS_ARC4_C */\n"
+        "#undef MBEDTLS_MD5_C\n"
+        "#define MBEDTLS_AES_C\n")
+    (tmp_path / "main.c").write_text(
+        '#include "mbedtls_config.h"\n'
+        "#if defined(MBEDTLS_DES_C)\n"
+        "void f(void) { mbedtls_des_init(0); }\n"
+        "#endif\n"
+        'const char *suite = "AES-256-GCM"; // not RC4 any more\n'
+        "int main(void) { return 0; }\n")
+    return tmp_path
+
+
+def test_names_in_comments_and_undef_are_not_algorithms(tmp_path):
+    names = _names(scan_cbom(_config_tree(tmp_path)))
+    assert "RC4" not in names and "MD5" not in names       # comment, #undef
+    assert "AES-256-GCM" in names                          # a string literal stays
+    assert names["AES-256-GCM"].occurrences[0].line == 5   # line numbers survive the masking
+    assert "DES/3DES" in names                             # no configuration: the branch stays
+
+
+def test_configuration_rules_out_a_branch(tmp_path):
+    from gangmu.ifdef import Macros, collect_tree_defines
+    root = _config_tree(tmp_path)
+    macros = Macros(assume_undefined=True)
+    collect_tree_defines(root, macros, [root / "include" / "mbedtls_config.h"])
+    result = scan_cbom(root, macros=macros)
+    assert "DES/3DES" not in _names(result)
+    assert result.inactive_lines >= 1
+    assert any("not read" in n for n in result.notes)
+
+
+def test_cli_config_flag(tmp_path, capsys):
+    root = _config_tree(tmp_path)
+    assert main(["cbom", str(root), "--config", str(root / "include" / "mbedtls_config.h"),
+                 "--assume-undefined-off"]) == 0
+    out = capsys.readouterr().out
+    assert "DES/3DES" not in out and "AES" in out
+
+
+def test_kconfig_off_lines_are_not_algorithms(tmp_path):
+    (tmp_path / "sdkconfig").write_text(
+        "# CONFIG_MBEDTLS_DES_C is not set\n"
+        "CONFIG_MBEDTLS_ARC4_C=n\n"
+        "CONFIG_MBEDTLS_AES_C=y\n")
+    names = _names(scan_cbom(tmp_path))
+    assert "DES/3DES" not in names and "RC4" not in names
+    assert "AES" in names
+
+
+def test_compile_flags_decide_a_branch(tmp_path):
+    from gangmu.build.facts import collect_build_facts
+    (tmp_path / "a.c").write_text(
+        "#ifdef USE_RC4\nvoid f(void){ RC4_set_key(0,0,0); }\n#endif\nint main(void){return 0;}\n")
+    (tmp_path / "compile_commands.json").write_text(json.dumps([{
+        "directory": str(tmp_path), "command": "cc -DUSE_AES -c a.c -o a.o", "file": "a.c"}]))
+    facts = collect_build_facts(tmp_path, tmp_path / "compile_commands.json")
+    from gangmu.ifdef import Macros
+    result = scan_cbom(tmp_path, facts, macros=Macros(assume_undefined=True))
+    assert "RC4" not in _names(result)
+
+
+# ---------------------------------------------- function-level link evidence
+
+def _fn_tree(tmp_path: Path) -> Path:
+    (tmp_path / "crypto.c").write_text(
+        "int used_hash(const char *p) { return mbedtls_md5(p, 3, 0); }\n"
+        "int dead_sign(const char *p) { return mbedtls_rsa_pkcs1_sign(0) + p[0]; }\n"
+        "int main(void) { return used_hash(0); }\n")
+    return tmp_path
+
+
+def test_algorithm_in_a_discarded_function_is_not_counted(tmp_path):
+    from gangmu.image import ImageFunctions
+    from gangmu.build.linkmap import FunctionSections
+    image = ImageFunctions(sections=FunctionSections(
+        kept={"used_hash": {"crypto.c.obj"}, "main": {"crypto.c.obj"}},
+        discarded={"dead_sign": {"crypto.c.obj"}}))
+    result = scan_cbom(_fn_tree(tmp_path), image=image)
+    names = _names(result)
+    assert names["RSA"].verdict() == "not-linked"
+    assert names["MD5"].verdict() == "linked"
+    assert [a.name for a in result.counted()] == ["MD5"]
+    assert any("Function-level" in n for n in result.notes)
+    # without the image nothing is ruled out
+    assert {a.verdict() for a in scan_cbom(tmp_path).assets} == {"unverified"}
+
+
+def test_cli_link_map_drops_discarded_function(tmp_path, capsys):
+    root = _fn_tree(tmp_path)
+    (tmp_path / "fw.map").write_text(
+        "Discarded input sections\n\n .text.dead_sign\n"
+        "                0x0000000000000000       0x20 crypto.c.obj\n\n"
+        "Memory Configuration\n\nLinker script and memory map\n\n .text.used_hash\n"
+        "                0x0000000008000100       0x20 crypto.c.obj\n")
+    assert main(["cbom", str(root), "--link-map", str(tmp_path / "fw.map"),
+                 "--format", "cyclonedx", "-o", str(tmp_path / "cbom.json")]) == 0
+    doc = json.loads((tmp_path / "cbom.json").read_text())
+    linkage = {c["name"]: {p["name"]: p["value"] for p in c["properties"]}["gangmu:linkage"]
+               for c in doc["components"] if c.get("type") == "cryptographic-asset"}
+    assert linkage["MD5"] == "linked" and linkage["RSA"] == "not-linked"
+    ref = {d["ref"]: d["dependsOn"] for d in doc["dependencies"]}["firmware"]
+    assert "crypto/rsa" not in ref and "crypto/md5" in ref

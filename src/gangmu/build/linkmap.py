@@ -21,7 +21,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Set, Tuple
+from typing import Dict, Optional, Set, Tuple
 
 _ARCHIVE_MEMBER = re.compile(r"(?P<archive>[^\s()]+\.a)\((?P<member>[^\s()]+\.ob?j?)\)")
 _BARE_OBJECT = re.compile(r"(?<![\w(])(?P<obj>[^\s()]+\.ob?j?)(?![\w)])")
@@ -354,4 +354,74 @@ def _parse_gnu(path: Path) -> LinkMap:
     out.objects = set(objects)
     kept |= objects
     out.discarded_only = discarded - kept
+    return out
+
+
+# --------------------------------------------------- function-level sections
+
+_FUNCTION_SECTION = re.compile(
+    r"^\.(?:text|iram\d*|flash\.text|ramfunc|itcm\w*)\."
+    r"(?:(?:unlikely|hot|startup|exit)\.)?(?:\d+\.)?(?P<name>[A-Za-z_]\w*)$")
+_SECTION_ALONE = re.compile(r"^ (?P<sec>\.\S+)\s*$")
+_SECTION_FULL = re.compile(
+    r"^ (?P<sec>\.\S+)\s+0x[0-9a-fA-F]+\s+0x(?P<size>[0-9a-fA-F]+)\s+(?P<file>\S.*?)\s*$")
+_SECTION_CONTINUED = re.compile(
+    r"^\s+0x[0-9a-fA-F]+\s+0x(?P<size>[0-9a-fA-F]+)\s+(?P<file>\S.*?)\s*$")
+
+
+@dataclass
+class FunctionSections:
+    """Which functions the linker kept and dropped, by object, from ``-ffunction-sections``.
+
+    With one section per function (``.text.NAME``) a GNU ld map says, per function, whether
+    it reached the image (``Linker script and memory map``) or was thrown away by
+    ``--gc-sections`` (``Discarded input sections``). Values are object basenames. Both
+    are empty when the build did not use function sections, which says nothing."""
+    kept: Dict[str, Set[str]] = field(default_factory=dict)
+    discarded: Dict[str, Set[str]] = field(default_factory=dict)
+
+    def __bool__(self) -> bool:
+        return bool(self.kept or self.discarded)
+
+
+def parse_function_sections(path: Path) -> FunctionSections:
+    """Function-level kept and discarded sections of a GNU ld map (lld's layout differs and
+    is not read; the other formats give no per-function sections here)."""
+    out = FunctionSections()
+    state = ""                         # "discard" | "map" | ""
+    pending = ""
+    with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            if _DISCARD_START.match(line):
+                state, pending = "discard", ""
+                continue
+            if _SECTION_BREAK.match(line):
+                state = "map" if _GNU_MAP_START.match(line) else ""
+                pending = ""
+                continue
+            if not state:
+                continue
+            section = size = file = ""
+            m = _SECTION_FULL.match(line)
+            if m:
+                section, size, file = m.group("sec"), m.group("size"), m.group("file")
+                pending = ""
+            else:
+                m = _SECTION_ALONE.match(line)
+                if m:
+                    pending = m.group("sec")
+                    continue
+                m = _SECTION_CONTINUED.match(line)
+                if m and pending:
+                    section, size, file = pending, m.group("size"), m.group("file")
+                pending = ""
+            if not section or int(size, 16) == 0 or file.startswith("*"):
+                continue
+            f = _FUNCTION_SECTION.match(section)
+            if not f:
+                continue
+            member = _ARCHIVE_MEMBER.search(file)
+            obj = Path(member.group("member")).name if member else Path(file.split()[0]).name
+            target = out.discarded if state == "discard" else out.kept
+            target.setdefault(f.group("name"), set()).add(obj)
     return out
