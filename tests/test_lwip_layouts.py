@@ -8,6 +8,7 @@ not as code shared between components.
 """
 
 
+from gangmu.core.globbing import matches
 from gangmu.match import MatchEngine
 from gangmu.rules.loader import load_rules
 
@@ -33,6 +34,8 @@ def test_flat_layout_has_its_own_paths_and_the_same_probe_result():
     rules = {r.id: r for r in load_rules(REPO_RULES)}
     flat = rules["generic/lwip-flat"]
     assert flat.source.subdir == "src"
-    assert "src/**/*.c" not in flat.include
-    assert "core/**/*.c" in flat.include
+    # Its paths start below src/: core/ and include/ sit in the component directory.
+    assert not any(p.startswith("src/") for p in flat.include)
+    assert matches("core/init.c", flat.include)
+    assert matches("include/lwip/init.h", flat.include)
     assert [p.file for p in flat.probes] == ["include/lwip/init.h"]
