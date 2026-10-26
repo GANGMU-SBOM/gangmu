@@ -46,7 +46,7 @@ removing 81.47% of the false positives that single-version mapping creates.
 | containment of application code | yes | CENTRIS's Φ, with the version's own function set as the denominator |
 | multi-version function bins | yes | a 64-bit version bitmap per function, stored in a binary sidecar |
 | adaptive version range (TIVER) | yes | versions scored by **Jaccard over version-discriminating functions**, not raw coverage — coverage alone cannot separate a release from its successor, because the successor contains everything the release did |
-| code segmentation (CENTRIS) | **simplified** | the direction of borrowing cannot be read off signatures alone, so a function appearing in more than one rule is application code for **none** of them. Weaker than CENTRIS, costs some recall, but it cannot invent a dependency that is not there |
+| code segmentation (CENTRIS) | **partly directional** | a function appearing in more than one rule is application code for **none** of them, except where the signatures show one rule bundling another: nearly all (80%) of one release of B, of at least 40 functions and at least half B's largest release, is inside A, and that is under 10% of A. Then the shared functions are borrowed by A and stay B's own, so zlib, expat or lmdb keep their identity in every project that carries a copy, and a copy of them is reported inside that project. Forks (OpenSSL and Tongsuo), a library split out of another (Mbed TLS and Mbed Crypto) and code many rules share stay nobody's. It cannot invent a dependency the signatures do not show |
 | abstraction levels (VUDDY, MOVERY) | yes | two levels: exact bodies, and bodies with identifiers collapsed. An abstract-only match scores lower, because abstraction discards real evidence |
 | binary analysis (BinCoFer, LibDB, LibAM) | partly | per-function fingerprints of the strings and constants recovered from machine code (`fprint.py`, `rules binary-prints`); no call-graph areas; see [BINARY-VALIDATION.md](BINARY-VALIDATION.md) |
 
@@ -113,9 +113,11 @@ noise:
 1. ~~**Patch presence, not just version.**~~ Done; see the next section.
 2. ~~**Fuzzy function matching for edited functions.**~~ Done for patch presence
    (see Patch presence); measured and not worth it for identification.
-3. **Weight by sharing, and break ties by age.** Replace "in more than one rule
-   means none" with an inverse-frequency weight, and prefer the earliest-born
-   project among rules that tie.
+3. ~~**Weight by sharing**~~ for bundled copies: done, as the direction above. Still
+   open: **break ties by age** between lineage siblings. zlib and zlib-ng share
+   zlib's core, so that code is nobody's and a modified zlib copy is still found
+   only by its anchor files; preferring the earliest-born project among rules that
+   tie would settle it.
 
 ## Patch presence
 
