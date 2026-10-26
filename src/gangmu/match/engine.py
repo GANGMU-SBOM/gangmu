@@ -27,6 +27,7 @@ comes from similarity alone.
 from __future__ import annotations
 
 import operator
+from collections import Counter
 from dataclasses import dataclass, field, replace
 from itertools import chain, compress, islice
 from pathlib import Path, PurePosixPath
@@ -784,7 +785,7 @@ class MatchEngine:
         share = len(matched) / len(present)
         if share < SUBSET_MIN_SHARE:
             return None
-        verdict = infer_version_subset(signature, matched)
+        verdict = infer_version_subset(signature, _without_borrowed(signature, present))
         if not verdict.best:
             return None
         evidence.append(Evidence(
@@ -819,7 +820,7 @@ class MatchEngine:
         share = len(matched) / len(present)
         if share < DERIVATIVE_MIN_SHARE:
             return None
-        verdict = infer_version_subset(signature, matched)
+        verdict = infer_version_subset(signature, _without_borrowed(signature, present))
         evidence.append(Evidence(
             technique=Technique.AST_FINGERPRINT,
             confidence=DERIVATIVE_IDENTITY,
@@ -970,27 +971,31 @@ def _bundled_keep(contributors, shared: set, abstract_shared: set):
     for i, (exact, _, _) in enumerate(contributors):
         for h in shared.intersection(exact):
             owners.setdefault(h, []).append(i)
-    pair: Dict[Tuple[int, int], int] = {}
-    for held in owners.values():
+    pair: Dict[Tuple[int, int], List[int]] = {}       # (a, b) -> the hashes they share
+    for h, held in owners.items():
         if len(held) > BUNDLE_MAX_OWNERS:
             continue
         for a in held:
             for b in held:
                 if a != b:
-                    pair[(a, b)] = pair.get((a, b), 0) + 1
+                    pair.setdefault((a, b), []).append(h)
 
     bundles: set = set()      # (host, bundled)
-    for (a, b), n in pair.items():
-        host = contributors[a][0]
-        if n > BUNDLE_HOST_SHARE * len(host):
+    for (a, b), common in pair.items():
+        # Fewer shared functions than the smallest release that can prove bundling would
+        # need: no release of B can be inside A. Most pairs end here, cheaply.
+        if len(common) < BUNDLED_SHARE * BUNDLED_MIN_FUNCTIONS:
+            continue
+        if len(common) > BUNDLE_HOST_SHARE * len(contributors[a][0]):
             continue
         for sig in contributors[b][2]:
-            releases = [sig.version_hashes(v) for v in range(len(sig.versions))]
-            floor = max(BUNDLED_MIN_FUNCTIONS,
-                        BUNDLED_MIN_OF_LARGEST * max((len(r) for r in releases), default=0))
-            if any(len(release) >= floor
-                   and len(release.intersection(host)) >= BUNDLED_SHARE * len(release)
-                   for release in releases):
+            sizes = _release_sizes(sig)
+            floor = max(BUNDLED_MIN_FUNCTIONS, BUNDLED_MIN_OF_LARGEST * max(sizes, default=0))
+            if len(common) < BUNDLED_SHARE * floor:
+                continue        # not even a release of the smallest size that counts fits
+            inside = _release_counts(sig, common)
+            if any(size >= floor and inside[v] >= BUNDLED_SHARE * size
+                   for v, size in enumerate(sizes)):
                 bundles.add((a, b))
                 break
     if not bundles:
@@ -1004,21 +1009,67 @@ def _bundled_keep(contributors, shared: set, abstract_shared: set):
                 return x
         return None
 
+    # Only a bundled contributor can keep anything, so only its hashes are looked at.
+    bundled = {b for _, b in bundles}
     keep_exact: Dict[int, set] = {}
-    for h, held in owners.items():
-        x = keepers(held)
-        if x is not None:
-            keep_exact.setdefault(x, set()).add(h)
-    keep_abstract: Dict[int, set] = {}
+    for b in bundled:
+        for h in shared.intersection(contributors[b][0]):
+            if keepers(owners[h]) == b:
+                keep_exact.setdefault(b, set()).add(h)
+    candidates: set = set()
+    for b in bundled:
+        candidates |= abstract_shared.intersection(contributors[b][1])
     abstract_owners: Dict[int, List[int]] = {}
-    for i, (_, abstract, _) in enumerate(contributors):
-        for h in abstract_shared.intersection(abstract):
-            abstract_owners.setdefault(h, []).append(i)
+    if candidates:
+        for i, (_, abstract, _) in enumerate(contributors):
+            for h in candidates.intersection(abstract):
+                abstract_owners.setdefault(h, []).append(i)
+    keep_abstract: Dict[int, set] = {}
     for h, held in abstract_owners.items():
         x = keepers(held)
         if x is not None:
             keep_abstract.setdefault(x, set()).add(h)
     return keep_exact, keep_abstract
+
+
+def _without_borrowed(signature, present):
+    """*present* minus the functions segmentation marked as another rule's. What is left
+    still counts the directory's own, unrecorded functions (a vendor's additions)."""
+    borrowed = signature.hash_set - signature.application_hashes
+    return present - borrowed if borrowed else present
+
+
+def _release_counts(sig, hashes: Sequence[int]) -> List[int]:
+    """How many of *hashes* each recorded release of *sig* holds, read off the bitmaps."""
+    counts = [0] * len(sig.versions)
+    index, bitmaps = sig.index, sig.bitmaps
+    for h in hashes:
+        i = index.get(h)
+        if i is None:
+            continue
+        bits = bitmaps[i]
+        while bits:
+            low = bits & -bits
+            counts[low.bit_length() - 1] += 1
+            bits ^= low
+    return counts
+
+
+def _release_sizes(sig) -> List[int]:
+    """Functions per recorded release, without building one set per release.
+
+    A function unchanged over a run of releases shares its bitmap with every other such
+    function, so a signature has far fewer distinct bitmaps than functions: those are
+    counted first (in C), and only they are taken apart bit by bit."""
+    def build() -> List[int]:
+        sizes = [0] * len(sig.versions)
+        for bits, n in Counter(sig.bitmaps).items():
+            while bits:
+                low = bits & -bits
+                sizes[low.bit_length() - 1] += n
+                bits ^= low
+        return sizes
+    return sig._memo("release-sizes", build)
 
 
 def _repeated(values) -> set:
