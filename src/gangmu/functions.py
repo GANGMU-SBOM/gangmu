@@ -64,7 +64,7 @@ _DECL_PUNCT = frozenset((b"*", b"[", b"]", b",", b";", b"&", b"const", b"volatil
 # stay. A vendor that renames symbols -- prefixing a whole library with its own
 # vendor tag is routine -- defeats exact function hashing entirely: renaming a
 # tenth of the identifiers was measured to drop exact containment from 1.00 to
-# 0.48, because almost every function touches at least one renamed name. The
+# 0.44, because almost every function touches at least one renamed name. The
 # literature's answer (VUDDY's abstraction levels, MOVERY) is to hash the same
 # body more than once at decreasing specificity and take the most specific match
 # available. An abstract match is weaker evidence and is scored as such.

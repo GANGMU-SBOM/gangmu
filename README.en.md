@@ -73,7 +73,7 @@ All reproducible with the tools in this repository; see
 | Separating "vendor fork" from "different release" | whole-tree similarity gap **0.06**; function level **0.25** |
 | Version accuracy on real lwIP releases | **6/6 exact**, including Espressif's production fork |
 | Synthetic vendor modifications | **9/9 identified, 9/9 correct version** |
-| 10% of identifiers renamed | exact hashing 0.480 → abstract level **0.876** |
+| 10% of identifiers renamed | exact hashing 0.441 → abstract level **0.797** |
 | NTIA 2021 / CISA 2026 minimum elements | **10.0 / 10** both |
 | Whole ESP-IDF v5.4.2 (10,767 sources; free rule base, 223 rules) | single process: cold 50.1 s / 375 MB, warm cache 17.5 s (the inventory of prebuilt libraries and firmware images went from 17.7 s to 3.6 s; 13.4 s warm with `--no-binaries`). 0.6 measured 11.0 s, but with a different pipeline and rule set; see [PERFORMANCE.md](docs/PERFORMANCE.md) |
 | 16x more rules (223 → 3,568, synthetic SDK, 0.13.3) | scan time grows about 3.4x: 7.3 s → 24.9 s |

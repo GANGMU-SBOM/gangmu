@@ -34,6 +34,9 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from ..dirprint import DEFAULT_EXCLUDE, DEFAULT_INCLUDE, print_directory
+from ..functions import _C_KEYWORDS
+from ..match.engine import RENAMED_MARGIN
+from ..rules.schema import DEFAULT_FUNCTION_THRESHOLDS
 
 _IDENT = re.compile(rb"\b([a-z_][a-z0-9_]{5,})\b")
 
@@ -75,6 +78,10 @@ def mutate_tree(source: Path, dest: Path, mutation: Mutation,
         names: set = set()
         for path in files:
             names.update(m.group(1) for m in _IDENT.finditer(path.read_bytes()))
+        # A vendor renames functions, types and macros, never the language: renaming
+        # `return` or `struct` breaks the code and changes the identifier-abstracted
+        # hash, which keeps keywords, so it measured a failure no vendor causes.
+        names -= _C_KEYWORDS
         chosen = set(rng.sample(sorted(names),
                                 int(len(names) * mutation.rename_ratio))) \
             if mutation.rename_ratio > 0 else set()
@@ -131,13 +138,10 @@ def evaluate_versions(signature, trees: Sequence[Tuple[str, Path, str]],
                       include: Sequence[str] = DEFAULT_INCLUDE,
                       exclude: Sequence[str] = DEFAULT_EXCLUDE,
                       jobs: int = 1) -> List[VersionResult]:
-    from ..fnsig import infer_version
-
     out: List[VersionResult] = []
     for label, path, truth in trees:
         dirprint = print_directory(path, include, exclude, jobs=jobs)
-        verdict = infer_version(signature, dirprint.functions)
-        containment, _, _ = _containment(signature, dirprint, verdict.best_index)
+        verdict, containment, _, _, _ = _measure(signature, dirprint)
         reported = verdict.label
         exact = verdict.best == truth
         in_range = bool(reported and truth and (
@@ -148,6 +152,29 @@ def evaluate_versions(signature, trees: Sequence[Tuple[str, Path, str]],
             in_range=in_range, containment=containment,
             multi_version=verdict.multi_version, detail=verdict.detail))
     return out
+
+
+def _measure(signature, dirprint):
+    """(verdict, effective, exact, abstract, abstraction used), by the engine's own rule:
+    the abstracted bodies are used, for containment and for the version, only when the
+    exact ones fall short of a strong match and the abstracted ones cover clearly more."""
+    from ..fnsig import infer_version
+
+    verdict = infer_version(signature, dirprint.functions)
+    _, exact, _ = _containment(signature, dirprint, verdict.best_index)
+    abstract, used = 0.0, False
+    if signature.abstract_hashes:
+        abstract_verdict = infer_version(signature.abstract_view(), dirprint.abstract_functions)
+        at = (abstract_verdict.best_index if abstract_verdict.best_index >= 0
+              else verdict.best_index)
+        own_abs = signature.version_abstract_hashes(at) if at >= 0 else set()
+        if own_abs:
+            abstract = len(dirprint.abstract_functions & own_abs) / len(own_abs)
+        if exact < DEFAULT_FUNCTION_THRESHOLDS["strong"] and abstract >= exact + RENAMED_MARGIN:
+            used = True
+            if abstract_verdict.best:
+                verdict = abstract_verdict
+    return verdict, (abstract if used else exact), exact, abstract, used
 
 
 def _containment(signature, dirprint, best_index: int) -> Tuple[float, float, float]:
@@ -177,8 +204,6 @@ def run_mutation_eval(signature, pristine: Path, truth: str, workdir: Path,
                       exclude: Sequence[str] = DEFAULT_EXCLUDE,
                       floor: float = 0.20, jobs: int = 1,
                       seed: int = 1234) -> List[MutationResult]:
-    from ..fnsig import infer_version
-
     workdir = Path(workdir)
     workdir.mkdir(parents=True, exist_ok=True)
     results: List[MutationResult] = []
@@ -186,14 +211,12 @@ def run_mutation_eval(signature, pristine: Path, truth: str, workdir: Path,
         target = workdir / re.sub(r"[^A-Za-z0-9._-]+", "_", label)
         stats = mutate_tree(pristine, target, mutation, seed=seed)
         dirprint = print_directory(target, include, exclude, jobs=jobs)
-        verdict = infer_version(signature, dirprint.functions)
-        containment, exact, abstract = _containment(signature, dirprint,
-                                                    verdict.best_index)
+        verdict, containment, exact, abstract, used = _measure(signature, dirprint)
         results.append(MutationResult(
             label=label, mutation=mutation, identified=containment >= floor,
             containment=containment, version=verdict.label,
             version_ok=verdict.best == truth, stats=stats,
             exact_containment=exact, abstract_containment=abstract,
-            used_abstraction=abstract > exact))
+            used_abstraction=used))
         shutil.rmtree(target, ignore_errors=True)
     return results
