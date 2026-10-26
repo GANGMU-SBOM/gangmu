@@ -169,15 +169,19 @@ Mutation robustness, same harness as section 2, signature alone:
 
 | tree | pristine | rename 10% | rename 50% | delete 50% of files | vendor-like | identified | version right |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| GmSSL 2.5.4 | 1.000 | 0.851 | 0.786 | 0.495 | **0.092, no** | 8/9 | 9/9 |
+| GmSSL 2.5.4 | 1.000 | 0.987 | 0.966 | 0.477 | 0.732 | 9/9 | 9/9 |
 | Tongsuo 8.3.3 | 1.000 | 0.989 | 0.539 | 0.549 | 0.694 | 9/9 | 8/9 |
 | Tongsuo 8.5.0 (unchanged) | 1.000 | 0.943 | 0.592 | 0.528 | 0.530 | 9/9 | 9/9 |
-| GmSSL 3.2.0 (unchanged) | 1.000 | 0.985 | 0.720 | 0.609 | **0.123, no** | 8/9 | 9/9 |
+| GmSSL 3.2.0 (unchanged) | 1.000 | 0.986 | 0.933 | 0.609 | 0.825 | 9/9 | 9/9 |
 
-The vendor-like combination (rename 15%, delete 25%, add 20%, reformat) is not
-identified for either GmSSL generation. That is not new: the untouched 3.2.0
-signature fails it the same way, so it comes from GmSSL's few large files, not
-from the added versions.
+The two GmSSL rows were re-measured after a fault in the harness was fixed (the
+Tongsuo rows were not): its rename step also renamed C keywords six letters or
+longer (`return`, `struct`, `static`, `sizeof`, `switch`, `unsigned`), which no
+vendor does, and which changes the identifier-abstracted hash because that hash
+keeps keywords. Measured that way the vendor-like combination came out 0.092 and
+0.123 and "not identified"; that was the harness, not GmSSL's few large files, as
+this paragraph used to say. With only names renamed both generations are
+identified under all nine mutations.
 
 The existing disguise example (`examples/disguise.sh`) still reports GmSSL 3.0.0
 at 0.88. Its evidence line moved from 1375 of 1604 functions (0.857) to 1280 of
@@ -684,20 +688,25 @@ FreeType and giflib are exact against the vendor's own statement; Opus and OpenA
 The methodology the CENTRIS and V1SCAN papers use, applied to this tool. A
 pristine lwIP 2.2.0 tree is mutated at a controlled rate, seeded so the run
 reproduces. "exact" is the containment of exact function bodies; "abstract" is
-the same with identifiers collapsed; the tool uses the better of the two and
-scores an abstract-only match lower.
+the same with identifiers collapsed; the tool uses the abstracted bodies, for the
+match and for the version, when the exact ones fall short of a strong match and
+the abstracted ones cover at least 0.05 more, and scores that match lower. The
+rename step renames names only, never C keywords (an earlier version of the
+harness renamed `return`, `struct` and the like too, which no vendor does; the
+table was re-measured after that was fixed, and renames that used to be spent on
+keywords now all land on real names, so the 10% row is lower than it was).
 
 | mutation | exact | abstract | used | identified | version |
 | --- | --- | --- | --- | --- | --- |
 | pristine | 1.000 | 1.000 | 1.000 | yes | 2.2.0 |
 | reformat (CRLF, tabs) | 0.997 | 0.997 | 0.997 | yes | 2.2.0 |
-| rename 10% of identifiers | 0.480 | **0.876** | 0.876 | yes | 2.2.0~2.2.1 |
-| rename 25% | 0.187 | **0.734** | 0.734 | yes | 2.2.0~2.2.1 |
-| rename 50% | 0.058 | **0.636** | 0.636 | yes | 2.2.0~2.2.1 |
+| rename 10% of identifiers | 0.441 | **0.797** | 0.797 | yes | 2.2.0~2.2.1 |
+| rename 25% | 0.128 | **0.712** | 0.712 | yes | 2.2.0~2.2.1 |
+| rename 50% | 0.040 | **0.621** | 0.621 | yes | 2.2.0~2.2.1 |
 | delete 20% of files | 0.848 | 0.847 | 0.848 | yes | 2.2.0 |
 | delete 50% of files | 0.507 | 0.501 | 0.507 | yes | 2.2.0 |
 | add 30% vendor code | 1.000 | 1.000 | 1.000 | yes | 2.2.0 |
-| **vendor-like**: rename 15%, delete 25%, add 20%, reformat | 0.211 | **0.590** | 0.590 | yes | 2.2.0~2.2.1 |
+| **vendor-like**: rename 15%, delete 25%, add 20%, reformat | 0.243 | **0.622** | 0.622 | yes | 2.2.0~2.2.1 |
 
 **Identified under 9/9 mutations; version correct 9/9.**
 
@@ -709,9 +718,15 @@ Three things are worth reading off that table:
 * **Deleting half the files still identifies** (0.507). A port layer that keeps
   only the drivers it needs does not become unrecognisable.
 * **Renaming is what exact hashing cannot survive**, and the second abstraction
-  level is what fixes it: 0.480 → 0.876 at a 10% rename rate. Without it the
-  realistic vendor-like combination falls to 0.211 and would be reported as a
+  level is what fixes it: 0.441 → 0.797 at a 10% rename rate. Without it the
+  realistic vendor-like combination falls to 0.243 and would be reported as a
   weak, review-needed match rather than a confident one.
+* **The version survives renaming too.** It is read from the abstracted bodies
+  once the match is: 2.2.0 and 2.2.1 differ only in names, so the range is the
+  pair, which is also what an untouched 2.2.1 tree gives. On Mbed TLS 3.6.2 with
+  its version header removed, renaming 25% widened the range read from the exact
+  bodies to 3.6.0~3.6.7 (and once, at 50%, to 3.5.0~3.6.7); from the abstracted
+  bodies it stays 3.6.1~3.6.3, the same as the untouched tree, in every seed tried.
 
 ## 3. SBOM quality against the published standards
 

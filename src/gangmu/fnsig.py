@@ -253,6 +253,23 @@ class FunctionSignature:
             self._derived.clear()
         return len(self._abstract_borrowed) - before
 
+    def abstract_view(self) -> "FunctionSignature":
+        """The same releases seen through the identifier-abstracted hashes.
+
+        For version inference on a copy whose symbols were renamed: its exact
+        bodies no longer match, so the discriminating functions that vote are too
+        few and the range widens, while the abstracted bodies still say which
+        release each function comes from. Abstract hashes the segmentation marked
+        as borrowed from another rule are not application code here either."""
+        def build() -> "FunctionSignature":
+            borrowed = self._abstract_borrowed
+            return FunctionSignature(
+                versions=list(self.versions), hashes=self.abstract_hashes,
+                bitmaps=self.abstract_bitmaps,
+                flags=[0 if h in borrowed else FLAG_APPLICATION
+                       for h in self.abstract_hashes])
+        return self._memo("abstract-view", build)
+
     def discriminating(self) -> FrozenSet[int]:
         """Functions that do not appear in every recorded version.
 

@@ -27,7 +27,7 @@ comes from similarity alone.
 from __future__ import annotations
 
 import operator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from itertools import chain, compress, islice
 from pathlib import Path, PurePosixPath
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -55,6 +55,12 @@ VERSION_CONFIDENCE = {
 
 # A partial copy (``functions.subset``) is accepted when at least this many of its
 # functions are the component's and at least this share of its functions are.
+# How much more of a release the identifier-abstracted bodies must cover before the
+# copy is taken as renamed. The two measures have different denominators (bodies
+# that differ only in names collapse to one abstract hash), so on an untouched copy
+# the abstract one can come out a hair higher; a real rename moves it by tenths.
+RENAMED_MARGIN = 0.05
+
 SUBSET_MIN_FUNCTIONS = 40
 # Identity given to a weak resemblance that also defines the component's version.
 PROBE_CORROBORATED = 0.75
@@ -645,22 +651,41 @@ class MatchEngine:
 
         # A vendor who renames symbols -- prefixing a whole library with their
         # own tag is routine -- defeats exact hashing: renaming a tenth of the
-        # identifiers was measured to take containment from 1.00 to 0.48. Fall
+        # identifiers was measured to take containment from 1.00 to 0.44. Fall
         # back to the abstracted bodies, which survive renaming, and score the
         # result lower because abstraction also discards real evidence.
         abstracted = False
         bands = spec.thresholds
         if containment < bands["strong"] and signature.abstract_hashes:
-            own_abs = (signature.version_abstract_hashes(verdict.best_index)
-                       if verdict.best_index >= 0 else set())
-            if own_abs:
-                abstract_present = candidate.abstract_functions
-                abstract_containment = len(abstract_present & own_abs) / len(own_abs)
-                if abstract_containment > containment:
+            abstract_present = candidate.abstract_functions
+
+            def abstract_share(index: int):
+                hashes = signature.version_abstract_hashes(index) if index >= 0 else set()
+                return (len(abstract_present & hashes) / len(hashes) if hashes else 0.0,
+                        hashes)
+
+            # A cheap test first, against the release the exact bodies point to (or
+            # the newest, when they point to none): most directories that fall short
+            # of a strong match were not renamed, and only a renamed one pays for
+            # reading the version a second time.
+            gate = (verdict.best_index if verdict.best_index >= 0
+                    else len(signature.versions) - 1)
+            if abstract_share(gate)[0] >= containment + RENAMED_MARGIN:
+                # The version is read from the abstracted bodies too: with names
+                # changed, few exact bodies are left to vote and the range widens.
+                abstract_verdict = infer_version(signature.abstract_view(), abstract_present)
+                at = abstract_verdict.best_index if abstract_verdict.best_index >= 0 else gate
+                abstract_containment, own_abs = abstract_share(at)
+                if abstract_containment >= containment + RENAMED_MARGIN:
                     containment = abstract_containment
                     matched = len(abstract_present & own_abs)
                     own = own_abs
                     abstracted = True
+                    if abstract_verdict.best:
+                        verdict = replace(
+                            abstract_verdict,
+                            detail="over identifier-abstracted bodies: "
+                                   + abstract_verdict.detail)
 
         if spec.subset and containment < bands["strong"]:
             # Not all of the release is here. For a partial copy, containment
