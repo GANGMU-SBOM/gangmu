@@ -262,12 +262,21 @@ class MatchEngine:
         detecting B in a firmware would also "detect" A. CENTRIS removes such
         borrowed code from A's signature before matching.
 
-        The direction of borrowing cannot be read off the signatures alone, so
-        this takes the conservative symmetric form: **a function that appears in
-        more than one rule is application code for none of them.** That is
-        weaker than CENTRIS -- it also discards genuinely shared algorithmic
-        code, costing a little recall -- but it cannot invent a dependency that
-        is not there, and a false component in an SBOM is the costlier error.
+        The default is the conservative symmetric form: **a function that appears
+        in more than one rule is application code for none of them.** It cannot
+        invent a dependency that is not there, and a false component in an SBOM
+        is the costlier error. But applied alone it strips a library that many
+        projects bundle of its own identity: zlib, CMSIS-Core, littlefs and expat
+        kept a few per cent of their functions or none, so a modified copy of
+        them could only be found by anchor files, never by its code.
+
+        So the one direction the signatures do show is taken: when B is bundled
+        in A -- nearly all of one B release is inside A (``BUNDLED_SHARE``) and
+        that is a small part of A (``BUNDLE_HOST_SHARE``) -- the shared functions
+        are borrowed by A and stay B's own. A function stays B's only when every
+        other rule holding it bundles B; anything else (forks such as OpenSSL
+        and Tongsuo, a library split out of another such as Mbed TLS and Mbed
+        Crypto, generic code many rules happen to share) is still nobody's.
         """
         if self._segmented:
             return 0
@@ -288,32 +297,45 @@ class MatchEngine:
             key = rule.functions.sha256
             if key not in seen:
                 seen.add(key)
-                counted.append((rule.functions.family, signature))
+                counted.append((rule.functions.family, signature, key))
         # Rules of one family (sibling ports of a code base) count as one
         # contributor: what they share is the family's own code.
         families: dict = {}
-        contributors = []     # (exact hashes, abstract hashes) per contributor
-        for family, sig in counted:
+        contributors = []     # (exact hashes, abstract hashes, signatures) per contributor
+        sidecars = []         # the sidecar digests each contributor stands for
+        for family, sig, key in counted:
             if not family:
-                contributors.append((sig.hashes, set(sig.abstract_hashes)))
+                contributors.append((sig.hashes, set(sig.abstract_hashes), [sig]))
+                sidecars.append([key])
                 continue
-            exact, abstract = families.setdefault(family, (set(), set()))
+            if family not in families:
+                families[family] = len(contributors)
+                contributors.append((set(), set(), []))
+                sidecars.append([])
+            exact, abstract, members = contributors[families[family]]
             exact.update(sig.hashes)
             abstract.update(sig.abstract_hashes)
-        contributors.extend(families.values())
+            members.append(sig)
+            sidecars[families[family]].append(key)
         # A signature's hashes are distinct within it, so "in more than one
         # rule" is "repeated in the concatenation". Sorting one flat list and
         # comparing neighbours needs a fraction of the memory a counting dict
         # does, which matters once the rule base runs to hundreds of rules.
-        shared = _repeated(chain.from_iterable(exact for exact, _ in contributors))
+        shared = _repeated(chain.from_iterable(exact for exact, _, _ in contributors))
         abstract_shared = _repeated(chain.from_iterable(
-            abstract for _, abstract in contributors))
+            abstract for _, abstract, _ in contributors))
+        keep_exact, keep_abstract = _bundled_keep(contributors, shared, abstract_shared)
+        owner = {key: i for i, keys in enumerate(sidecars) for key in keys}
         marked = 0
-        for _, signature in specs:
+        for rule, signature in specs:
+            i = owner.get(rule.functions.sha256)
             if shared:
-                marked += signature.segment(shared)
+                kept = keep_exact.get(i) if i is not None else None
+                marked += signature.segment(shared - kept if kept else shared)
             if abstract_shared:
-                marked += signature.segment_abstract(abstract_shared)
+                kept = keep_abstract.get(i) if i is not None else None
+                marked += signature.segment_abstract(
+                    abstract_shared - kept if kept else abstract_shared)
         return marked
 
     def identify_directory(self, root: Path, directory: Path) -> List[Finding]:
@@ -750,14 +772,19 @@ class MatchEngine:
         the component. It is asserted only for rules that opt in, and only when
         enough functions are involved for a coincidence to be implausible and
         nearly all of the directory's own functions are the component's.
+
+        Only the component's own code counts, as for containment: functions the
+        segmentation found it shares with another rule (OP-TEE's bundled Mbed TLS)
+        say nothing about this component, or a copy of the other one's headers
+        reads as a partial copy of this one.
         """
-        matched = present & signature.hash_set
+        matched = present & signature.application_hashes
         if len(matched) < subset_min:
             return None
         share = len(matched) / len(present)
         if share < SUBSET_MIN_SHARE:
             return None
-        verdict = infer_version_subset(signature, present)
+        verdict = infer_version_subset(signature, matched)
         if not verdict.best:
             return None
         evidence.append(Evidence(
@@ -783,15 +810,16 @@ class MatchEngine:
         coincidence. Reported as a modified derivative: weak identity, no version
         (the identical functions come from several releases and the rest are the
         vendor's), so the advisory matcher can only report this product's
-        advisories as ``in_triage``, never as exploitable.
+        advisories as ``in_triage``, never as exploitable. Borrowed code does not
+        count, as in ``_by_subset``.
         """
-        matched = present & signature.hash_set
+        matched = present & signature.application_hashes
         if len(matched) < DERIVATIVE_MIN_FUNCTIONS:
             return None
         share = len(matched) / len(present)
         if share < DERIVATIVE_MIN_SHARE:
             return None
-        verdict = infer_version_subset(signature, present)
+        verdict = infer_version_subset(signature, matched)
         evidence.append(Evidence(
             technique=Technique.AST_FINGERPRINT,
             confidence=DERIVATIVE_IDENTITY,
@@ -915,6 +943,82 @@ def _unique_glob(directory: Path, tail: str, depth: int, deep: bool = False) -> 
         if found and not deep:
             break
     return found[0] if len(found) == 1 else None
+
+
+# B is bundled in A when nearly all of one B release is inside A ...
+BUNDLED_SHARE = 0.80
+# ... and that is a small part of A. Mbed Crypto is 18% of Mbed TLS and Tongsuo far more
+# of OpenSSL: lineage, not a bundled copy; zlib is under 5% of any project carrying it.
+BUNDLE_HOST_SHARE = 0.10
+# A function more rules than this share is generic code, not one project's copy of another.
+BUNDLE_MAX_OWNERS = 16
+# A recorded release smaller than this proves no bundling: the 5 to 60 functions some rules
+# record for an early release fit inside an unrelated project by way of a shared helper.
+BUNDLED_MIN_FUNCTIONS = 40
+# ... nor does one far smaller than the rule's largest: a signature that recorded little of a
+# release (Tasmota 15.x: 53 functions, against 974 for 9.4.0) holds mostly some third library,
+# and two projects that bundle that library would look as if one bundled the other.
+BUNDLED_MIN_OF_LARGEST = 0.5
+
+
+def _bundled_keep(contributors, shared: set, abstract_shared: set):
+    """{contributor: hashes it keeps as its own} for the bundled side of each bundle.
+
+    A contributor keeps a shared hash only when every other contributor holding it
+    bundles that contributor; see ``MatchEngine.segment_rule_base``."""
+    owners: Dict[int, List[int]] = {}
+    for i, (exact, _, _) in enumerate(contributors):
+        for h in shared.intersection(exact):
+            owners.setdefault(h, []).append(i)
+    pair: Dict[Tuple[int, int], int] = {}
+    for held in owners.values():
+        if len(held) > BUNDLE_MAX_OWNERS:
+            continue
+        for a in held:
+            for b in held:
+                if a != b:
+                    pair[(a, b)] = pair.get((a, b), 0) + 1
+
+    bundles: set = set()      # (host, bundled)
+    for (a, b), n in pair.items():
+        host = contributors[a][0]
+        if n > BUNDLE_HOST_SHARE * len(host):
+            continue
+        for sig in contributors[b][2]:
+            releases = [sig.version_hashes(v) for v in range(len(sig.versions))]
+            floor = max(BUNDLED_MIN_FUNCTIONS,
+                        BUNDLED_MIN_OF_LARGEST * max((len(r) for r in releases), default=0))
+            if any(len(release) >= floor
+                   and len(release.intersection(host)) >= BUNDLED_SHARE * len(release)
+                   for release in releases):
+                bundles.add((a, b))
+                break
+    if not bundles:
+        return {}, {}
+
+    def keepers(held: Sequence[int]) -> Optional[int]:
+        if len(held) > BUNDLE_MAX_OWNERS:
+            return None
+        for x in held:
+            if all((y, x) in bundles for y in held if y != x):
+                return x
+        return None
+
+    keep_exact: Dict[int, set] = {}
+    for h, held in owners.items():
+        x = keepers(held)
+        if x is not None:
+            keep_exact.setdefault(x, set()).add(h)
+    keep_abstract: Dict[int, set] = {}
+    abstract_owners: Dict[int, List[int]] = {}
+    for i, (_, abstract, _) in enumerate(contributors):
+        for h in abstract_shared.intersection(abstract):
+            abstract_owners.setdefault(h, []).append(i)
+    for h, held in abstract_owners.items():
+        x = keepers(held)
+        if x is not None:
+            keep_abstract.setdefault(x, set()).add(h)
+    return keep_exact, keep_abstract
 
 
 def _repeated(values) -> set:
