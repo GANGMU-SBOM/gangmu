@@ -235,6 +235,33 @@ a rule that accepts partial copies would claim those packages' code. No CPE is
 guessed: the draft says `cpe_status: unverified ...` and `review.todo`; look one
 up (`gangmu rules cpe-evidence`) before merging.
 
+### A host that bundles another rule's library
+
+A rule built from a whole repository records the libraries that project carries
+a copy of (dropbear's libtomcrypt, picotool's littlefs). Segmentation keeps that
+code the bundled library's when the copy is a small part of the host (at most
+10% of its signature); above that it cannot tell a bundled copy from a fork or a
+library split out of another, so the code is nobody's and the bundled library
+can no longer be identified by its functions. `gangmu rules bundled` lists every
+pair the signatures show:
+
+```text
+lost    generic/dropbear      bundles generic/libtomcrypt   1.18.2 979/994   33.9% of host
+lineage generic/mbedtls       bundles generic/mbed-crypto    3.1.0 1251/1328 18.3% of host
+kept    generic/clamav        bundles generic/zlib          1.2.11 182/194    0.3% of host
+```
+
+`lineage` (each holds a whole release of the other) is a fork or a split and is
+right as it is. A `lost` copy is fixed in the host's rule: find where it keeps
+the copy and exclude that directory, then rebuild the signature with the same
+`--exclude`:
+
+```bash
+gangmu rules bundled --rule generic/dropbear --tree dropbear/   # a checkout of the host
+gangmu rules functions https://github.com/mkj/dropbear --out dropbear.fnsig \
+    --exclude 'libtomcrypt/**' --exclude 'libtommath/**' ...
+```
+
 ## Conflict resolution
 
 Several rules may legitimately fire on one directory -- a generic "vendored

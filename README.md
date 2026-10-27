@@ -384,6 +384,7 @@ ONEKEY、Finite State、Cybellum、NetRise 面向大型企业做固件二进制�
 | `gangmu evidence --out DIR` | 汇总十年留存技术文档包 |
 | `gangmu rules lint / import [--recursive] / fingerprint / verify / functions / binary-prints` | 规则校验、导入、生成、复现、函数签名、逐函数指纹（`binary-prints` 从参考构建生成，需要 capstone，要先过自检）。`--rules` 可重复，后面的目录覆盖前面同名的规则；不写则用已安装的规则包 |
 | `gangmu rules cpe-evidence --nvd DIR` | 从本地 NVD 镜像里找出组件登记用的 CPE，并列出引用其上游仓库的 CVE 作为证据 |
+| `gangmu rules bundled [--rule ID --tree DIR]` | 列出哪些规则的函数签名里带着另一条规则的库，以及分割能否把这部分代码留给被捆绑的库；加 `--rule` 和 `--tree` 时在宿主的上游目录里找出副本所在的目录，给出 `identity.exclude` |
 | `gangmu perf [--check BASELINE]` | 性能基线：规则数与耗时、内存，CI 回归检查 |
 | `gangmu cbom ROOT [--compile-db F] [--link-map F] [--rules DIR] [--libraries]` | 密码物料清单：列出源码、配置、预编译库和固件镜像里的密码算法，输出 CycloneDX 1.6 CBOM（`--format cyclonedx`）或后量子迁移摘要（`--format readiness`）；`--rules` 加载 CBOM 规则包，`--libraries` 按认出的库版本补算法；有构建事实时只统计真正编进固件的，没有时每项标 `unverified`；每个算法标量子风险（RSA、ECDSA、ECDH、SM2 等会被破解），`--fail-on quantum-vulnerable`（或 `legacy`）可在 CI 里卡住。按名字识别，见 [CBOM 指南](docs/guides/cbom-post-quantum.md) |
 | `gangmu aibom ROOT [--format cyclonedx] [--rules DIR] [--declarations FILE] [--require-declarations]` | AI 物料清单：列出目录里的机器学习模型（TFLite、GGUF、ONNX、safetensors、PyTorch 等，带 SHA-256；编进 C 数组的 TFLite 模型也认）和推理运行时（TFLite Micro、CMSIS-NN、Edge Impulse、llama.cpp 等），输出 CycloneDX 1.6。训练数据和许可证读声明文件 `gangmu-aibom.yaml`（人工声明，不核对），`--rules` 加载 AIBOM 规则包，见 [AIBOM 指南](docs/guides/aibom.md) |

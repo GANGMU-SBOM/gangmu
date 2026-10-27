@@ -40,6 +40,7 @@ from .commands.rules import (  # noqa: F401 - re-exported for plug-ins and tests
     cmd_rules_functions,
     cmd_rules_binary_prints,
     cmd_rules_cpe_evidence,
+    cmd_rules_bundled,
     cmd_rules_verify)
 from .commands.vuln import (  # noqa: F401 - re-exported for plug-ins and tests
     cmd_vuln,
@@ -661,6 +662,17 @@ def build_parser() -> argparse.ArgumentParser:
     rce.add_argument("--format", choices=["table", "json"], default="table")
     rce.add_argument("--jobs", "-j", type=int, default=0)
     rce.set_defaults(func=cmd_rules_cpe_evidence)
+
+    rbd = rsub.add_parser(
+        "bundled",
+        help="list rules whose function signature holds another rule's code, and "
+             "whether segmentation keeps it the bundled library's; with --rule and "
+             "--tree, find the copies in the host's checkout")
+    rbd.add_argument("--rules", action="append", help=RULES_HELP)
+    rbd.add_argument("--rule", help="only pairs with this rule; with --tree, the host")
+    rbd.add_argument("--tree", help="a checkout of the host's upstream to search for copies")
+    rbd.add_argument("--format", choices=["table", "json"], default="table")
+    rbd.set_defaults(func=cmd_rules_bundled)
 
     rv = rsub.add_parser("verify",
                          help="re-derive each rule's evidence from upstream")
