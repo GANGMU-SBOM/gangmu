@@ -28,6 +28,7 @@ from typing import Dict, List, Optional, Set, Tuple
 from .build.facts import BuildFacts
 from .core.globbing import matches_suffix
 from .manifest import MANIFEST_NAMES, ZEPHYR_MODULE
+from .match.engine import flat_prefix
 from .rules.loader import RuleBase
 from .core.walk import NOT_CONTENT_DIRS
 
@@ -93,9 +94,17 @@ def discover_roots(root: Path, rulebase: RuleBase,
     triggers: Dict[str, List[Tuple[str, Tuple[str, ...]]]] = {}
     for rule in rulebase:
         markers = tuple(m.strip("/") for m in rule.marker_files if m.strip("/"))
-        if markers:
-            parent, _, name = markers[0].rpartition("/")
-            triggers.setdefault(name, []).append((parent, markers[1:]))
+        if not markers:
+            continue
+        sets = [markers]
+        # A flattened copy (the contents of the rule's src/ without the directory, see
+        # match.engine.flat_prefix) carries the same markers without that prefix.
+        prefix = flat_prefix(rule)
+        if prefix and all(m.startswith(prefix + "/") for m in markers):
+            sets.append(tuple(m[len(prefix) + 1:] for m in markers))
+        for marker_set in sets:
+            parent, _, name = marker_set[0].rpartition("/")
+            triggers.setdefault(name, []).append((parent, marker_set[1:]))
 
     candidates: Set[Path] = set()
 

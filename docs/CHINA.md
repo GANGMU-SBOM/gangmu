@@ -194,7 +194,7 @@ gangmu cn-db-check cnnvd-export/
   两处提交一致（2026-10-05 比对），Gitee 留作镜像。漏洞比对里 gitcode.com / atomgit.com 的仓库地址与 Gitee 一样映射到 `pkg:generic/openharmony/...`。
   LiteOS 5.x（`LiteOS/LiteOS`）不是 OpenHarmony 的一部分，仍在 Gitee，没有改。
 * **lwIP 的扁平目录** —— 合宙 LuatOS 的 `components/network/lwip22` 把上游的 `src/` 一层去掉了，`core/`、`api/`、`include/` 直接放在组件目录里，
-  原有规则期望 `src/` 前缀，认不出来。新增 `generic/lwip-flat`，共用同一份函数签名；LuatOS 的副本识别为 2.2.1（0.75，已改动）。
+  原有规则期望 `src/` 前缀，认不出来。新增 `generic/lwip-flat`，共用同一份函数签名；LuatOS 的副本识别为 2.2.1（0.75，已改动）。（后来引擎能直接读去掉 `src/` 的副本，`generic/lwip` 也带上了标记文件，这条规则随之删除。）
   同时修正一个引擎问题：几条规则指向同一个签名文件时（原先 lwIP、乐鑫 lwIP 就是这样），签名被当成“多条规则共有的代码”相互剔除，
   博流 bouffalo_sdk 里 lwIP 的置信度因此从 0.77 升到 0.85。
 * **FlashDB、SFUD、LodePNG** —— 合宙 LuatOS 里的键值数据库、串行 Flash 驱动和 PNG 解码库，也是不少 RT-Thread 系 SDK 的常客。三个都在 LuatOS 上识别：
