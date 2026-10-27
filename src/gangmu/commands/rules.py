@@ -1,4 +1,4 @@
-"""`gangmu rules ...`: lint, index, fingerprint, import, verify."""
+"""`gangmu rules ...`: lint, index, fingerprint, import, bundled, verify."""
 
 from __future__ import annotations
 
@@ -328,6 +328,58 @@ def cmd_rules_cpe_evidence(args: argparse.Namespace) -> int:
                   f"  name {len(cand.by_name):4d}  {refs}")
     print("\nOnly a vendor:product cited by reference is evidence. Read the CVEs "
           "before writing a CPE into a rule.", file=sys.stderr)
+    return 0
+
+
+def cmd_rules_bundled(args: argparse.Namespace) -> int:
+    """List the rules whose signature holds another rule's whole release, or, with
+    --rule and --tree, find where that host keeps the copies."""
+    from ..rules.bundles import exclude_globs, find_bundles, locate
+    rulebase = _load_rulebase(args.rules)
+    if args.tree:
+        if not args.rule:
+            print("error: --tree needs --rule (the host whose checkout it is)",
+                  file=sys.stderr)
+            return 2
+        host = next((r for r in rulebase if r.id == args.rule), None)
+        if host is None:
+            print(f"error: no rule {args.rule}", file=sys.stderr)
+            return 2
+        found = locate(Path(args.tree), rulebase, host.id)
+        if args.format == "json":
+            print(json.dumps({"rule": host.id, "found": [
+                {"directory": c.directory, "rule_id": c.rule_id, "version": c.version,
+                 "files": c.files} for c in found],
+                "exclude": exclude_globs(found, host.source.subdir or "")}, indent=2))
+            return 0
+        if not found:
+            print(f"{host.id}: no other component found in {args.tree}")
+            return 0
+        for c in found:
+            where = c.directory + ("" if c.files is None else f" ({len(c.files)} file(s))")
+            print(f"{where:50s} {c.rule_id} {c.version or ''}")
+        print("\nidentity.exclude:")
+        for glob in exclude_globs(found, host.source.subdir or ""):
+            print(f"  - '{glob}'")
+        return 0
+    bundles = find_bundles(rulebase.rules)
+    if args.rule:
+        bundles = [b for b in bundles if args.rule in (b.host, b.bundled)]
+    if args.format == "json":
+        print(json.dumps([{"host": b.host, "bundled": b.bundled, "release": b.release,
+                           "inside": b.inside, "size": b.size,
+                           "host_share": round(b.host_share, 4), "state": b.state}
+                          for b in bundles], indent=2))
+        return 0
+    for b in bundles:
+        print(f"{b.state:7s} {b.host:40s} bundles {b.bundled:35s} {b.release:>12s} "
+              f"{b.inside}/{b.size}  {b.host_share:6.1%} of host")
+    lost = sum(b.state == "lost" for b in bundles)
+    if lost:
+        print(f"\n{lost} bundled copie(s) are too large a part of their host for "
+              f"segmentation to keep them the bundled library's. Exclude the copy in "
+              f"the host's rule (gangmu rules bundled --rule HOST --tree CHECKOUT) and "
+              f"rebuild its signature.", file=sys.stderr)
     return 0
 
 
