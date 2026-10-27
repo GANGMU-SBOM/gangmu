@@ -18,7 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from itertools import chain
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from ..match.engine import (BUNDLE_HOST_SHARE, BUNDLE_MAX_OWNERS, BUNDLED_MIN_FUNCTIONS,
                             BUNDLED_MIN_OF_LARGEST, BUNDLED_SHARE, _release_counts,
@@ -96,30 +96,114 @@ def find_bundles(rules) -> List[Bundle]:
     return out
 
 
-def locate(tree: Path, rulebase, host: str) -> List[Tuple[str, str, Optional[str]]]:
-    """(directory, rule id, version) of every other component a scan finds in *tree*."""
+@dataclass
+class Copy:
+    directory: str
+    rule_id: str
+    version: Optional[str]
+    # None: the whole directory is the copy. Otherwise the copy shares the directory
+    # with the host's own code (swupdate keeps FatFs's ff.c beside its own btrfs.c),
+    # and these are its files.
+    files: Optional[List[str]] = None
+
+
+SOURCE_SUFFIXES = (".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".inc")
+HEADER_SUFFIXES = (".h", ".hpp", ".hh", ".inc")
+# A file is the bundled library's when this share of its functions is in its signature.
+FILE_SHARE = 0.5
+
+
+def locate(tree: Path, rulebase, host: str) -> List[Copy]:
+    """Every other component a scan finds in *tree*, and what of it is the copy."""
     from ..scan import scan
 
+    tree = Path(tree)
     sidecar = next((r.functions.sha256 for r in rulebase.rules
                     if r.id == host and r.functions is not None), None)
     others = [r for r in rulebase.rules
               if r.id != host and not (sidecar and r.functions is not None
                                        and r.functions.sha256 == sidecar)]
-    result = scan(Path(tree), replace(rulebase, rules=others), None)
-    return sorted((f.directory, f.rule_id, f.version) for f in result.findings
-                  if f.directory not in (".", ""))
+    result = scan(tree, replace(rulebase, rules=others), None)
+    by_id = {r.id: r for r in others}
+    out = []
+    for f in result.findings:
+        if f.directory in (".", ""):
+            continue
+        rule = by_id.get(f.rule_id)
+        files = _own_files(tree / f.directory, rule)
+        if files is None:
+            out.append(Copy(_widen(f.directory, rule), f.rule_id, f.version))
+        else:
+            out.append(Copy(f.directory, f.rule_id, f.version,
+                            [f"{f.directory}/{name}" for name in files]))
+    out.sort(key=lambda c: (c.directory, c.rule_id))
+    return out
 
 
-def exclude_globs(found: Sequence[Tuple[str, str, Optional[str]]],
-                  subdir: str = "") -> List[str]:
+def _own_files(directory: Path, rule) -> Optional[List[str]]:
+    """None when the files directly in *directory* are all the bundled library's;
+    otherwise the names of those that are: by their functions, or for a file without
+    any (a configuration header), by the rule naming it as an anchor or marker."""
+    from ..functions import extract_functions
+    if rule is None or rule.functions is None:
+        return None
+    try:
+        known = rule.functions.load().hash_set
+    except Exception:                                   # noqa: BLE001
+        return None
+    named = {Path(a.path).name for a in rule.anchors} | {Path(m).name for m in rule.marker_files}
+    theirs, mixed = [], False
+    for path in sorted(p for p in directory.iterdir()
+                       if p.is_file() and p.suffix.lower() in SOURCE_SUFFIXES):
+        try:
+            hashes = {fn.hash for fn in extract_functions(path.read_bytes())}
+        except OSError:
+            continue
+        if hashes:
+            if len(hashes & known) >= FILE_SHARE * len(hashes):
+                theirs.append(path.name)
+            elif path.suffix.lower() not in HEADER_SUFFIXES:
+                # A header's inline functions (lodepng.h's C++ wrappers) may be ones the
+                # signature does not record; only a source file says the host's own
+                # code is here.
+                mixed = True
+        elif path.name in named:
+            theirs.append(path.name)
+    return theirs if mixed else None
+
+
+def _widen(directory: str, rule) -> str:
+    """The outermost directory holding the copy: a finding sits at the component's
+    root (``libtomcrypt/src``), and the copy's demos and tests next to it
+    (``libtomcrypt/testprof``) are its code too. Widened to the outermost ancestor
+    the rule's own path globs name."""
+    from ..core.globbing import matches_suffix
+    if rule is None or not rule.path_globs:
+        return directory
+    parts = directory.split("/")
+    for n in range(1, len(parts)):
+        ancestor = "/".join(parts[:n])
+        if matches_suffix(ancestor, rule.path_globs):
+            return ancestor
+    return directory
+
+
+def exclude_globs(found: Sequence[Copy], subdir: str = "") -> List[str]:
     """The ``identity.exclude`` entries for *found*, relative to the rule's own root."""
     prefix = subdir.strip("/") + "/" if subdir and subdir not in (".", "") else ""
-    globs: List[str] = []
-    seen: Set[str] = set()
-    for directory, _, _ in found:
-        rel = directory[len(prefix):] if prefix and directory.startswith(prefix) else directory
-        if any(rel == s or rel.startswith(s + "/") for s in seen):
-            continue                            # inside a directory already excluded
-        seen.add(rel)
-        globs.append(f"{rel}/**")
+
+    def rel(path: str) -> str:
+        return path[len(prefix):] if prefix and path.startswith(prefix) else path
+
+    dirs: List[str] = []
+    for copy in sorted((c for c in found if c.files is None), key=lambda c: c.directory):
+        d = rel(copy.directory)
+        if not any(d == s or d.startswith(s + "/") for s in dirs):   # already inside one
+            dirs.append(d)
+    globs = [f"{d}/**" for d in dirs]
+    for copy in found:
+        for name in copy.files or ():
+            r = rel(name)
+            if r not in globs and not any(r.startswith(d + "/") for d in dirs):
+                globs.append(r)
     return globs

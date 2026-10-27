@@ -5,7 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from gangmu.fnsig import FunctionSignature
-from gangmu.rules.bundles import exclude_globs, find_bundles, locate
+from gangmu.rules.bundles import Copy, exclude_globs, find_bundles, locate
 from gangmu.rules.loader import load_rules
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -52,10 +52,12 @@ def test_one_family_is_not_a_bundle():
 
 
 def test_the_exclusions_are_relative_to_the_rules_root():
-    found = [("src/third_party/lib", "lib", "1.0"), ("src/third_party/lib/sub", "x", None),
-             ("src/vendor/other", "other", None)]
-    assert exclude_globs(found, "src") == ["third_party/lib/**", "vendor/other/**"]
-    assert exclude_globs(found) == ["src/third_party/lib/**", "src/vendor/other/**"]
+    found = [Copy("src/third_party/lib", "lib", "1.0"), Copy("src/third_party/lib/sub", "x", None),
+             Copy("src/vendor/other", "other", None),
+             Copy("src/fs", "fatfs", None, ["src/fs/ff.c", "src/fs/ff.h"])]
+    assert exclude_globs(found, "src") == ["third_party/lib/**", "vendor/other/**",
+                                           "fs/ff.c", "fs/ff.h"]
+    assert exclude_globs(found)[:2] == ["src/third_party/lib/**", "src/vendor/other/**"]
 
 
 def test_locate_finds_the_copy_in_the_hosts_checkout(tmp_path):
@@ -64,7 +66,8 @@ def test_locate_finds_the_copy_in_the_hosts_checkout(tmp_path):
     (host / "main.c").write_text("int main(void) { return 0; }\n")
     rulebase = load_rules(FIXTURES / "rules")
     found = locate(host, rulebase, "test/other")
-    assert [(d, r) for d, r, _ in found] == [("deps/tinynet", "test/tinynet")]
+    assert [(c.directory, c.rule_id, c.files) for c in found] == [
+        ("deps/tinynet", "test/tinynet", None)]
     assert exclude_globs(found) == ["deps/tinynet/**"]
     assert not locate(host, rulebase, "test/tinynet")      # the host's own code
 
@@ -78,3 +81,34 @@ def test_the_command_prints_the_exclusions(tmp_path, capsys):
     assert main(["rules", "bundled", "--rules", str(FIXTURES / "rules"),
                  "--tree", str(host)]) == 2           # --tree needs --rule
     assert main(["rules", "bundled", "--rules", str(FIXTURES / "rules")]) == 0
+
+
+def test_the_exclusion_takes_the_whole_copy():
+    # A finding sits at the copy's source root; its demos and tests beside it are
+    # the bundled library's code too.
+    from gangmu.rules.bundles import _widen
+    rule = SimpleNamespace(path_globs=("libtomcrypt", "**/libtomcrypt", "**/libtomcrypt/src"))
+    assert _widen("libtomcrypt/src", rule) == "libtomcrypt"
+    assert _widen("third_party/libtomcrypt/src", rule) == "third_party/libtomcrypt"
+    assert _widen("crypto/src", rule) == "crypto/src"
+
+
+def test_a_copy_beside_the_hosts_own_code_is_excluded_file_by_file(tmp_path):
+    # swupdate keeps FatFs's ff.c in fs/ beside its own btrfs.c: excluding fs/ would
+    # take the host's code with it.
+    from gangmu.functions import extract_functions
+    from gangmu.rules.bundles import _own_files
+    lib = "int ff_mount(int a) { int b = a * 7; while (b > 3) { b -= 2; } return b; }\n"
+    own = "int btrfs_mk(int a) { int c = a + 9; if (c % 4 == 1) { c ^= 5; } return c; }\n"
+    fs = tmp_path / "fs"
+    fs.mkdir()
+    (fs / "ff.c").write_text(lib)
+    (fs / "ffconf.h").write_text("#define FF_FS_READONLY 0\n")
+    (fs / "btrfs.c").write_text(own)
+    sig = FunctionSignature.build([("1.0", {f.hash for f in extract_functions(lib.encode())},
+                                    set())])
+    rule = SimpleNamespace(functions=SimpleNamespace(load=lambda: sig),
+                           anchors=(), marker_files=("source/ffconf.h",))
+    assert _own_files(fs, rule) == ["ff.c", "ffconf.h"]
+    (fs / "btrfs.c").unlink()
+    assert _own_files(fs, rule) is None          # the whole directory is the copy

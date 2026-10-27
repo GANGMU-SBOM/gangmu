@@ -348,14 +348,16 @@ def cmd_rules_bundled(args: argparse.Namespace) -> int:
         found = locate(Path(args.tree), rulebase, host.id)
         if args.format == "json":
             print(json.dumps({"rule": host.id, "found": [
-                {"directory": d, "rule_id": r, "version": v} for d, r, v in found],
+                {"directory": c.directory, "rule_id": c.rule_id, "version": c.version,
+                 "files": c.files} for c in found],
                 "exclude": exclude_globs(found, host.source.subdir or "")}, indent=2))
             return 0
         if not found:
             print(f"{host.id}: no other component found in {args.tree}")
             return 0
-        for directory, rule_id, version in found:
-            print(f"{directory:50s} {rule_id} {version or ''}")
+        for c in found:
+            where = c.directory + ("" if c.files is None else f" ({len(c.files)} file(s))")
+            print(f"{where:50s} {c.rule_id} {c.version or ''}")
         print("\nidentity.exclude:")
         for glob in exclude_globs(found, host.source.subdir or ""):
             print(f"  - '{glob}'")

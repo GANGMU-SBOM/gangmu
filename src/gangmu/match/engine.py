@@ -202,6 +202,8 @@ class MatchEngine:
                             spec_window(rule))
         if rule.functions is not None:
             sets = self._fn_index.get(rule.id)
+            if sets is not None and not dp.functions:
+                dp = self._function_print(directory, rule)[0]
             if sets is not None and (intersects(dp.functions, sets[0])
                                      or intersects(dp.abstract_functions, sets[1])):
                 return True
@@ -609,8 +611,11 @@ class MatchEngine:
     def _check_anchors(self, directory: Path, rule: Rule,
                        evidence: List[Evidence]) -> List[str]:
         """Every release whose recorded hash the first matching anchor file has."""
+        prefix = flat_prefix(rule)
         for anchor in rule.anchors:
             path = _locate(directory, anchor.path)
+            if path is None and prefix and anchor.path.startswith(prefix + "/"):
+                path = _locate(directory, anchor.path[len(prefix) + 1:])   # a flattened copy
             if path is None:
                 continue
             try:
@@ -626,10 +631,11 @@ class MatchEngine:
                 evidence.append(Evidence(
                     technique=Technique.HASH_COMPARISON,
                     confidence=VERSION_CONFIDENCE["anchor"],
-                    summary=(f"{anchor.path} matches, byte for byte, the hash "
+                    summary=(f"{_shown(directory, path, anchor.path)} matches, byte "
+                             f"for byte, the hash "
                              f"rule {rule.id} records for "
                              f"{rule.upstream_name} {which}"),
-                    locator=f"{directory.name}/{anchor.path}",
+                    locator=f"{directory.name}/{_shown(directory, path, anchor.path)}",
                 ))
                 return versions
         return []
@@ -642,6 +648,22 @@ class MatchEngine:
                                   spec_k(rule), spec_window(rule)).fileset_sha256
         except OSError:
             return None
+
+    def _function_print(self, directory: Path, rule: Rule) -> Tuple[DirectoryPrint, bool]:
+        """The print the function tier reads, and whether it is of a flattened copy:
+        when the rule's own globs select no function here and they all sit under one
+        directory (``flat_prefix``), the same globs without it."""
+        include = rule.include or DEFAULT_INCLUDE
+        exclude = rule.exclude or DEFAULT_EXCLUDE
+        k, window = spec_k(rule), spec_window(rule)
+        dp = self.cache.get(directory, include, exclude, k, window)
+        if dp.functions:
+            return dp, False
+        flat = flat_include(rule)
+        if flat is None or (directory / (flat_prefix(rule) or "")).is_dir():
+            return dp, False
+        alt = self.cache.get(directory, flat, exclude, k, window)
+        return (alt, True) if alt.functions else (dp, False)
 
     def _by_functions(self, directory: Path, rule: Rule, rel: str,
                       evidence: List[Evidence], subset_min: int = SUBSET_MIN_FUNCTIONS):
@@ -656,13 +678,16 @@ class MatchEngine:
                 summary=f"function signature unusable: {exc}", locator=rel))
             return None
 
-        include = rule.include or DEFAULT_INCLUDE
-        exclude = rule.exclude or DEFAULT_EXCLUDE
-        candidate = self.cache.get(directory, include, exclude,
-                                   spec_k(rule), spec_window(rule))
+        candidate, flat = self._function_print(directory, rule)
         present = candidate.functions
         if not present:
             return None
+        if flat:
+            evidence.append(Evidence(
+                technique=Technique.OTHER, confidence=0.0,
+                summary=(f"a flattened copy: the contents of {rule.upstream_name}'s "
+                         f"{flat_prefix(rule)}/ are here without the directory itself"),
+                locator=rel))
 
         verdict = infer_version(signature, present)
         own = (signature.version_application_hashes(verdict.best_index)
@@ -913,6 +938,40 @@ def _recorded_versions(rule: Rule) -> set:
     if rule.functions is not None:
         out.update(rule.functions.versions)
     return out
+
+
+def _shown(directory: Path, path: Path, recorded: str) -> str:
+    """Where the file was found, relative to *directory*, else the recorded path."""
+    try:
+        return path.relative_to(directory).as_posix()
+    except ValueError:
+        return recorded
+
+
+def flat_prefix(rule: Rule) -> Optional[str]:
+    """The directory every include glob of *rule* sits under (``src`` for
+    ``src/**/*.c``, ``src/**/*.h``), or ``None``.
+
+    Vendors routinely copy only that directory's contents (aws-c-common's
+    ``source/external/libcbor`` is libcbor's ``src/``; most products carry lwIP's
+    ``src/`` as ``lwip/``), and the rule's globs then select nothing there."""
+    if not rule.include:
+        return None
+    heads = set()
+    for pattern in rule.include:
+        head, sep, _ = pattern.partition("/")
+        if not sep or any(c in head for c in "*?[") or head in (".", ".."):
+            return None
+        heads.add(head)
+    return heads.pop() if len(heads) == 1 else None
+
+
+def flat_include(rule: Rule) -> Optional[Tuple[str, ...]]:
+    """*rule*'s include globs with ``flat_prefix`` taken off, for such a copy."""
+    prefix = flat_prefix(rule)
+    if prefix is None:
+        return None
+    return tuple(pattern[len(prefix) + 1:] for pattern in rule.include)
 
 
 def _locate(directory: Path, relpath: str, by_name: bool = False) -> Optional[Path]:
