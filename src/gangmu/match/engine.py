@@ -1060,11 +1060,27 @@ def _bundled_keep(contributors, shared: set, abstract_shared: set):
     if not bundles:
         return {}, {}
 
+    # Projects carrying part of a library some project bundles whole (freetype's and
+    # libgit2's inflate, ATF's subset of zlib): the shared part is a small part of them.
+    # Alone that proves nothing, as two projects carrying a third library look the same;
+    # it counts only for a function a whole copy holds too (``keepers``).
+    whole = {b for _, b in bundles}
+    partial = {(a, b) for (a, b), common in pair.items()
+               if b in whole and (a, b) not in bundles and (b, a) not in bundles
+               and len(common) <= BUNDLE_HOST_SHARE * len(contributors[a][0])}
+
     def keepers(held: Sequence[int]) -> Optional[int]:
+        """The one holder every other holder bundles. A holder carrying only part of
+        it counts when a whole copy holds the function too: that copy says the
+        function is the library's, not some third project's both happen to carry."""
         if len(held) > BUNDLE_MAX_OWNERS:
             return None
         for x in held:
-            if all((y, x) in bundles for y in held if y != x):
+            others = [y for y in held if y != x]
+            if all((y, x) in bundles for y in others):
+                return x
+            if (any((y, x) in bundles for y in others)
+                    and all((y, x) in bundles or (y, x) in partial for y in others)):
                 return x
         return None
 
