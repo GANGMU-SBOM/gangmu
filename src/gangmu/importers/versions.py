@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, List, Optional, Sequence, Set, Tuple, Union
@@ -58,6 +59,21 @@ class BuildReport:
     skipped: List[Tuple[str, str]]
 
 
+FETCH_ATTEMPTS = 3
+
+
+def _fetch(checkout: Path, ref: str) -> None:
+    """A shallow fetch of *ref*, retried: a dropped connection is not a missing tag."""
+    for attempt in range(FETCH_ATTEMPTS):
+        try:
+            git(["fetch", "--quiet", "--depth", "1", "origin", ref], cwd=checkout)
+            return
+        except subprocess.CalledProcessError:
+            if attempt == FETCH_ATTEMPTS - 1:
+                raise
+            time.sleep(2 * (attempt + 1))
+
+
 def build_function_signature(
         url: str, tags: Sequence[str],
         include: Sequence[str] = DEFAULT_INCLUDE,
@@ -76,6 +92,11 @@ def build_function_signature(
         checkout.mkdir(parents=True, exist_ok=True)
         git(["init", "--quiet"], cwd=checkout)
         git(["remote", "add", "origin", url], cwd=checkout)
+        # One shallow fetch per release into one repository: git's auto-gc, which
+        # runs detached after a fetch, rewrites .git/shallow under the next fetch
+        # ("shallow file has changed since we read it") and that release was lost.
+        git(["config", "gc.auto", "0"], cwd=checkout)
+        git(["config", "maintenance.auto", "false"], cwd=checkout)
         for entry in tags:
             # "2.5.4=<40-hex sha>" pins a release that upstream never tagged
             # (GmSSL 2.x): the label is what the signature records, the revision
@@ -84,7 +105,7 @@ def build_function_signature(
             fetch_ref = rev or tag
             try:
                 log(f"fetching {fetch_ref}")
-                git(["fetch", "--quiet", "--depth", "1", "origin", fetch_ref], cwd=checkout)
+                _fetch(checkout, fetch_ref)
                 git(["checkout", "--quiet", "--force", "FETCH_HEAD"], cwd=checkout)
             except subprocess.CalledProcessError as exc:
                 skipped.append((tag, (exc.stderr or "").strip()[:120]))
