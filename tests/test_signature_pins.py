@@ -85,3 +85,18 @@ def test_verify_notes_a_pinned_release_it_cannot_compare(tmp_path):
     report = verify_rule(rule, checkout)
     assert report.ok
     assert any("does not record the pinned release 2.0" in c for c in report.checked)
+
+
+def test_verify_uses_the_globs_the_signature_records(tmp_path):
+    # FreeRTOS's signature holds the kernel's sources, not the ports beside them.
+    rules = _rule(tmp_path, ["1.0", "1.1"])
+    yml = rules / "synth.yaml"
+    yml.write_text(yml.read_text().replace("    file: synth.fnsig",
+                                           "    file: synth.fnsig\n    subdir: kernel"))
+    [rule] = load_rules(rules).rules
+    checkout = tmp_path / "upstream"
+    (checkout / "kernel").mkdir(parents=True)
+    (checkout / "kernel" / "synth.c").write_text(SOURCE)
+    (checkout / "port.c").write_text(_fn("port_only", 7))
+    report = verify_rule(rule, checkout)
+    assert report.ok, report.problems

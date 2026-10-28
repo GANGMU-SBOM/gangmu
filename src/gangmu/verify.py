@@ -224,15 +224,21 @@ def _verify_functions(rule: Rule, checkout: Path, report: VerifyReport) -> None:
             f"({signature.versions[0]} to {signature.versions[-1]}); not compared")
         return
     recorded = signature.version_hashes(signature.versions.index(pinned))
-    fresh = set(print_directory(checkout, rule.include or DEFAULT_INCLUDE,
-                                rule.exclude or DEFAULT_EXCLUDE).functions)
+    spec = rule.functions
+    root = checkout / spec.subdir if spec.subdir else checkout
+    include = spec.include or rule.include or DEFAULT_INCLUDE
+    exclude = spec.exclude or rule.exclude or DEFAULT_EXCLUDE
+    fresh = set(print_directory(root, include, exclude).functions) if root.is_dir() else set()
+    where = "the signature's globs" if spec.include or spec.exclude or spec.subdir \
+        else "the rule's globs"
     missing, extra = recorded - fresh, fresh - recorded
     if missing or extra:
         report.fail(
             f"function signature does not reproduce for {pinned}: upstream has "
-            f"{len(fresh)} functions under the rule's globs, the signature records "
+            f"{len(fresh)} functions under {where}, the signature records "
             f"{len(recorded)} ({len(extra)} upstream only, {len(missing)} recorded only); "
-            f"rebuild it with the rule's include and exclude")
+            f"rebuild it with those globs, or record the ones it was built with as "
+            f"identity.functions.include/exclude/subdir")
     else:
         report.checked.append(f"function signature reproduces exactly for {pinned} "
                               f"({len(fresh)} functions)")

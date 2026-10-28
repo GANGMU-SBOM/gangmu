@@ -98,6 +98,13 @@ class FunctionSpec:
     each chip family) name the same family. Code they share is the family's own,
     not one rule borrowing from another, so it keeps counting as application code
     for each of them (see ``MatchEngine.segment_rule_base``)."""
+    include: Tuple[str, ...] = ()
+    exclude: Tuple[str, ...] = ()
+    subdir: Optional[str] = None
+    """How the signature was built, when not from the rule's own ``identity`` globs:
+    FreeRTOS's records the kernel's sources, not every port the directory holds.
+    ``subdir`` is below ``upstream.source.subdir``. ``rules verify`` reproduces it
+    with these."""
     _loaded: Optional[object] = None
 
     def load(self):
@@ -504,7 +511,10 @@ def rule_from_dict(data: Mapping[str, Any], source_path: str = "") -> Rule:
             thresholds=fn_thresholds,
             subset=bool(raw_fn.get("subset", False)),
             derivative=bool(raw_fn.get("derivative", False)),
-            family=str(raw_fn.get("family") or ""))
+            family=str(raw_fn.get("family") or ""),
+            include=_tuple(raw_fn.get("include")),
+            exclude=_tuple(raw_fn.get("exclude")),
+            subdir=(str(raw_fn["subdir"]).strip("/") if raw_fn.get("subdir") else None))
 
     bs_spec: Optional[FunctionSpec] = None
     raw_bs = identity.get("binary_strings")
