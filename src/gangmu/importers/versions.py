@@ -16,7 +16,7 @@ import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, List, Optional, Sequence, Set, Tuple, Union
+from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from ..dirprint import DEFAULT_EXCLUDE, DEFAULT_INCLUDE, print_directory
 from ..fnsig import MAX_VERSIONS, FunctionSignature
@@ -58,7 +58,15 @@ def pick_releases(tags: Sequence[str], limit: int = 12,
         # Copter-4.7.2's kind).
         shaped = [t for t in dotted if _same_shape(t, like)]
         dotted = shaped or dotted
-    ordered = sorted(dotted or set(tags), key=version_key)
+    chosen: Dict[str, str] = {}
+    for tag in sorted(dotted or set(tags), key=version_key):
+        key = tag_to_version(tag)
+        # Two tags for one release (imgui's v1.93.0 and v1.93.0-docking, SRT's
+        # v1.5.7 and DEVELOPMENT_STABLE_1.5.7): keep the one shaped like the pin.
+        if key not in chosen or (like and _same_shape(tag, like)
+                                 and not _same_shape(chosen[key], like)):
+            chosen[key] = tag
+    ordered = sorted(chosen.values(), key=version_key)
     return ordered[-min(limit, MAX_VERSIONS):]
 
 
@@ -72,6 +80,7 @@ class BuildReport:
 
 FETCH_ATTEMPTS = 3
 _DOTTED = re.compile(r"\d+[._]\d+")
+_LETTER_SUFFIX = re.compile(r"\d([a-zA-Z])(?:$|[^a-zA-Z0-9])(?!.*\d)")
 _VERSION_BODY = re.compile(r"\d+(?:[._]\d+)+(?:[-._]?[a-z]*\d*)?", re.I)
 
 
@@ -155,8 +164,11 @@ def build_function_signature(
                 skipped.append((tag, "no string constants extracted" if strings
                                 else "no functions extracted"))
                 continue
-            per_version.append((tag if rev else (label(tag) if label else tag), hashes,
-                                abstract))
+            name = tag if rev else (label(tag) if label else tag)
+            if any(row[0] == name for row in per_version):
+                skipped.append((tag, f"another tag already gave release {name}"))
+                continue
+            per_version.append((name, hashes, abstract))
             counts.append(len(hashes))
         return BuildReport(signature=FunctionSignature.build(per_version),
                            tags=[row[0] for row in per_version],
@@ -167,6 +179,12 @@ def build_function_signature(
 
 
 def tag_to_version(tag: str) -> str:
-    """STABLE-2_2_0_RELEASE -> 2.2.0, v1.7.19 -> 1.7.19."""
+    """STABLE-2_2_0_RELEASE -> 2.2.0, v1.7.19 -> 1.7.19, v1.3.9c -> 1.3.9c.
+
+    A letter straight after the last number is part of the release (ProFTPD
+    1.3.9a to 1.3.9e, OpenSSL 1.1.1w); without it six releases were one label."""
     numbers = _NUM.findall(tag)
-    return ".".join(numbers) if numbers else tag
+    if not numbers:
+        return tag
+    letter = _LETTER_SUFFIX.search(tag)
+    return ".".join(numbers) + (letter.group(1).lower() if letter else "")

@@ -114,3 +114,33 @@ def test_releases_look_like_the_pinned_one():
     tags = ["Copter-4.6.0", "Copter-4.7.2", "ArduPlane-4.7.2", "2021.02.24", "240720"]
     assert pick_releases(tags, 12, like="Copter-4.7.2") == ["Copter-4.6.0", "Copter-4.7.2"]
     assert pick_releases(["6.1.4", "6.1.5", "17368.8"], 12, like="6.1.5") == ["6.1.4", "6.1.5"]
+
+
+def test_letter_releases_keep_their_letter_and_prereleases_are_left_out():
+    from gangmu.importers.candidates import release_tags
+    from gangmu.importers.versions import tag_to_version
+    assert [tag_to_version(t) for t in ("v1.3.9", "v1.3.9c", "OpenSSL_1_1_1w", "R0.14b")] == \
+        ["1.3.9", "1.3.9c", "1.1.1w", "0.14b"]
+    assert tag_to_version("v1.93.0-docking") == "1.93.0"
+    assert release_tags(["v3.14.9", "v3.15.0a3", "v3.15.0b3", "v3.15.0rc1", "R0.14b"]) == \
+        ["v3.14.9", "R0.14b"]
+
+
+def test_a_second_tag_for_one_release_is_not_recorded_twice(tmp_path):
+    import subprocess
+    from gangmu.importers.versions import build_function_signature
+    repo = tmp_path / "upstream"
+    repo.mkdir()
+
+    def git(*args):
+        subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True,
+                       env={"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
+                            "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t",
+                            "PATH": "/usr/bin:/bin"})
+    git("init", "-q")
+    (repo / "a.c").write_text(SOURCE)
+    git("add", "-A"); git("commit", "-qm", "r"); git("tag", "v1.0"); git("tag", "spin-v1.0")
+    report = build_function_signature(str(repo), ["v1.0", "spin-v1.0"], include=["*.c"],
+                                      label=lambda t: t.rsplit("v", 1)[1])
+    assert report.signature.versions == ["1.0"]
+    assert report.skipped == [("spin-v1.0", "another tag already gave release 1.0")]
