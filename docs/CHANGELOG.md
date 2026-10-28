@@ -3,6 +3,8 @@
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
 ## 未发布
+* **选"最新的几个版本"时不再被乱七八糟的标签带偏。** `pick_releases` 原来只按标签里的数字排序，于是 `r5076`、`merge-llvm-97877`、`clamav-20080204` 都排在 `clamav-1.5.4` 前面：ClamAV 的"最新 12 个版本"里只剩 1.5.4 一个真正的版本。现在有带点的版本号时，不带点的标签不算版本；给出规则钉定的标签（`like=`）时，只取前缀相同、版本段数相近、主版本数量级相同的标签（ArduPilot 的 `Copter-4.7.2` 不再混进 `2021.02.24`、`240720`；kamailio 的 `17368.8` 被排除）。
+* **建签名时不再随机丢掉版本。** 每个版本一次浅克隆、都在同一个仓库里，git 在 fetch 之后脱离运行的自动 gc 会在下一次 fetch 时改写 `.git/shallow`（"shallow file has changed since we read it"），那个版本就被悄悄跳过：重建时 OpenColorIO 2.3.0、PX4 1.14.2、pjproject 2.11.1 都这样丢过。现在这个仓库关掉自动 gc 和自动维护，fetch 失败会重试。
 * **`identity.functions.include` / `exclude` / `subdir`：记录签名是用哪些 glob 建的。** 有些签名故意比规则的目录 glob 窄：FreeRTOS 只记内核，不记厂商各自挑选的移植层；RT-Thread 只记 `src/`，不记 BSP。`rules verify` 复现函数签名时用这里写的 glob；不写就用规则自己的。
 * **C++ 命名空间里的函数也能提取了。** 提取器只在文件作用域找 `name(...) {`，`extern "C" {` 里的算作文件作用域，`namespace X { ... }` 里的却不算，所以写在命名空间里的函数一个都没提取，这些库只能靠命名空间外的少数函数识别。在免费规则库上，用每条规则钉定版本的上游源码统计：974 条带函数签名的规则里有 151 条（18%）受影响，共 177,649 个函数原来看不见，例如 matter-src +13,397、protobuf +11,988、abseil +8,870（原来只有 261 个）、FastLED +8,157、Botan +7,146、OpenThread +5,199、Fast-DDS +5,281（原来 227 个）、libvpx +2,550。Monocypher 4.x 在 `#ifdef` 里把整份源码包进一个命名空间，原来一个函数也取不到，现在是 111 个。现在 `namespace`、`namespace a::b`、匿名和 `inline namespace` 的花括号与 `extern "C"` 一样视为文件作用域；类体里的方法仍不提取。**这些规则的签名必须用新提取器重建**，否则扫描会把命名空间里的函数当成签名没有记录的"厂商添加"；所以这一版要求配套的规则库版本，规则库也会要求这一版。
 * **函数签名超过 64 个版本时保留最新的，不再保留最旧的。** `FunctionSignature.build` 原来截取前 64 个版本，也就是最旧的那些。显式用 `--tag` 列出全部版本构建的规则因此丢掉了最新的版本，而固件里装的恰恰是这些：免费规则库里有 107 条规则缺少自己钉定的版本（Varnish 只记录了 0.9.1 到 6.0.12，规则钉的是 8.0.0；trafficserver 只到 7.1.1，钉的是 10.2.1；cpython、php-src、clamav、haproxy、gnupg、suricata、AWS C SDK 系列都是这样）。这些规则的签名需要重建（规则库单独处理）。

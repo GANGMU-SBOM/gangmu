@@ -40,14 +40,25 @@ def version_key(tag: str) -> Tuple:
     return tuple(int(n) for n in _NUM.findall(tag)) or (0,)
 
 
-def pick_releases(tags: Sequence[str], limit: int = 12) -> List[str]:
+def pick_releases(tags: Sequence[str], limit: int = 12,
+                  like: Optional[str] = None) -> List[str]:
     """The most recent *limit* releases, oldest first.
 
     Recent releases are what firmware actually ships; a signature spanning ten
     years of history costs size and buys nothing, because nobody is shipping
     lwIP 1.3 in a product placed on the EU market in 2027.
     """
-    ordered = sorted(set(tags), key=version_key)
+    # Ranked by their numbers alone, ``r5076``, ``merge-llvm-97877`` and
+    # ``clamav-20080204`` outrank ``clamav-1.5.4``. Where releases carry a dotted
+    # version, a tag without one is not a release.
+    dotted = [t for t in set(tags) if _DOTTED.search(t)]
+    if like:
+        # Releases look like the one the rule pins: same prefix and a version of
+        # about as many parts (kamailio's 17368.8 and ArduPilot's dated tags are not
+        # Copter-4.7.2's kind).
+        shaped = [t for t in dotted if _same_shape(t, like)]
+        dotted = shaped or dotted
+    ordered = sorted(dotted or set(tags), key=version_key)
     return ordered[-min(limit, MAX_VERSIONS):]
 
 
@@ -60,6 +71,22 @@ class BuildReport:
 
 
 FETCH_ATTEMPTS = 3
+_DOTTED = re.compile(r"\d+[._]\d+")
+_VERSION_BODY = re.compile(r"\d+(?:[._]\d+)+(?:[-._]?[a-z]*\d*)?", re.I)
+
+
+def _same_shape(tag: str, like: str) -> bool:
+    """Same text before the first digit, a dotted version after it, the number of
+    version parts within one of *like*'s and a major version of its magnitude."""
+    def split(t: str):
+        prefix = re.match(r"\D*", t).group(0)            # type: ignore[union-attr]
+        return prefix, t[len(prefix):]
+    prefix, body = split(tag)
+    want_prefix, want_body = split(like)
+    nums, want = _NUM.findall(body), _NUM.findall(want_body)
+    return (prefix == want_prefix and bool(_VERSION_BODY.fullmatch(body))
+            and abs(len(nums) - len(want)) <= 1
+            and bool(want) and int(nums[0]) <= 10 * (int(want[0]) + 1))
 
 
 def _fetch(checkout: Path, ref: str) -> None:

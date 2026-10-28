@@ -100,3 +100,17 @@ def test_verify_uses_the_globs_the_signature_records(tmp_path):
     (checkout / "port.c").write_text(_fn("port_only", 7))
     report = verify_rule(rule, checkout)
     assert report.ok, report.problems
+
+
+def test_tags_without_a_dotted_version_are_not_the_newest_release():
+    from gangmu.importers.versions import pick_releases
+    tags = ["clamav-1.4.0", "clamav-1.5.4", "r5076", "merge-llvm-97877", "clamav-20080204"]
+    assert pick_releases(tags, 3) == ["clamav-1.4.0", "clamav-1.5.4"]
+    assert pick_releases(["v20240124", "v20240322"], 12) == ["v20240124", "v20240322"]
+
+
+def test_releases_look_like_the_pinned_one():
+    from gangmu.importers.versions import pick_releases
+    tags = ["Copter-4.6.0", "Copter-4.7.2", "ArduPlane-4.7.2", "2021.02.24", "240720"]
+    assert pick_releases(tags, 12, like="Copter-4.7.2") == ["Copter-4.6.0", "Copter-4.7.2"]
+    assert pick_releases(["6.1.4", "6.1.5", "17368.8"], 12, like="6.1.5") == ["6.1.4", "6.1.5"]
