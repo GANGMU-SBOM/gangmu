@@ -8,7 +8,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 
 import yaml
 
@@ -19,13 +19,14 @@ from ..core.globbing import matches_suffix
 from ..importers import (build_function_signature, dump_rule, import_candidates,
                          import_gitmodules, import_west, list_tags, pick_releases,
                          tag_to_version)
-from ..verify import verify_rule, verify_with_fetch
+from ..verify import pinned_release, verify_rule, verify_with_fetch
 
 from .common import (_resolve_jobs, _load_rulebase)
 
 
 def cmd_rules_lint(args: argparse.Namespace) -> int:
     rulebase = _load_rulebase(args.rules)
+    unsigned: List[tuple] = []          # (rule, pinned release) its signature lacks
     for root in rulebase.roots:
         print(f"root {root.label}: {root.path}")
     for note in rulebase.overridden:
@@ -56,6 +57,20 @@ def cmd_rules_lint(args: argparse.Namespace) -> int:
         flag = "" if rule.cpe else ("  [no CPE: " +
                                     (rule.cpe_status or "no reason recorded") .split(":")[0] + "]")
         print(f"ok   {rule.id}  ({rule.source_path}){flag}")
+        pinned = pinned_release(rule)
+        if (pinned and rule.functions is not None and rule.functions.versions
+                and pinned not in rule.functions.versions):
+            unsigned.append((rule, pinned))
+
+    if unsigned:
+        print(f"\n{len(unsigned)} rule(s) pin a release their function signature does not "
+              f"record. The functions then cannot place a copy of that release, and an "
+              f"older range is reported instead; rebuild the signature with the pinned "
+              f"release among the newest (gangmu rules functions):")
+        for rule, pinned in unsigned:
+            have = rule.functions.versions
+            print(f"  warn {rule.id}: pins {pinned}; the signature records "
+                  f"{have[0]} to {have[-1]} ({len(have)} releases)")
 
     no_cpe = [r for r in rulebase if not r.cpe]
     unexplained = [r for r in no_cpe if not r.cpe_status]
