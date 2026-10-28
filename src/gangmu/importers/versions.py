@@ -63,8 +63,9 @@ def pick_releases(tags: Sequence[str], limit: int = 12,
         key = tag_to_version(tag)
         # Two tags for one release (imgui's v1.93.0 and v1.93.0-docking, SRT's
         # v1.5.7 and DEVELOPMENT_STABLE_1.5.7): keep the one shaped like the pin.
-        if key not in chosen or (like and _same_shape(tag, like)
-                                 and not _same_shape(chosen[key], like)):
+        if key not in chosen or tag == like or (
+                like and chosen[key] != like and _same_shape(tag, like)
+                and not _same_shape(chosen[key], like)):
             chosen[key] = tag
     ordered = sorted(chosen.values(), key=version_key)
     return ordered[-min(limit, MAX_VERSIONS):]
@@ -84,6 +85,12 @@ _LETTER_SUFFIX = re.compile(r"\d([a-zA-Z])(?:$|[^a-zA-Z0-9])(?!.*\d)")
 _VERSION_BODY = re.compile(r"\d+(?:[._]\d+)+(?:[-._]?[a-z]*\d*)?", re.I)
 
 
+def _norm_prefix(prefix: str) -> str:
+    """``ptpd.`` and ``ptpd-``, ``v.``, ``v`` and nothing: one prefix each."""
+    letters = re.sub(r"[^a-z]", "", prefix.lower())
+    return "" if letters == "v" else letters
+
+
 def _same_shape(tag: str, like: str) -> bool:
     """Same text before the first digit, a dotted version after it, the number of
     version parts within one of *like*'s and a major version of its magnitude."""
@@ -93,7 +100,8 @@ def _same_shape(tag: str, like: str) -> bool:
     prefix, body = split(tag)
     want_prefix, want_body = split(like)
     nums, want = _NUM.findall(body), _NUM.findall(want_body)
-    return (prefix == want_prefix and bool(_VERSION_BODY.fullmatch(body))
+    return (_norm_prefix(prefix) == _norm_prefix(want_prefix)
+            and bool(_VERSION_BODY.fullmatch(body))
             and abs(len(nums) - len(want)) <= 1
             and bool(want) and int(nums[0]) <= 10 * (int(want[0]) + 1))
 

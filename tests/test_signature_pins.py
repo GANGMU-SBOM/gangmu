@@ -144,3 +144,11 @@ def test_a_second_tag_for_one_release_is_not_recorded_twice(tmp_path):
                                       label=lambda t: t.rsplit("v", 1)[1])
     assert report.signature.versions == ["1.0"]
     assert report.skipped == [("spin-v1.0", "another tag already gave release 1.0")]
+
+
+def test_a_prefix_matches_up_to_punctuation_and_a_bare_v():
+    from gangmu.importers.versions import pick_releases
+    tags = ["ptpd-2.2.2", "ptpd-2.3.0", "ptpd-2.3.1", "ptpd.2.3.1"]
+    assert len(pick_releases(tags, 12, like="ptpd.2.3.1")) == 3
+    assert pick_releases(["2.1.0", "v2.2.0", "v.2.2.3"], 12, like="v.2.2.3") == \
+        ["2.1.0", "v2.2.0", "v.2.2.3"]
