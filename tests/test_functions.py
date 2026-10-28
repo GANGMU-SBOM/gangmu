@@ -173,3 +173,23 @@ int lib_init(void)
 """
     names = {f.name for f in extract_functions(wrapped)}
     assert names == {"helper", "lib_init"}
+
+
+def test_functions_inside_a_namespace_are_at_file_scope():
+    # Monocypher wraps its whole source in one under #ifdef; abseil, protobuf and
+    # openthread put everything in namespaces. Their functions were never extracted.
+    body = b"int f(int a) { int c = a * 2; return c + 1; }\n"
+    for opener in (b"namespace foo {", b"namespace {", b"namespace a::b {",
+                   b"inline namespace v1 {", b"namespace a { namespace b {"):
+        closer = b"} }" if opener.count(b"{") == 2 else b"}"
+        found = extract_functions(opener + b"\n" + body + closer + b"\n")
+        assert [fn.name for fn in found] == ["f"], opener
+    guarded = (b"#ifdef NS\nnamespace NS {\n#endif\n" + body +
+               b"#ifdef NS\n}\n#endif\nint g(int x) { int y = x - 1; return y * 3; }\n")
+    assert [fn.name for fn in extract_functions(guarded)] == ["f", "g"]
+
+
+def test_a_class_body_is_not_a_namespace():
+    # A method defined in a class body stays out (as before); only namespaces open.
+    src = b"class A {\npublic:\n int f(int a) { int c = a * 2; return c + 1; }\n};\n"
+    assert extract_functions(src) == []
