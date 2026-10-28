@@ -1,104 +1,103 @@
 {
- "jobs": 1,
- "numpy": true,
- "runs": [
-  {
-   "rules": 817,
-   "load_s": 0.245,
-   "scan_s": 16.01,
-   "peak_rss_mb": 485.9,
-   "worker_peak_rss_mb": 0.0,
-   "candidates": 59,
-   "findings": [
-    "vendor/tinynet=tinynet@1.4.2"
-   ],
-   "candidate_directories": 60,
-   "rule_checks": 12,
-   "rule_checks_skipped": 49009,
-   "loose_findings": 0,
-   "files_hashed": 1276,
-   "files_tokenised": 1156,
-   "cache_hits": 0,
-   "stat_hits": 0,
-   "mode": "cold",
-   "scale": 1,
-   "scan_units": 266.4
-  },
-  {
-   "rules": 817,
-   "load_s": 0.247,
-   "scan_s": 12.41,
-   "peak_rss_mb": 486.0,
-   "worker_peak_rss_mb": 0.0,
-   "candidates": 59,
-   "findings": [
-    "vendor/tinynet=tinynet@1.4.2"
-   ],
-   "candidate_directories": 60,
-   "rule_checks": 12,
-   "rule_checks_skipped": 49009,
-   "loose_findings": 0,
-   "files_hashed": 1272,
-   "files_tokenised": 0,
-   "cache_hits": 1156,
-   "stat_hits": 4,
-   "mode": "warm",
-   "scale": 1,
-   "scan_units": 206.5
-  },
-  {
-   "rules": 3268,
-   "load_s": 2.245,
-   "scan_s": 38.34,
-   "peak_rss_mb": 741.3,
-   "worker_peak_rss_mb": 0.0,
-   "candidates": 59,
-   "findings": [
-    "vendor/tinynet=tinynet@1.4.2"
-   ],
-   "candidate_directories": 60,
-   "rule_checks": 44,
-   "rule_checks_skipped": 196039,
-   "loose_findings": 0,
-   "files_hashed": 1276,
-   "files_tokenised": 1156,
-   "cache_hits": 0,
-   "stat_hits": 0,
-   "mode": "cold",
-   "scale": 4,
-   "scan_units": 637.9
-  },
-  {
-   "rules": 13072,
-   "load_s": 9.066,
-   "scan_s": 131.68,
-   "peak_rss_mb": 1759.6,
-   "worker_peak_rss_mb": 0.0,
-   "candidates": 59,
-   "findings": [
-    "vendor/tinynet=tinynet@1.4.2"
-   ],
-   "candidate_directories": 60,
-   "rule_checks": 170,
-   "rule_checks_skipped": 784159,
-   "loose_findings": 0,
-   "files_hashed": 1276,
-   "files_tokenised": 1156,
-   "cache_hits": 0,
-   "stat_hits": 0,
-   "mode": "cold",
-   "scale": 16,
-   "scan_units": 2190.9
+  "jobs": 1,
+  "numpy": true,
+  "runs": [
+    {
+      "rules": 1028,
+      "load_s": 0.529,
+      "scan_s": 18.145,
+      "peak_rss_mb": 593.9,
+      "worker_peak_rss_mb": 0.0,
+      "candidates": 59,
+      "findings": [
+        "vendor/tinynet=tinynet@1.4.2"
+      ],
+      "candidate_directories": 60,
+      "rule_checks": 11,
+      "rule_checks_skipped": 61669,
+      "loose_findings": 0,
+      "files_hashed": 1276,
+      "files_tokenised": 1156,
+      "cache_hits": 0,
+      "stat_hits": 0,
+      "mode": "cold",
+      "scale": 1,
+      "scan_units": 383.5
+    },
+    {
+      "rules": 1028,
+      "load_s": 0.522,
+      "scan_s": 15.256,
+      "peak_rss_mb": 593.9,
+      "worker_peak_rss_mb": 0.0,
+      "candidates": 59,
+      "findings": [
+        "vendor/tinynet=tinynet@1.4.2"
+      ],
+      "candidate_directories": 60,
+      "rule_checks": 11,
+      "rule_checks_skipped": 61669,
+      "loose_findings": 0,
+      "files_hashed": 0,
+      "files_tokenised": 0,
+      "cache_hits": 1156,
+      "stat_hits": 1276,
+      "mode": "warm",
+      "scale": 1,
+      "scan_units": 326.47
+    },
+    {
+      "rules": 4112,
+      "load_s": 9.448,
+      "scan_s": 44.566,
+      "peak_rss_mb": 911.9,
+      "worker_peak_rss_mb": 0.0,
+      "candidates": 59,
+      "findings": [
+        "vendor/tinynet=tinynet@1.4.2"
+      ],
+      "candidate_directories": 60,
+      "rule_checks": 41,
+      "rule_checks_skipped": 246679,
+      "loose_findings": 0,
+      "files_hashed": 1276,
+      "files_tokenised": 1156,
+      "cache_hits": 0,
+      "stat_hits": 0,
+      "mode": "cold",
+      "scale": 4,
+      "scan_units": 925.2
+    },
+    {
+      "rules": 16448,
+      "load_s": 36.235,
+      "scan_s": 158.099,
+      "peak_rss_mb": 2177.4,
+      "worker_peak_rss_mb": 0.0,
+      "candidates": 59,
+      "findings": [
+        "vendor/tinynet=tinynet@1.4.2"
+      ],
+      "candidate_directories": 60,
+      "rule_checks": 161,
+      "rule_checks_skipped": 986719,
+      "loose_findings": 0,
+      "files_hashed": 1276,
+      "files_tokenised": 1156,
+      "cache_hits": 0,
+      "stat_hits": 0,
+      "mode": "cold",
+      "scale": 16,
+      "scan_units": 3280.94
+    }
+  ],
+  "calibration_s": 0.0461,
+  "tree": {
+    "synthetic": {
+      "components": 59,
+      "files": 1152,
+      "bytes": 6349801
+    },
+    "seed": 0
   }
- ],
- "calibration_s": 0.0597,
- "calibration_drift": 1.0,
- "tree": {
-  "synthetic": {
-   "components": 59,
-   "files": 1152,
-   "bytes": 6349801
-  },
-  "seed": 0
- }
 }
