@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gangmu-sbom"
-version = "0.13.9"
+version = "0.14.0"
 description = "Build-time SBOM for embedded C/C++, with a community rule base for vendor SDK components"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "Apache-2.0" }
-dependencies = ["PyYAML>=6.0", "gangmu-rules>=2026.10.5"]
+dependencies = ["PyYAML>=6.0", "gangmu-rules>=2026.10.28"]
 keywords = [
     "sbom", "software-bill-of-materials", "embedded", "firmware", "c", "cpp",
     "cyclonedx", "spdx", "vex", "cyber-resilience-act", "cra",

@@ -93,8 +93,12 @@ class FunctionSignature:
 
     @classmethod
     def build(cls, per_version: Sequence[Tuple]) -> "FunctionSignature":
-        """From [(version, {exact hashes}, {abstract hashes}?)], oldest first."""
-        trimmed = list(per_version)[:MAX_VERSIONS]
+        """From [(version, {exact hashes}, {abstract hashes}?)], oldest first.
+
+        Beyond ``MAX_VERSIONS`` the newest are kept: they are what firmware ships.
+        Keeping the first 64 left 107 rules of the free rule base without the
+        release they pin (Varnish recorded 0.9.1 to 6.0.12 and pinned 8.0.0)."""
+        trimmed = list(per_version)[-MAX_VERSIONS:]
         versions = [row[0] for row in trimmed]
 
         def fold(position: int) -> Tuple[List[int], List[int]]:

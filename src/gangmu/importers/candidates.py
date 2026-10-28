@@ -48,6 +48,8 @@ from .versions import build_function_signature, list_tags, pick_releases, tag_to
 
 # release tags only: a number in it, and not a pre-release
 _PRERELEASE = re.compile(r"(?:^|[^a-z])(rc|alpha|beta|pre|preview|dev|snapshot|test)\d*(?:[^a-z]|$)", re.I)
+# CPython's v3.15.0a3 and v3.15.0b3; a bare letter (FatFs R0.14b) is a release.
+_PEP440_PRE = re.compile(r"\d(?:a|b)\d+$", re.I)
 _SLUG = re.compile(r"[^a-z0-9._-]+")
 
 
@@ -86,7 +88,8 @@ def load_candidates(path: Path) -> List[Candidate]:
 
 def release_tags(tags: Sequence[str]) -> List[str]:
     """Tags that name a release: they carry a number and no pre-release marker."""
-    return [t for t in tags if re.search(r"\d", t) and not _PRERELEASE.search(t)]
+    return [t for t in tags if re.search(r"\d", t) and not _PRERELEASE.search(t)
+            and not _PEP440_PRE.search(t)]
 
 
 def import_candidates(path: Path, out_dir: Path, limit: int = 12,

@@ -133,7 +133,15 @@ identity:
                                           #   >= 30% of the directory, report a modified derivative:
                                           #   identity 0.5, no version, vendor_patched. Advisories
                                           #   for the product then surface only as in_triage.
+    include: ["*.c", "include/*.h"]       # optional: the globs (and `subdir`, below the
+                                          #   upstream's) the sidecar was built with, when not the
+                                          #   rule's own: FreeRTOS's records the kernel, not every
+                                          #   port. `rules verify` re-extracts the pinned release's
+                                          #   functions with them and requires an exact match.
     versions: ["2.0.2", "2.0.3", "2.1.0", "2.1.1", "2.1.2", "2.1.3", "2.2.0", "2.2.1"]
+                                          # must include the release upstream.source.ref pins
+                                          #   (`rules lint` warns otherwise); beyond 64, the
+                                          #   newest are kept
 
 version:
   probes:                                 # tier 3: version only

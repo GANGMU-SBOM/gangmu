@@ -10,6 +10,7 @@ by volunteers.
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import tempfile
@@ -19,6 +20,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from .dirprint import DEFAULT_EXCLUDE, DEFAULT_INCLUDE, print_directory, sha256_file
+from .importers.versions import tag_to_version
 from .rules.schema import Rule
 
 
@@ -35,6 +37,17 @@ class VerifyReport:
 
 
 FETCH_ATTEMPTS = 4
+
+
+def pinned_release(rule: Rule) -> Optional[str]:
+    """The release a rule's evidence is taken from: the signature's reference version,
+    else its pinned tag read as a version. ``None`` for a pinned commit."""
+    if rule.signature is not None and rule.signature.reference_version:
+        return rule.signature.reference_version
+    ref = rule.source.ref if rule.source else None
+    if not ref or re.fullmatch(r"[0-9a-f]{40}", ref):
+        return None
+    return tag_to_version(ref)
 
 
 def fetch_upstream(rule: Rule, dest: Path) -> Path:
@@ -154,6 +167,9 @@ def verify_rule(rule: Rule, checkout: Path,
         else:
             report.checked.append(f"signature reproduces exactly (similarity {sim:.4f})")
 
+    if rule.functions is not None:
+        _verify_functions(rule, checkout, report)
+
     # Probes are alternatives tried in order -- RT-Thread spelled its version
     # macros one way up to 4.x and another from 5.0 -- so the release must be
     # readable by one of them, and the first that reads it is what a scan uses.
@@ -183,6 +199,49 @@ def verify_rule(rule: Rule, checkout: Path,
     if len(rule.probes) > 1 and used is None:
         report.fail("no version probe matches the upstream source")
     return report
+
+
+def _verify_functions(rule: Rule, checkout: Path, report: VerifyReport) -> None:
+    """The function signature records exactly the functions of the pinned release.
+
+    A signature built with other globs than the rule's (Mbed TLS's held 26 of the
+    148 functions in its include/) reports an untouched copy as carrying vendor
+    additions; one that lacks the pinned release cannot place that release at all."""
+    assert rule.functions is not None
+    pinned = pinned_release(rule)
+    try:
+        signature = rule.functions.load()
+    except Exception as exc:                      # noqa: BLE001 -- reported, not raised
+        report.fail(f"function signature unusable: {exc}")
+        return
+    if pinned is None:
+        report.checked.append("function signature: the rule pins a commit, not a "
+                              "release; not compared")
+        return
+    if pinned not in signature.versions:
+        report.checked.append(
+            f"function signature does not record the pinned release {pinned} "
+            f"({signature.versions[0]} to {signature.versions[-1]}); not compared")
+        return
+    recorded = signature.version_hashes(signature.versions.index(pinned))
+    spec = rule.functions
+    root = checkout / spec.subdir if spec.subdir else checkout
+    include = spec.include or rule.include or DEFAULT_INCLUDE
+    exclude = spec.exclude or rule.exclude or DEFAULT_EXCLUDE
+    fresh = set(print_directory(root, include, exclude).functions) if root.is_dir() else set()
+    where = "the signature's globs" if spec.include or spec.exclude or spec.subdir \
+        else "the rule's globs"
+    missing, extra = recorded - fresh, fresh - recorded
+    if missing or extra:
+        report.fail(
+            f"function signature does not reproduce for {pinned}: upstream has "
+            f"{len(fresh)} functions under {where}, the signature records "
+            f"{len(recorded)} ({len(extra)} upstream only, {len(missing)} recorded only); "
+            f"rebuild it with those globs, or record the ones it was built with as "
+            f"identity.functions.include/exclude/subdir")
+    else:
+        report.checked.append(f"function signature reproduces exactly for {pinned} "
+                              f"({len(fresh)} functions)")
 
 
 def verify_with_fetch(rule: Rule, workdir: Optional[Path] = None,

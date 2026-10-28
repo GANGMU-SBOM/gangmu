@@ -110,6 +110,17 @@ class Function:
         return self.hash
 
 
+def _opens_namespace(toks: Sequence[bytes], i: int) -> bool:
+    """Is the ``{`` at *i* the body of ``namespace``, ``namespace a``, ``namespace a::b``
+    or ``inline namespace v1``? Its functions are at file scope like ``extern "C"``'s
+    (Monocypher wraps its whole source in one under ``#ifdef``)."""
+    k = i - 1
+    while k >= 0 and (toks[k] == b"::" or toks[k][:1].isalpha() or toks[k][:1] == b"_") \
+            and toks[k] != b"namespace" and i - k <= 16:
+        k -= 1
+    return k >= 0 and toks[k] == b"namespace"
+
+
 def extract_functions(data: bytes, tokens: Optional[List[bytes]] = None,
                       with_refs: bool = False,
                       min_tokens: int = MIN_BODY_TOKENS) -> List[Function]:
@@ -129,8 +140,8 @@ def extract_functions(data: bytes, tokens: Optional[List[bytes]] = None,
         if tok == _OPEN:
             # `extern "C" {` wraps a whole header or source file in many C
             # libraries; the functions inside it are still at file scope.
-            if depth == 0 and i >= 2 and toks[i - 2] == b"extern" \
-                    and toks[i - 1] == b'"C"':
+            if depth == 0 and (i >= 2 and toks[i - 2] == b"extern"
+                               and toks[i - 1] == b'"C"' or _opens_namespace(toks, i)):
                 wrappers += 1
             else:
                 depth += 1

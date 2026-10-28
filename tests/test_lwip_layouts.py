@@ -27,9 +27,21 @@ def test_rules_sharing_one_sidecar_do_not_segment_each_other_away():
     assert len({rules[i].functions.sha256 for i in lwip_rules}) == 1
     engine = MatchEngine(load_rules(REPO_RULES))
     engine.segment_rule_base()
+    sidecar = rules["generic/lwip"].functions.sha256
+    elsewhere = set()          # functions some rule with another sidecar holds too
+    for rule in engine.rulebase:
+        if rule.functions is not None and rule.functions.sha256 != sidecar:
+            try:
+                elsewhere |= rule.functions.load().hash_set
+            except Exception:                           # noqa: BLE001
+                continue
     for rule_id in lwip_rules:
         signature = next(r for r in engine.rulebase if r.id == rule_id).functions.load()
-        assert len(signature.application_hashes) > 0.99 * len(signature.hashes), rule_id
+        borrowed = signature.hash_set - signature.application_hashes
+        # Only code another component also carries (Mbed OS's lwIP glue) is given up;
+        # the rules sharing the sidecar never take it from each other.
+        assert borrowed <= elsewhere, rule_id
+        assert len(signature.application_hashes) > 0.9 * len(signature.hashes), rule_id
 
 
 def test_flat_layout_has_its_own_paths_and_the_same_probe_result():
