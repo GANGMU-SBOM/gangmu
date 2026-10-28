@@ -2,6 +2,10 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
+## 未发布
+* **只拷了 `src/` 内容的副本，标记文件也能找到它。** 规则的标记文件写在 `src/` 下（`src/core/init.c`）时，扫描现在也按去掉 `src/` 的路径找候选目录，所以改了名的扁平副本（`net/stack/core/init.c`）也会被检查。有了这一条，`generic/lwip` 带上自己的标记文件后，`generic/lwip-flat` 就多余了：在 lwIP 2.0.3、2.1.3、2.2.0 的扁平副本（目录名为 `lwip` 或任意名字）和完整上游树上，去掉 `lwip-flat` 后的结果与原来逐项相同（规则库同步删除该规则）。
+* **只带了一部分的副本，不再让被捆绑的库失去自己的代码。** 分割原来只认"整份捆绑"：B 某个版本至少 80% 在 A 里。freetype、libgit2 只带 zlib 的 inflate，arm-trusted-firmware 只带 zlib 的一部分，zlib-ng 与 zlib 共有 16 个函数；这些项目不算捆绑 zlib，于是只要一个函数也在它们手里，就对谁都不算自有代码，zlib 最新版本 222 个函数只剩 86 个。现在，如果某个项目整份捆绑了 B（tcl、sudo、clamav 带着完整的 zlib），而另一个持有者与 B 共有的部分只占它自己的一小部分（不超过 10%），这个持有者也算借用。只有部分副本、没有任何整份副本时仍不算数，因为那可能是两个项目各自带着的第三个库。在免费规则库上，22 个库拿回了自有代码、没有一个减少：zlib 86→215/222、bzip2 71→141/141、xxHash 148→204/204、lmdb 227→286/286、expat 104→132/132、Lua 1049→1177/1178、PCRE2 349→442/581、LevelDB 38→98/99、mdns 17→60/60、CMSIS-5 Core 84→137/455。用 16 个上游项目的源码树对比扫描结果，只有三处变化，都是真实副本：LÖVE 里的 xxHash 现在能认出（0.82），OP-TEE 的 `core/lib/zlib` 现在能认出（zlib 1.2.12，0.77），OpenColorIO 里的 xxHash 从 0.80 升到 0.88。CI 的性能检查通过。
+
 ## 0.13.9
 * **只拷了 `src/` 内容的副本也能认出。** 很多规则的 include 都在一个目录下（`src/**/*.c`），而厂商常常只把这个目录里的东西拷进来：aws-c-common 的 `source/external/libcbor` 就是 libcbor 的 `src/`。规则的 glob 在这样的目录里一个文件也选不到，于是函数层、锚点都看不到它：这份 libcbor 副本原来完全认不出（连宽松文件匹配也不行，因为它同样按 glob 选文件）。现在，当规则的 include 都在同一个目录 P 下、这里没有 P、按原 glob 选不到任何函数时，函数层改用去掉 P/ 的 glob，锚点也按去掉 P/ 的路径找；证据里写明"a flattened copy"。这份 libcbor 现在认成 0.13.0（0.95，锚点和 254/254 个函数）。免费规则库里有 33 条规则的 include 都在一个目录下（14 条在 `src/`）。原样的上游目录结构结果不变；CI 的性能检查通过。
 * **`gangmu rules bundled`：哪些规则带着别的规则的库。** 只读签名，列出每一对"A 的签名里有 B 某个版本的几乎全部函数"，并标明分割的结果：`kept`（副本只占 A 的一小部分，代码仍算 B 的）、`lineage`（双方互相包含，是分叉或拆分出来的库，谁都不算是对的）、`lost`（副本占 A 太大，B 因此失去自己的代码）。`lost` 要在宿主规则里修：`--rule A --tree 上游目录` 用除 A 之外的规则扫描 A 的上游目录，列出副本所在的目录，给出相对于规则根目录的 `identity.exclude`，再用相同的 `--exclude` 重建签名。在免费规则库上它列出 17 个 `lost`（dropbear 里的 libtomcrypt、picotool 里的 littlefs、aws-c-common 里的 libcbor、valkey 里的 jemalloc、swupdate 里的 mongoose、TinyUF2 里的 CMSIS 等）和 2 对 `lineage`（Mbed TLS 与 Mbed Crypto、OpenSSL 与 Tongsuo）。

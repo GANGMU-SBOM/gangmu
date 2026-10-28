@@ -82,3 +82,31 @@ def test_the_partial_copy_path_does_not_count_borrowed_code():
     own = present & host_sig.application_hashes
     assert len(every) >= SUBSET_MIN_FUNCTIONS and len(every) / len(present) >= SUBSET_MIN_SHARE
     assert not own                       # what the partial-copy path now counts
+
+
+def test_a_partial_copy_beside_a_whole_one_leaves_the_code_the_librarys():
+    # tcl carries all of zlib, freetype only its inflate: both are borrowing.
+    lib, lib_sig = _rule("lib", [("1.0", LIB)])
+    whole, _ = _rule("whole", [("5.0", LIB | set(range(1000, 3000)))])
+    part, _ = _rule("part", [("2.0", set(range(1, 31)) | set(range(5000, 7000)))])
+    _segment(lib, whole, part)
+    assert lib_sig.application_hashes == LIB
+
+
+def test_a_partial_copy_alone_proves_nothing():
+    # Without a whole copy, 30 shared functions may be some third library both carry.
+    lib, lib_sig = _rule("lib", [("1.0", LIB)])
+    part, _ = _rule("part", [("2.0", set(range(1, 31)) | set(range(5000, 7000)))])
+    _segment(lib, part)
+    assert not lib_sig.application_hashes & set(range(1, 31))
+
+
+def test_a_fork_holding_a_small_part_gives_it_up():
+    # zlib-ng shares 16 functions with zlib, a few per cent of itself; tcl's whole copy
+    # of zlib says they are zlib's.
+    lib, lib_sig = _rule("lib", [("1.0", LIB)])
+    whole, _ = _rule("whole", [("5.0", LIB | set(range(1000, 3000)))])
+    fork, fork_sig = _rule("fork", [("2.0", set(range(1, 17)) | set(range(8000, 8400)))])
+    _segment(lib, whole, fork)
+    assert lib_sig.application_hashes == LIB
+    assert not fork_sig.application_hashes & set(range(1, 17))

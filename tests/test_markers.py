@@ -20,14 +20,17 @@ from community import REPO_RULES, needs_rules
 pytestmark = needs_rules
 
 
-def _rule(markers):
+def _rule(markers, include=None):
+    identity = {"anchors": [{"path": "k.c", "sha256": {"1.0": "0" * 64}}]}
+    if include:
+        identity["include"] = include
     return rule_from_dict({
         "id": "test/kernel",
         "component": {"marker_files": markers},
         "upstream": {"name": "kernel", "purl": "pkg:generic/kernel",
                      "source": {"kind": "git", "url": "https://example.invalid/k",
                                 "ref": "v1.0"}},
-        "identity": {"anchors": [{"path": "k.c", "sha256": {"1.0": "0" * 64}}]},
+        "identity": identity,
     }, source_path="test.yaml")
 
 
@@ -54,6 +57,19 @@ def test_markers_in_subdirectories_name_the_component_root(tmp_path):
     roots = [p.relative_to(tmp_path.resolve()).as_posix()
              for p in discover_roots(tmp_path, rules)]
     assert roots == ["vendor/rtos"]
+
+
+def test_markers_under_src_also_find_a_copy_of_only_src(tmp_path):
+    # lwIP's markers sit under src/; LuatOS carries src/'s contents as lwip22/.
+    _touch(tmp_path, "net/stack/core/init.c", "net/stack/core/tcp.c",
+           "net/stack/include/lwip/init.h",
+           "full/src/core/init.c", "full/src/core/tcp.c", "full/src/include/lwip/init.h")
+    rules = RuleBase(rules=[_rule(["src/core/init.c", "src/core/tcp.c",
+                                   "src/include/lwip/init.h"],
+                                  include=["src/**/*.c", "src/**/*.h"])])
+    roots = sorted(p.relative_to(tmp_path.resolve()).as_posix()
+                   for p in discover_roots(tmp_path, rules))
+    assert roots == ["full", "full/src", "net/stack"]
 
 
 def test_the_shipped_rtos_rules_load_with_markers():
