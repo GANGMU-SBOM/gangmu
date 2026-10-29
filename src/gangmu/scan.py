@@ -691,9 +691,21 @@ def _explains(inner: Finding, outer: Finding) -> bool:
     """
     if inner.identity_confidence < outer.identity_confidence:
         return False
+    # A file the rule pins by hash, found where the rule puts it relative to the
+    # enclosing directory, says that directory is the component's root: an
+    # ancestor that only contains the code (os/ around dfs/elmfat) has none at its
+    # own level. pf-ring's root keeps its anchor against drivers/intel, which
+    # matches the same release by functions alone.
+    if _hash_matched(outer) and not _hash_matched(inner):
+        return False
     if outer.version is None or inner.version == outer.version:
         return True
     return inner.confidence >= outer.confidence
+
+
+def _hash_matched(finding: Finding) -> bool:
+    return any(e.technique is Technique.HASH_COMPARISON
+               for e in getattr(finding, "evidence", ()))
 
 
 def _drop_shadowing_ancestors(candidates: List[Finding]) -> List[Finding]:

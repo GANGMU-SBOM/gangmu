@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 from gangmu.fnsig import FunctionSignature, infer_version
 from gangmu.match.engine import _is_patched
+from gangmu.model import Evidence, Technique
 from gangmu.scan import _is_sample_of_component
 
 
@@ -100,6 +101,20 @@ def test_an_exact_release_at_the_root_is_not_traded_for_an_inner_range():
     root = _claim("ui", "LVGL", version="8.3.11", version_conf=0.98)
     inner = _claim("ui/src", "LVGL", version="8.3.11~8.4.0", version_conf=0.88)
     assert _drop_shadowing_ancestors([root, inner]) == [root, inner]
+
+
+def test_a_root_found_by_its_anchor_is_not_traded_for_a_subdirectory_found_by_functions():
+    # pf-ring's own tree: the anchor matches at the root, and drivers/intel holds
+    # enough of its code to match the same release, as strongly, by functions alone
+    anchored = Evidence(technique=Technique.HASH_COMPARISON, confidence=0.95, summary="anchor")
+    root = _claim(".", "PF_RING", version="9.4.0", version_conf=0.95)
+    root.evidence = [anchored]
+    inner = _claim("drivers/intel", "PF_RING", version="9.4.0", version_conf=0.95)
+    inner.evidence = []
+    assert _drop_shadowing_ancestors([root, inner]) == [root, inner]
+    # an anchor at both levels: the deeper one is the component, as before
+    inner.evidence = [anchored]
+    assert _drop_shadowing_ancestors([root, inner]) == [inner]
 
 
 def test_different_components_in_nested_directories_both_stay():
