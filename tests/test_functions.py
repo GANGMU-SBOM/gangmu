@@ -132,6 +132,39 @@ def test_only_common_code_cannot_narrow_the_version():
     assert "cannot be narrowed" in verdict.detail
 
 
+def _close_releases():
+    # 1.1 and 1.2 share 200 discriminating functions and differ in four
+    # (DAPLink 0257 and 0258 differ in 14 of 1659): within the scoring margin
+    base = set(range(1, 51)) | set(range(100, 300))
+    return FunctionSignature.build([
+        ("1.0", set(range(1, 51)), set()),
+        ("1.1", base | {500, 501, 502, 503}, set()),
+        ("1.2", base | {600, 601, 602, 603}, set()),
+    ]), base
+
+
+def test_a_tree_holding_what_the_newer_release_changed_is_that_release():
+    sig, base = _close_releases()
+    verdict = infer_version(sig, base | {600, 601, 602, 603})
+    assert (verdict.best, verdict.label) == ("1.2", "1.2")
+    # the old rule kept 1.1 in the range: it scores 200/208, within 5% of 1.2
+    assert verdict.low == "1.2"
+
+
+def test_a_copy_with_one_change_backported_stays_a_range():
+    # 1.1 with one of 1.2's four changes taken: it still holds 1.1's own code
+    sig, base = _close_releases()
+    verdict = infer_version(sig, base | {500, 501, 502, 600})
+    assert verdict.best == "1.1" and verdict.label == "1.1~1.2"
+
+
+def test_a_few_newer_functions_are_not_enough_to_rule_a_release_out():
+    # two of the four functions 1.2 changed, and none of 1.1's: too few to take sides
+    sig, base = _close_releases()
+    verdict = infer_version(sig, base | {600, 601})
+    assert verdict.label == "1.1~1.2"
+
+
 def test_version_hashes_are_reconstructed_from_the_bitmaps():
     sig = _sig()
     assert sig.version_hashes(0) == {1, 2, 3, 10}
