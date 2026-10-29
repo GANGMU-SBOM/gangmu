@@ -214,13 +214,8 @@ class DirectoryPrint:
     def _bottom_union(self) -> Set[int]:
         """Every file's stored bottom values together; computed once per print."""
         if self._bottoms is None:
-            store = self.store
-            assert store is not None
-            store.ensure(self.rels)
-            union: Set[int] = set()
-            for rel in self.rels:
-                union.update(store.analysis(rel).bottom)
-            self._bottoms = union
+            assert self.store is not None
+            self._bottoms = self.store.bottom_union(self.rels)
         return self._bottoms
 
     def _store_sketch(self, size: int) -> Optional[Signature]:

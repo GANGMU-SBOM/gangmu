@@ -170,12 +170,13 @@ def find_loose(root: Path, engine: MatchEngine, store: AnalysisStore,
         assigned = _assign(groups, functions, {rid: signatures[rid] for rid in hit_rules}, small)
         short.extend((d, files, g) for g in small)
         for group in assigned:
-            home = next((f for f in homes.get(group.rule.id, ()) if _beside(d, f.directory)), None)
+            home = next((f for f in homes.get(group.rule.id, ())
+                         if _inside(d, f.directory) or _beside(d, f.directory)), None)
             if home is not None:
                 members = _members(group, files, functions)
                 home.evidence.append(Evidence(
                     technique=Technique.AST_FINGERPRINT, confidence=0.0,
-                    summary=(f"{len(members)} more of its files beside it, in {d}: "
+                    summary=(f"{len(members)} more of its files {_where(d, home.directory)}, in {d}: "
                              + ", ".join(PurePosixPath(m).name for m in members[:8])
                              + (" ..." if len(members) > 8 else "")),
                     locator=d))
@@ -188,8 +189,10 @@ def find_loose(root: Path, engine: MatchEngine, store: AnalysisStore,
             if finding is not None:
                 if finding.files:
                     # a component copied loose across subdirectories (CANopenNode's 301/, 303/ ...):
-                    # what lies below with the same code is the same copy
-                    below = [r for r in rels if r.startswith(d + "/") and r not in taken] if d != "." else []
+                    # what lies below with the same code is the same copy, at the scan root too
+                    # (htop's darwin/, linux/ ... beside its own files)
+                    below = [r for r in rels if (d == "." or r.startswith(d + "/")) and r not in taken
+                             and r not in finding.files]
                     more = _group(signatures[group.rule.id], below, functions) if below else None
                     if more is not None:
                         finding.files = sorted(set(finding.files) | set(_members(more, below, functions)))
@@ -202,11 +205,12 @@ def find_loose(root: Path, engine: MatchEngine, store: AnalysisStore,
         if not mine:
             continue
         members = _members(group, [f for f in files if f not in taken], functions)
-        whole = next((f for f in homes.get(group.rule.id, ()) if _beside(d, f.directory)), None)
-        if whole is not None:               # a directory found as the component: these are beside it
+        whole = next((f for f in homes.get(group.rule.id, ())
+                      if _inside(d, f.directory) or _beside(d, f.directory)), None)
+        if whole is not None:               # a directory found as the component: these are in or beside it
             whole.evidence.append(Evidence(
                 technique=Technique.AST_FINGERPRINT, confidence=0.0,
-                summary=(f"{len(members)} more of its files beside it, in {d}: "
+                summary=(f"{len(members)} more of its files {_where(d, whole.directory)}, in {d}: "
                          + ", ".join(PurePosixPath(m).name for m in members[:8])
                          + (" ..." if len(members) > 8 else "")),
                 locator=d))
@@ -363,6 +367,16 @@ def _common(a: str, b: str) -> str:
     while n < min(len(pa), len(pb)) and pa[n] == pb[n]:
         n += 1
     return "/".join(pa[:n])
+
+
+def _inside(d: str, home: str) -> bool:
+    """*d* is *home* or below it; everything is below the scan root."""
+    home = home.strip("/")
+    return home in (".", "") or d == home or d.startswith(home + "/")
+
+
+def _where(d: str, home: str) -> str:
+    return "inside it" if _inside(d, home) else "beside it"
 
 
 def _beside(d: str, home: str) -> bool:

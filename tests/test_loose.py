@@ -232,3 +232,50 @@ def test_a_small_group_alone_or_far_from_the_copy_is_not_claimed(tmp_path):
     _tree(tree, {**APP, "alpha/src/core.c": lib["core.c"], "beta/aux.c": lib["aux.c"]})
     found = _scan(tmp_path / "rules", tree, tmp_path)["findings"]
     assert [(f["directory"], f["files"]) for f in found] == [("alpha/src", [])]
+
+
+def test_the_scan_root_is_asked_about_when_it_is_a_package(tmp_path):
+    # pointed at a checkout of the component itself (its licence under a suffixed name),
+    # the answer is the component at the root, once, not one piece per subdirectory
+    lib = {"tinylib.c": _code(100, 30), "darwin/tl_darwin.c": _code(300, 20),
+           "linux/tl_linux.c": _code(400, 20)}
+    _rule(tmp_path / "rules", "tinylib", lib)
+    tree = tmp_path / "tinylib-2"
+    _tree(tree, {**lib, "LICENSE.LGPL": "LGPL\n", "tests/run.c": _code(8000, 5, 3)})
+    found = _scan(tmp_path / "rules", tree, tmp_path)["findings"]
+    assert [(f["directory"], f["files"], f["version"]) for f in found] == [(".", [], "2")]
+
+
+def test_a_copy_at_the_scan_root_takes_its_files_below_it(tmp_path):
+    # no licence or manifest at the root: the copy is found as files there, and its
+    # files in the subdirectories are the same copy
+    lib = {"tinylib.c": _code(100, 30), "darwin/tl_darwin.c": _code(300, 20),
+           "linux/tl_linux.c": _code(400, 20)}
+    _rule(tmp_path / "rules", "tinylib", lib)
+    tree = tmp_path / "tree"
+    _tree(tree, {**lib, "main.c": _code(9000, 30, 3)})
+    found = _scan(tmp_path / "rules", tree, tmp_path)["findings"]
+    assert [(f["directory"], f["files"]) for f in found] == [
+        (".", ["darwin/tl_darwin.c", "linux/tl_linux.c", "tinylib.c"])]
+
+
+def test_a_project_root_with_a_licence_is_not_its_vendored_library(tmp_path):
+    lib = {"tinylib.c": _code(100, 45)}
+    _rule(tmp_path / "rules", "tinylib", lib)
+    tree = tmp_path / "tree"
+    _tree(tree, {**APP, "LICENSE": "proprietary\n", "vendor/tinylib/tinylib.c": lib["tinylib.c"],
+                 "vendor/tinylib/LICENSE": "MIT\n"})
+    found = _scan(tmp_path / "rules", tree, tmp_path)["findings"]
+    assert [(f["directory"], f["files"]) for f in found] == [("vendor/tinylib", [])]
+
+
+def test_a_subdirectory_of_the_component_found_at_the_root_is_the_same_copy(tmp_path):
+    # keepalived's keepalived/, knot's src/knot: named as the rule expects, so a
+    # candidate of its own, but inside the copy already found at the scan root
+    lib = {"tinylib/core.c": _code(100, 40), "tinylib/net.c": _code(300, 20),
+           "tools/tl_tool.c": _code(500, 20)}
+    _rule(tmp_path / "rules", "tinylib", lib)
+    tree = tmp_path / "tinylib-2"
+    _tree(tree, {**lib, "COPYING": "GPL\n", "tools/glue.c": _code(9000, 30, 3)})
+    found = _scan(tmp_path / "rules", tree, tmp_path)["findings"]
+    assert [(f["directory"], f["files"]) for f in found] == [(".", [])]

@@ -48,7 +48,7 @@ from array import array
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from .fingerprint import DEFAULT_SKETCH, sorted_fingerprints
 from .functions import extract_functions
@@ -197,6 +197,10 @@ class TreeIndex:
 
 # ---------------------------------------------------------------------- store
 
+SHARED_UNION_FILES = 256   # file lists this long share their bottom-value union
+SHARED_UNIONS = 4          # ... and this many are kept
+
+
 class AnalysisStore:
     """Per-file content hashes and analyses for one scan, optionally on disk."""
 
@@ -208,6 +212,10 @@ class AnalysisStore:
         self.jobs = max(1, jobs)
         self._sha: Dict[str, str] = {}
         self._analysis: Dict[str, FileAnalysis] = {}
+        # The bottom values of a large file list, shared by the directory prints
+        # that select it: rules with different globs mostly pick the same files of
+        # a big directory (the scan root above all), and the union is the same.
+        self._bottoms: Dict[Tuple[str, ...], Set[int]] = {}
         self._pool: Optional[ProcessPoolExecutor] = None
         self._params = f"{ANALYSIS_DIGEST}-{k}-{window}-{cap}"
         self._db: Optional[sqlite3.Connection] = None
@@ -433,6 +441,23 @@ class AnalysisStore:
         if sha not in self._analysis:
             self.ensure([rel])
         return self._analysis.get(sha, EMPTY)
+
+    def bottom_union(self, rels: Sequence[str]) -> Set[int]:
+        """Every file's bottom values together. Kept for a few large file lists
+        only: a small directory's union is cheap to form again, and holding every
+        one would grow the scan's memory with the tree."""
+        key = tuple(rels) if len(rels) >= SHARED_UNION_FILES else None
+        if key is not None and key in self._bottoms:
+            return self._bottoms[key]
+        self.ensure(rels)
+        union: Set[int] = set()
+        for rel in rels:
+            union.update(self.analysis(rel).bottom)
+        if key is not None:
+            if len(self._bottoms) >= SHARED_UNIONS:
+                self._bottoms.pop(next(iter(self._bottoms)))
+            self._bottoms[key] = union
+        return union
 
 
 def _open_db(directory: Path) -> Optional[sqlite3.Connection]:
