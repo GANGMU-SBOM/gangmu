@@ -32,10 +32,9 @@ from .match.engine import flat_prefix
 from .rules.loader import RuleBase
 from .core.walk import NOT_CONTENT_DIRS
 
-LICENSE_MARKERS = {
-    "LICENSE", "LICENSE.txt", "LICENSE.md", "LICENCE", "LICENCE.txt",
-    "COPYING", "COPYING.txt", "COPYRIGHT", "NOTICE",
-}
+# LICENSE, LICENSE.txt, LICENSE.LGPL, LICENSE-MIT, COPYING.LIB, license.md, NOTICE ...
+LICENSE_FILE = re.compile(r"^(licen[sc]e|copying|copyright|notice|unlicense)([-_.][\w.-]*)?$"
+                          r"(?<!\.c)(?<!\.h)(?<!\.cc)(?<!\.cpp)(?<!\.hpp)(?<!\.py)(?<!\.js)(?<!\.go)(?<!\.rs)", re.I)
 # Not ``managed_components``: ESP-IDF's component manager puts every registry
 # dependency there, and that code is compiled into the firmware like any other.
 SKIP_DIRS = NOT_CONTENT_DIRS | {".github", "build", "out"}
@@ -116,24 +115,30 @@ def discover_roots(root: Path, rulebase: RuleBase,
             dirnames[:] = []
             continue
         dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS)
-        if rel == ".":
-            continue
 
         fileset = set(filenames)
         for name in fileset.intersection(triggers) if triggers else ():
             for parent, others in triggers[name]:
                 base = _strip_suffix(here, parent)
-                if (base is not None and base != root
+                if (base is not None and (base == root or root in base.parents)
                         and all((base / other).is_file() for other in others)):
                     candidates.add(base)
         reason = None
-        if globs and matches_suffix(rel, globs):
+        if rel == ".":
+            # The scan root is asked about too, on the same signs as any other
+            # directory: pointed at an unpacked zlib-1.3.1/ or a checkout of htop,
+            # the answer is that component, not only what it bundles.
+            if fileset & set(MANIFEST_NAMES) or (here / ZEPHYR_MODULE).is_file():
+                reason = "manifest"
+            elif _has_license(fileset):
+                reason = "license-file"
+        elif globs and matches_suffix(rel, globs):
             reason = "rule-path"
         elif here.name in names:
             reason = "rule-name"
         elif fileset & set(MANIFEST_NAMES) or (here / ZEPHYR_MODULE).is_file():
             reason = "manifest"
-        elif fileset & LICENSE_MARKERS:
+        elif _has_license(fileset):
             reason = "license-file"
         elif rel in submodules:
             reason = "submodule"
@@ -147,6 +152,10 @@ def discover_roots(root: Path, rulebase: RuleBase,
         candidates = {c for c in candidates if build_facts.sources_under(c)}
 
     return sorted(candidates)
+
+
+def _has_license(names: Set[str]) -> bool:
+    return any(LICENSE_FILE.match(n) for n in names)
 
 
 def _strip_suffix(here: Path, parent: str) -> Optional[Path]:

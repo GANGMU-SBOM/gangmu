@@ -741,6 +741,8 @@ def _drop_nested_duplicates(findings: List[Finding]) -> List[Finding]:
     real component root.
     """
     def is_ancestor(a: str, b: str) -> bool:
+        if a.strip("/") in (".", ""):           # the scan root holds everything else
+            return b.strip("/") not in (".", "")
         return b != a and b.startswith(a.rstrip("/") + "/")
 
     dropped = set()
