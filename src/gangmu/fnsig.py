@@ -381,6 +381,22 @@ class VersionVerdict:
         return self.best
 
 
+# A version within the scoring margin of the best is still ruled out when the tree
+# holds at least this many of the functions only the best one has, ...
+DECISIVE_MIN = 3
+# ... these are at least this share of all the functions only the best one has
+# (a copy with a fix or two backported is still the older release), and the tree
+# holds none of the functions only the other version has.
+DECISIVE_SHARE = 0.5
+
+
+def _takes_sides(voters: Set[int], best: FrozenSet[int], other: FrozenSet[int]) -> bool:
+    only_best = best - other
+    held = len(voters & only_best)
+    return (held >= DECISIVE_MIN and held >= DECISIVE_SHARE * len(only_best)
+            and voters.isdisjoint(other - best))
+
+
 def infer_version(signature: FunctionSignature, present: Set[int]) -> VersionVerdict:
     """TIVER-style adaptive version: the range of versions actually present.
 
@@ -417,9 +433,16 @@ def infer_version(signature: FunctionSignature, present: Set[int]) -> VersionVer
 
     best_score = max(scores)
     best_index = scores.index(best_score)
-    # The adaptive range: every version that explains the tree about as well.
+    # The adaptive range: every version that explains the tree about as well,
+    # unless the tree takes sides between it and the best one. Releases a few
+    # functions apart score within the margin of each other (DAPLink 0257 and
+    # 0258: 14 of 1659), so a tree that holds most of what the best release
+    # changed, and nothing the other one has instead, is not the other one.
     threshold = best_score * 0.95
-    explained = [i for i, s in enumerate(scores) if s >= threshold]
+    best_own = signature.version_discriminating(best_index)
+    explained = [i for i, s in enumerate(scores) if s >= threshold
+                 and (i == best_index or not _takes_sides(voters, best_own,
+                                                         signature.version_discriminating(i)))]
     low_index, high_index = min(explained), max(explained)
 
     best_bit = 1 << best_index
@@ -427,10 +450,10 @@ def infer_version(signature: FunctionSignature, present: Set[int]) -> VersionVer
                       if not signature.bitmaps[index[h]] & best_bit)
     multi = unexplained > 0
     foreign = len(present) - len(matched)
-    best_own = signature.version_application_hashes(best_index)
-    changed = len(best_own - present)
+    best_app = signature.version_application_hashes(best_index)
+    changed = len(best_app - present)
     edge = ""
-    if len(signature.versions) > 1 and best_own and changed / len(best_own) >= EDGE_ALTERED_SHARE:
+    if len(signature.versions) > 1 and best_app and changed / len(best_app) >= EDGE_ALTERED_SHARE:
         edge = ("oldest" if best_index == 0 else
                 "newest" if best_index == len(signature.versions) - 1 else "")
 
