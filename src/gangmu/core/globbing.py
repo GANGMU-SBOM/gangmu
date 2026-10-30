@@ -85,5 +85,31 @@ def matches_suffix(rel_path: str, patterns: Sequence[str]) -> bool:
     fire when the SDK is itself nested inside the scanned tree.
     """
     rel_path = rel_path.replace("\\", "/").strip("/")
-    rx = _compile_any(tuple(patterns), True)
+    literal, rx = _suffix_parts(tuple(patterns))
+    if literal:
+        if rel_path in literal:
+            return True
+        cut = rel_path.find("/")
+        while cut != -1:
+            if rel_path[cut + 1:] in literal:
+                return True
+            cut = rel_path.find("/", cut + 1)
     return bool(rx and rx.match(rel_path))
+
+
+@lru_cache(maxsize=64)
+def _suffix_parts(patterns: Tuple[str, ...]) -> Tuple[frozenset, Optional[Pattern[str]]]:
+    """Plain paths as a set of tails, the rest as one alternation. Discovery asks
+    this of every directory with every rule's path globs; as one alternation,
+    each ``(?:[^/]+/)*`` branch is retried at every segment, about 1.3 ms a
+    directory with the free rule base."""
+    literal, rest = set(), []
+    for p in patterns:
+        plain = p.replace("\\", "/").strip("/")
+        while plain.startswith("**/"):          # a tail match allows any prefix anyway
+            plain = plain[3:]
+        if plain and not any(c in plain for c in "*?["):
+            literal.add(plain)
+        else:
+            rest.append(p)
+    return frozenset(literal), _compile_any(tuple(rest), True) if rest else None
