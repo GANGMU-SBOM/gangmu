@@ -22,30 +22,152 @@ gangmu eval --signature gangmu-rules/rules/generic/lwip.fnsig \
     --mutate /path/lwip-2.2.0=2.2.0
 ```
 
+## 0. Accuracy and false positives, all at once (re-measured 2026-10-30)
+
+Measured with `main` after 0.15.0 (#155, plus the Mbed TLS 4.1.1 fix below) and
+the free rule base 2026.10.29 plus the libcoap fix in gangmu-rules#89. Every
+number here can be re-run. The per-section tables further down are the
+experiments as they were first measured; the rows marked "2026-10-30" in this
+section re-run the same trees, and where they differ, these are current.
+
+Three things are counted, not only the first:
+* **Accuracy**: was the expected component found, and is its version exact, a
+  range containing the truth, or wrong?
+* **Version accuracy where the truth is known**: graded against the release tag,
+  or for a vendor copy against the version the vendor wrote in its own files.
+* **False positives**: every *other* component the scan reports in the tree.
+  Each is either something the tree really carries (checked by hand against the
+  source and recorded in the case as `bundled:`), a dependency a manifest in the
+  tree declares, or a false positive.
+
+### Source code
+
+**gangmu-bench, 140 cases** ([results/latest.md](https://github.com/GANGMU-SBOM/gangmu-bench/blob/main/results/latest.md)):
+131 upstream release trees pinned by tag or commit, under a neutral directory
+name, pristine and with the version files deleted ("stripped") or every C file
+touched; and 9 vendor SDKs at pinned commits with 57 copies graded where they sit.
+
+| | rows | exact | range containing truth | component only (no stated version) | wrong | missed |
+| --- | --- | --- | --- | --- | --- | --- |
+| upstream release trees | 206 | 186 | 19 | 0 | 1 | 0 |
+| vendor SDK copies | 57 | 41 | 4 | 8 | 2 | 2 |
+| **all** | **263** | **227** | **23** | **8** | **3** | **2** |
+
+**Of the 326 components reported, 0 are false positives.** 65 more are
+components the trees really carry (llhttp and http-parser in nghttp2, zlib in
+libwebsockets' `win32port`, lodepng and the Unity test framework in every LVGL,
+Mbed TLS in OpenThread, jsmn in the AWS IoT SDK), and 48 are dependencies a
+manifest declares. The 3 wrong and 2 missed:
+* two TinyCrypt copies (bl_iot_sdk, bouffalo_sdk) state 0.2.7 but carry 0.2.8's
+  fixes (section 1e) and are reported as 0.2.8;
+* libwebsockets' `v4.0.21` tag already says 4.0.22 in its own `CMakeLists.txt`;
+* the Allwinner R128 SDK keeps two FreeRTOS kernels side by side
+  (`kernel/FreeRTOS/Source` 10.2.0 and `kernel/FreeRTOS-orig/Source` 10.4.3);
+  they are reported as one finding in their parent directory, `10.4.0~10.4.3`,
+  so the 10.2.0 copy is not reported on its own. A rule matching sibling copies
+  under one parent should report each; this is the one open defect the run found.
+
+Two answers were wrong before this re-measurement and are fixed by it: a
+pristine Mbed TLS 4.1.1 was named after Zephyr's copy of it (a zero-confidence
+note counted as evidence in the resolver), and libcoap 4.2.1 read as 4.2.0
+(its tag's ChangeLog was never bumped; the rule now reads `configure.ac`).
+
+By section (2026-10-30; "SDK" rows are the vendor copies):
+
+| section | trees or copies | exact | range | component only | wrong | missed |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1b FreeRTOS / RT-Thread in vendor SDKs | 17 SDK copies | 12 | 2 | 1 | 0 | 2 |
+| 1c GmSSL 2.x/3.x, Tongsuo, OpenSSL 1.1.x/3.x | 19 pristine, 19 stripped | 37 | 1 | 0 | 0 | 0 |
+| 1d Mbed TLS, FatFs, littlefs | 18 pristine, 8 stripped, 8 touched, 18 SDK copies | 51 | 1 | 0 | 0 | 0 |
+| 1e LVGL, libcoap, TinyCrypt | 14 pristine, 11 stripped, 7 SDK copies | 27 | 1 | 2 | 2 | 0 |
+| 1f TencentOS-tiny | 13 pristine, 12 stripped, 2 SDK copies | 18 | 9 | 0 | 0 | 0 |
+| 1g nghttp2, libwebsockets, Paho, OpenThread, AWS IoT | 37 pristine, 16 stripped, 5 SDK copies | 53 | 3 | 1 | 1 | 0 |
+| 1h AliOS Things (Rhino) | 16 pristine | 13 | 3 | 0 | 0 | 0 |
+| 1i LiteOS 5.x, LiteOS-M in WCH SDKs | 2 pristine, 2 touched, 3 SDK copies | 4 | 1 | 2 | 0 | 0 |
+| 1n Allwinner R128 / D1s third-party libraries | 5 SDK copies | 2 | 1 | 2 | 0 | 0 |
+
+The LiteOS-M and LiteOS-A rows of 1i (48 releases each) were the signature read
+back through version inference, not tree scans, and are not part of this run.
+
+**Self-scan census, 227 rules**: each sampled rule's pinned upstream release,
+fetched and scanned with the whole rule base. 224 find themselves (216 at the
+pinned version). Of the 60 code or binary findings of *other* components, 2
+are false positives (`nanostack-libservice` claimed by the mbed-cloud-client
+rule, which bundles it; an iOS `SDL3.framework` claimed by the SDL_net rule),
+2 are the same tree under a sibling rule, and 56 are components really there.
+Over the 284 components reported, that is **2 false positives (0.7%)**. Five of
+the real ones carry a wrong version: pf-ring's `libpcap-1.10.1` read as
+`1.10.3~1.10.4` and both `tcpdump-4.99.x` as 4.99.5, CMSIS-Core(A) 1.1 headers
+in Mbed OS read as CMSIS 6, and btrfs-progs' xxhash 0.8.1 as 0.8.2.
+
+### Prebuilt binaries
+
+**Inside real trees** (the census above): 15 prebuilt files were identified
+(Lua 5.1.4 in premake4, libcurl 7.53.1 in premake5, zlib 1.3.1 and 1.2.3 in
+DLLs, libogg, libopus 1.4, Mbed TLS in TF-M secure images), **all 15 real**;
+most versions are coarse or absent.
+
+**Cross-compiled corpus** (`gangmu binary-eval`, 15 libraries, their releases,
+4 optimisation levels; references from one build identify the stripped images
+of another; negative controls match every library's fingerprints against every
+other library's images):
+
+| architecture | exact | range | wrong | not found | wrong among answers | negative-control hits |
+| --- | --- | --- | --- | --- | --- | --- |
+| Cortex-M3 (Thumb) | 242 | 301 | 7 | 138 | 1.3% | 91 / 9,776 (0.9%) |
+| rv32imac | 195 | 348 | 4 | 141 | 0.7% | 70 / 9,776 (0.7%) |
+| AArch64 | 254 | 332 | 20 | 130 | 3.3% | 87 / 11,200 (0.8%) |
+| Xtensa (ESP32) | 222 | 250 | 5 | 169 | 1.0% | 48 / 9,118 (0.5%) |
+| Cortex-M3 references, rv32imac images (strings only) | 123 | 196 | 8 | 361 | 2.5% | 75 / 9,776 |
+| Cortex-M3 references, AArch64 images | 118 | 244 | 10 | 316 | 2.7% | 34 / 10,496 |
+| Cortex-M3 references, Xtensa images | 140 | 252 | 21 | 251 | 5.1% | 87 / 9,440 |
+| Xtensa references, Cortex-M3 images | 111 | 212 | 1 | 340 | 0.3% | 44 / 9,448 |
+
+This corpus is twice the one the "0 false positives in 1,920 pairs" of
+BINARY-VALIDATION.md was measured on (7 libraries then, 15 now), and the new
+libraries are what brings false positives: on Cortex-M, 81 of the 91 are lz4
+and zstd matching each other through the xxhash both carry, the rest brotli and
+lz4 fingerprints matching yyjson images. Before this run a further 95 hits were
+counted that were not false positives at all, `mbedtls` and `mbedtls-full`
+being two builds of one library; `binary-eval` now treats them as one.
+Removing functions shared between libraries from their fingerprints, as source
+matching already does, is the fix still to make.
+
+**In short:** from source the tool almost never names a component that is not
+there (0 of 326 in gangmu-bench, 2 of 284 in the census) and gives the exact
+version for 86% of the rows; from binaries it is wrong in about 1% of its
+answers on the same architecture, 0.5% to 0.9% of negative-control pairs match,
+and many images get only a range or no answer.
+
 ## 1. Version accuracy on real releases
 
-Signature built from the eight most recent lwIP release tags (3,016 functions,
-91 KB). Each tree is a real `git archive` of a release tag; `esp-lwip` is
-Espressif's production fork as pinned by ESP-IDF.
+Measured on 2026-10-30 with gangmu-sbom 0.15.0 and the lwIP signature of gangmu-rules
+2026.10.29 (eight releases, 2.0.2 to 2.2.1, 3,195 functions, 98 KB). Each tree is a
+real checkout of a release tag (`github.com/lwip-tcpip/lwip`, `STABLE-x_y_z_RELEASE`);
+`esp-lwip` is Espressif's production fork, `github.com/espressif/esp-lwip` at `fc73c67`.
 
-| tree | truth | reported | exact | containment |
+| tree | truth | reported | best match is the truth | containment |
 | --- | --- | --- | --- | --- |
-| upstream 2.0.3 | 2.0.3 | 2.0.2~2.0.3 | yes | 1.000 |
-| upstream 2.1.0 | 2.1.0 | 2.1.0~2.1.2 | yes | 1.000 |
-| upstream 2.1.2 | 2.1.2 | 2.1.0~2.1.2 | yes | 1.000 |
+| upstream 2.0.3 | 2.0.3 | 2.0.3 | yes | 1.000 |
+| upstream 2.1.0 | 2.1.0 | 2.1.0 | yes | 1.000 |
+| upstream 2.1.2 | 2.1.2 | 2.1.2 | yes | 1.000 |
 | upstream 2.1.3 | 2.1.3 | 2.1.3 | yes | 1.000 |
 | upstream 2.2.0 | 2.2.0 | 2.2.0 | yes | 1.000 |
-| **Espressif fork of 2.2.0** | 2.2.0 | 2.2.0~2.2.1 | yes | **0.938** |
+| **Espressif fork of 2.2.0** | 2.2.0 | 2.2.0~2.2.1 | yes | **0.943** |
 
-**6/6 exact.** Where a range is reported rather than a point, the releases in it
-are genuinely indistinguishable by function content — 2.1.0 and 2.1.2 have
-identical function sets, so narrowing further would be invention.
+**6/6: the five releases are reported as exactly their version, and the fork as a
+range whose best match is 2.2.0.** Until 0.15.0, 2.0.3, 2.1.0 and 2.1.2 were reported
+as ranges (`2.0.2~2.0.3`, `2.1.0~2.1.2`): every release scoring within 5% of the
+best was kept, and these releases are a few functions apart. A release is now left
+out of the range when the tree holds most of what the best one changed and none of
+what the other one has instead (gangmu #151).
 
-The fork is additionally reported as mixing releases: *"1157 are in 2.2.0, and 3
-belong to other recorded versions — this tree mixes releases, which is what a
-vendor fork looks like."* That sentence is the whole argument for function-level
-matching. A whole-tree sketch scores the fork 0.949 and upstream 2.1.3 at 0.887,
-and cannot tell you which is which.
+The fork is additionally reported as mixing releases: *"1230 are in 2.2.0, and 3
+belong to other recorded versions -- this tree mixes releases, which is what a
+vendor fork looks like (120 recorded function(s) of 2.2.0 are missing or altered)"*.
+That sentence is the whole argument for function-level matching. A whole-tree
+sketch scores the fork 0.949 and upstream 2.1.3 at 0.887, and cannot tell you which
+is which.
 
 ## 1b. RTOS kernels inside Chinese vendor SDKs
 
@@ -696,17 +818,19 @@ harness renamed `return`, `struct` and the like too, which no vendor does; the
 table was re-measured after that was fixed, and renames that used to be spent on
 keywords now all land on real names, so the 10% row is lower than it was).
 
+Measured on 2026-10-30 with gangmu-sbom 0.15.0, the same signature and seed as section 1:
+
 | mutation | exact | abstract | used | identified | version |
 | --- | --- | --- | --- | --- | --- |
 | pristine | 1.000 | 1.000 | 1.000 | yes | 2.2.0 |
-| reformat (CRLF, tabs) | 0.997 | 0.997 | 0.997 | yes | 2.2.0 |
-| rename 10% of identifiers | 0.441 | **0.797** | 0.797 | yes | 2.2.0~2.2.1 |
-| rename 25% | 0.128 | **0.712** | 0.712 | yes | 2.2.0~2.2.1 |
-| rename 50% | 0.040 | **0.621** | 0.621 | yes | 2.2.0~2.2.1 |
-| delete 20% of files | 0.848 | 0.847 | 0.848 | yes | 2.2.0 |
-| delete 50% of files | 0.507 | 0.501 | 0.507 | yes | 2.2.0 |
+| reformat (CRLF, tabs) | 0.998 | 0.997 | 0.998 | yes | 2.2.0 |
+| rename 10% of identifiers | 0.462 | **0.807** | 0.807 | yes | 2.2.0 |
+| rename 25% | 0.154 | **0.727** | 0.727 | yes | 2.2.0 |
+| rename 50% | 0.058 | **0.640** | 0.640 | yes | 2.2.0~2.2.1 |
+| delete 20% of files | 0.847 | 0.847 | 0.847 | yes | 2.2.0 |
+| delete 50% of files | 0.502 | 0.502 | 0.502 | yes | 2.2.0 |
 | add 30% vendor code | 1.000 | 1.000 | 1.000 | yes | 2.2.0 |
-| **vendor-like**: rename 15%, delete 25%, add 20%, reformat | 0.243 | **0.622** | 0.622 | yes | 2.2.0~2.2.1 |
+| **vendor-like**: rename 15%, delete 25%, add 20%, reformat | 0.260 | **0.632** | 0.632 | yes | 2.2.0~2.2.1 |
 
 **Identified under 9/9 mutations; version correct 9/9.**
 
@@ -715,18 +839,20 @@ Three things are worth reading off that table:
 * **Adding vendor code costs nothing** (1.000). Containment asks how much of
   upstream is present, not how similar the trees are — which is why a 4,000-
   function library inside a 200,000-function firmware is still found.
-* **Deleting half the files still identifies** (0.507). A port layer that keeps
+* **Deleting half the files still identifies** (0.502). A port layer that keeps
   only the drivers it needs does not become unrecognisable.
 * **Renaming is what exact hashing cannot survive**, and the second abstraction
-  level is what fixes it: 0.441 → 0.797 at a 10% rename rate. Without it the
-  realistic vendor-like combination falls to 0.243 and would be reported as a
+  level is what fixes it: 0.462 → 0.807 at a 10% rename rate. Without it the
+  realistic vendor-like combination falls to 0.260 and would be reported as a
   weak, review-needed match rather than a confident one.
 * **The version survives renaming too.** It is read from the abstracted bodies
-  once the match is: 2.2.0 and 2.2.1 differ only in names, so the range is the
-  pair, which is also what an untouched 2.2.1 tree gives. On Mbed TLS 3.6.2 with
-  its version header removed, renaming 25% widened the range read from the exact
-  bodies to 3.6.0~3.6.7 (and once, at 50%, to 3.5.0~3.6.7); from the abstracted
-  bodies it stays 3.6.1~3.6.3, the same as the untouched tree, in every seed tried.
+  once the match is. Up to a quarter of the names renamed it stays 2.2.0; at half,
+  and in the vendor-like mix, it is the pair 2.2.0~2.2.1: those two releases differ
+  only in names, and with that many renamed the tree no longer shows which names it
+  has. (An earlier measurement, before 0.15.0, on Mbed TLS 3.6.2 with its version
+  header removed: renaming 25% widened the range read from the exact bodies to
+  3.6.0~3.6.7, and from the abstracted bodies it stayed 3.6.1~3.6.3, the same as the
+  untouched tree, in every seed tried. Not re-measured.)
 
 ## 3. SBOM quality against the published standards
 
@@ -736,10 +862,21 @@ and the CISA 2026 update, and is deliberately comparable to Interlynk's
 absent, because an SBOM full of them passes a field-presence check while telling
 a reader nothing.
 
-| standard | score |
-| --- | --- |
-| NTIA 2021 minimum elements | **10.0 / 10** |
-| CISA 2026 minimum elements | **10.0 / 10** |
+Re-scored on 2026-10-30 (`main` after 0.15.0):
+
+| SBOM | NTIA 2021 | CISA 2026 |
+| --- | --- | --- |
+| `examples/output/sbom.cdx.json` (the README's disguised GmSSL fork, one component) | **10.0 / 10** | **10.0 / 10** |
+| ESP-IDF v5.4.2, the whole tree, scanned from source alone (203 components) | **6.1 / 10** | **7.0 / 10** |
+
+The example is the case the format is designed for. A real SDK is not: 183 of
+ESP-IDF's 203 components are Espressif's own prebuilt archives (`libbtdm_app.a`,
+the Wi-Fi and PHY libraries) that no rule identifies, so the SBOM lists them as
+files with a hash and nothing else, which is honest and costs supplier, version,
+identifier and licence on each. Of the 20 components a rule identified, all 20
+have a purl or CPE, 19 a version and 18 a supplier (FatFs and the bootloader
+have none in their rules). The score therefore measures how much of the tree the
+rule base covers, not how the identified components are written up.
 
 The 2026 additions are the interesting ones. *Component Hash* is satisfied by the
 digest of the directory's `(path, file digest)` pairs — a vendored source tree
@@ -750,13 +887,14 @@ distinction that decides whether it over-reports.
 
 ## 4. Speed
 
-296-file tree, two cores.
+lwIP 2.2.0, 296 files, one process, median of three runs; gangmu-sbom 0.15.0 on
+2026-10-30 (4-core machine, calibration about 0.07 s, so slower than the CI runners).
 
 | pass | what it does | cost |
 | --- | --- | --- |
 | 1 | walk, sha256 each file, fold into one fileset digest | 0.04 s |
-| 2a | tokenise + extract functions | 0.28 s |
-| 2b | tokenise + winnow k-grams (fallback path only) | 0.59 s |
+| 2a | tokenise + extract functions (2,097 functions) | 0.37 s |
+| 2b | tokenise + winnow k-grams (105,405 fingerprints; fallback path only) | 0.82 s |
 
 Pass 2 is lazy: a vendored copy byte-identical to the release a rule records
 never reaches it. Whole-SDK numbers, the rule-count curve and the CI
