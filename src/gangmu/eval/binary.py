@@ -151,6 +151,13 @@ def load_corpus(directory: Path, use_cache: bool = True) -> Corpus:
 
 # ----------------------------------------------------------------------- evaluation
 
+def _same_component(a: str, b: str) -> bool:
+    """One library under two builds (``mbedtls`` and ``mbedtls-full``, its TLS and
+    X.509 layers too) is no negative control for itself: counted as one, the two
+    made 95 of the 186 hits on the Cortex-M corpus."""
+    return a == b or a.startswith(b + "-") or b.startswith(a + "-")
+
+
 def _filter(sets: Iterable[Set[int]], k: int) -> List[Set[int]]:
     return [s for s in sets if len(s) >= k]
 
@@ -204,7 +211,7 @@ def evaluate(corpus: Corpus, min_features: int = 2, tie_share: Optional[float] =
                                              hit[3] if hit else 0.0, hit[1] if hit else 0))
     for (lib, _ref_opt), (built, _) in prints.items():
         for other in target.builds:
-            if other == lib:
+            if _same_component(other, lib):
                 continue
             for _tag, per_opt in target.builds[other].items():
                 for _img_opt, build in per_opt.items():

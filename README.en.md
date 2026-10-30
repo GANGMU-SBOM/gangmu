@@ -65,20 +65,23 @@ linker map for what survived) and resolves identity against an open rule base.
 
 ## Numbers
 
-All reproducible with the tools in this repository; see
+Measured on 2026-10-30 with `main` after 0.15.0 and the free rule base 2026.10.29 unless a row says otherwise; all reproducible with the tools in this repository; see
 [docs/BENCHMARK.md](docs/BENCHMARK.md) and [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 | | |
 | --- | --- |
-| Separating "vendor fork" from "different release" | whole-tree similarity gap **0.06**; function level **0.25** |
-| Version accuracy on real lwIP releases | **6/6 exact**, including Espressif's production fork |
+| Source identification (gangmu-bench, 140 cases: 131 upstream release trees, 57 copies in 9 vendor SDKs) | 263 rows: **227 exact**, 23 ranges containing the truth, 8 component only (the copy states no version), 3 wrong, 2 missed |
+| Source false positives | **0** of the 326 components gangmu-bench reports; 2 of 284 (0.7%) in a self-scan of 227 upstream releases |
+| Binary identification (cross-compiled corpus, 15 libraries on 4 architectures) | 0.7% to 3.3% of answers wrong; 0.5% to 0.9% of negative-control pairs match (libraries carrying the same code, such as the xxhash in both lz4 and zstd); many images get a range or no answer |
+| Separating "vendor fork" from "different release" | whole-tree similarity gap **0.06**; function level **0.24** |
+| Version accuracy on real lwIP releases | **6/6**: five releases reported as exactly their version; Espressif's production fork as `2.2.0~2.2.1`, best match 2.2.0 |
 | Synthetic vendor modifications | **9/9 identified, 9/9 correct version** |
-| 10% of identifiers renamed | exact hashing 0.441 → abstract level **0.797** |
-| NTIA 2021 / CISA 2026 minimum elements | **10.0 / 10** both |
-| Whole ESP-IDF v5.4.2 (10,767 sources; free rule base, 223 rules) | single process: cold 50.1 s / 375 MB, warm cache 17.5 s (the inventory of prebuilt libraries and firmware images went from 17.7 s to 3.6 s; 13.4 s warm with `--no-binaries`). 0.6 measured 11.0 s, but with a different pipeline and rule set; see [PERFORMANCE.md](docs/PERFORMANCE.md) |
-| 16x more rules (223 → 3,568, synthetic SDK, 0.13.3) | scan time grows about 3.4x: 7.3 s → 24.9 s |
-| FreeRTOS / RT-Thread copies in 7 Chinese vendor SDKs | **14/14** found, version exact or a range containing it |
-| Matching an SBOM against a full NVD mirror (measured at 0.6, not re-measured since) | 200.8 s / 3.9 GB → **8.9 s / 25 MB**, identical results |
+| 10% of identifiers renamed | exact hashing 0.462 → abstract level **0.807** |
+| NTIA 2021 / CISA 2026 minimum elements | the example SBOM **10.0 / 10** on both; the whole ESP-IDF tree 6.1 / 7.0: 183 of its 203 components are Espressif prebuilt archives no rule identifies, and all 20 identified ones carry an identifier |
+| Whole ESP-IDF v5.4.2 (10,767 sources, free rule base of 1027 rules) | single process: cold 72.9 s / 794 MB, warm cache 40.0 s (34.5 s with `--no-binaries`); 0.15.0 on the same machine: cold 115 s / 2.6 GB; see [PERFORMANCE.md](docs/PERFORMANCE.md) |
+| 16x more rules (1,028 → 16,448, synthetic SDK, median of 7 CI runs) | cold scan time grows 6.4x: 11.5 s → 73.7 s (0.15.0: 18.1 s → 158.1 s) |
+| FreeRTOS / RT-Thread copies in 7 Chinese vendor SDKs | **14/14** found, version exact or a range containing it (still so on 2026-10-30); the Allwinner R128 SDK's two FreeRTOS kernels side by side are reported as one finding in their parent, so one is missed |
+| Matching an SBOM against a full NVD mirror (27 year files, 2.7 GB unpacked) | **9.3 s / 60 MB** (0.5: 200.8 s / 3.9 GB) |
 
 Identification is function level, following CENTRIS (ICSE 2021) and TIVER
 (ICSE 2025): a component is identified by how much of its own code is present,

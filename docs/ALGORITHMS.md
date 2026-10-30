@@ -56,9 +56,12 @@ Same trees, same include globs, function level instead of whole-tree:
 
 | | whole-tree sketch | **function level** |
 | --- | --- | --- |
-| lwIP 2.2.0 vs Espressif's fork | 0.949 | **0.887** |
-| lwIP 2.2.0 vs upstream 2.1.3 | 0.887 | **0.638** |
-| **separation between the two** | **0.06** | **0.25** |
+| lwIP 2.2.0 vs Espressif's fork | 0.949 | **0.895** |
+| lwIP 2.2.0 vs upstream 2.1.3 | 0.887 | **0.654** |
+| **separation between the two** | **0.06** | **0.24** |
+
+(gangmu-sbom 0.15.0, 2026-10-30; function level is the Jaccard index of the two trees'
+function sets under the lwIP rule's include globs.)
 
 Four times the separation, which is the difference between a threshold that
 works and one that does not. Version accuracy over six real trees including the
@@ -67,12 +70,12 @@ fork: **6/6 exact**. See [BENCHMARK.md](BENCHMARK.md).
 ## And it is faster
 
 Function hashing is not a more expensive analysis bought with time. It is
-cheaper, because the set it produces is two orders of magnitude smaller:
+cheaper, because the set it produces is fifty times smaller:
 
 | | lwIP 2.2.0, 296 files |
 | --- | --- |
-| winnowed fingerprints | 105,405 values, 0.59 s |
-| **function hashes** | **1,937 values, 0.28 s** |
+| winnowed fingerprints | 105,405 values, 0.82 s |
+| **function hashes** | **2,097 values, 0.37 s** |
 
 Both come from the same token pass, so computing them together costs one
 tokenise rather than two. The signature is small enough to store **whole** —
