@@ -138,3 +138,11 @@ def test_a_corrupt_feature_cache_is_a_miss(tmp_path, monkeypatch):
     (tmp_path / "corpus.json").write_text(json.dumps({"lib": [{"tag": "v1", "opts": ["Os"]}]}))
     (tmp_path / ev.FEATURES_CACHE).write_text('{"lib/v1/Os.elf": [1]}')
     assert ev.load_corpus(tmp_path).builds["lib"]["v1"]["Os"].ref == [{1}]
+
+
+def test_a_library_and_its_fuller_build_are_one_component():
+    from gangmu.eval.binary import _same_component
+    assert _same_component("mbedtls", "mbedtls-full")
+    assert _same_component("mbedtls-full", "mbedtls")
+    assert not _same_component("lz4", "zstd")
+    assert not _same_component("libpng", "png")
