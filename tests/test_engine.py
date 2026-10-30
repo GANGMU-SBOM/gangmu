@@ -175,6 +175,28 @@ def test_a_vendors_rule_firing_outside_its_own_path_does_not_name_that_vendor(
     assert finding.supplier == "ACME Semiconductor"
 
 
+def test_a_rule_without_a_supplier_takes_the_owner_of_its_repository_purl(
+        project_dir, rules_dir, tmp_path):
+    """823 rules of the free rule base name no supplier but a pkg:github purl; the
+    SBOM's first minimum element was then missing for every component they found."""
+    import yaml
+    shutil.copytree(rules_dir, tmp_path / "r")
+    path = next((tmp_path / "r").rglob("*.yaml"))
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["upstream"].pop("supplier", None)
+    data["upstream"]["purl"] = "pkg:github/tinynet-project/tinynet"
+    path.write_text(yaml.safe_dump(data), encoding="utf-8")
+    finding = next(f for f in _scan(project_dir, tmp_path / "r").findings
+                   if f.upstream_name == "tinynet")
+    assert finding.supplier == "tinynet-project"
+    # a purl that names no owner gives none
+    data["upstream"]["purl"] = "pkg:generic/tinynet"
+    path.write_text(yaml.safe_dump(data), encoding="utf-8")
+    finding = next(f for f in _scan(project_dir, tmp_path / "r").findings
+                   if f.upstream_name == "tinynet")
+    assert finding.supplier is None
+
+
 def _shared_anchor_rules(rules_dir, tmp_path, reference=True):
     """The generated rule with its anchor file recorded as shipped unchanged by
     1.4.1, 1.4.2 and 1.4.3, as real releases often do."""

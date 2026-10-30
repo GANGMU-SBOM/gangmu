@@ -85,7 +85,8 @@ def _named(stem: str, names: Set[str]) -> bool:
 def find_loose(root: Path, engine: MatchEngine, store: AnalysisStore,
                findings: Sequence[Finding], compiled: Optional[Set[Path]] = None,
                asserted: float = 0.0,
-               absorbed: Optional[List[Tuple[str, List[str], str]]] = None) -> List[Finding]:
+               absorbed: Optional[List[Tuple[str, List[str], str]]] = None,
+               superseded: Optional[List[Finding]] = None) -> List[Finding]:
     """Findings for components copied in as loose files.
 
     *findings* are the directories already identified. Their files are not looked
@@ -101,6 +102,11 @@ def find_loose(root: Path, engine: MatchEngine, store: AnalysisStore,
     ``src/system`` ports beside ``src/lwmem``) are that same copy, not a second
     one: they are recorded on its finding's evidence and, as (directory, files,
     name), in *absorbed*, instead of being reported again.
+
+    A directory found only because the copy lies somewhere below it (a project
+    root with a licence, its app/ holding tinylib.c) is not that copy: its files
+    are looked at here, and when the copy is found below it the directory's
+    finding is appended to *superseded* for the caller to drop.
     """
     root = Path(root)
     signatures = {}
@@ -126,8 +132,10 @@ def find_loose(root: Path, engine: MatchEngine, store: AnalysisStore,
     rels = [r for r in rels if r in shas]
     store.ensure(rels)
     functions = {r: set(store.analysis(r).functions) for r in rels}
+    enclosing: List[Finding] = []
     covered = _covered(root, store, rels, functions,
-                       [f for f in findings if f.identity_confidence >= asserted], signatures)
+                       [f for f in findings if f.identity_confidence >= asserted], signatures,
+                       enclosing)
     rels = [r for r in rels if r not in covered]
     if not rels:
         return []
@@ -149,7 +157,7 @@ def find_loose(root: Path, engine: MatchEngine, store: AnalysisStore,
 
     homes: Dict[str, List[Finding]] = defaultdict(list)
     for f in findings:
-        if not f.files and f.identity_confidence >= asserted:
+        if not f.files and f.identity_confidence >= asserted and not any(f is e for e in enclosing):
             homes[f.rule_id].append(f)
     out: List[Finding] = []
     short: List[Tuple[str, List[str], _Group]] = []     # (directory, its files, group) too small alone
@@ -235,13 +243,21 @@ def find_loose(root: Path, engine: MatchEngine, store: AnalysisStore,
     for f in out:
         if f.files:
             f.content_hash = print_from_store(store, root, only=f.files).fileset_sha256
+    if superseded is not None:
+        superseded.extend(e for e in enclosing
+                          if any(o.rule_id == e.rule_id and _inside(o.directory, e.directory)
+                                 for o in out))
     return out
 
 
 def _covered(root: Path, store: AnalysisStore, rels: Sequence[str],
              functions: Dict[str, Set[int]], findings: Sequence[Finding],
-             signatures) -> Set[str]:
-    """Files the identified directories account for; narrows flat ones in place."""
+             signatures, enclosing: Optional[List[Finding]] = None) -> Set[str]:
+    """Files the identified directories account for; narrows flat ones in place.
+
+    A directory whose component files all lie in one subdirectory, under half of
+    its functions and with no file matched by hash, only encloses the copy: its
+    files are left to this pass and the finding goes to *enclosing*."""
     dirs = sorted({f.directory.strip("/") or "." for f in findings if not f.files},
                   key=lambda d: (-d.count("/"), d))
     owner: Dict[str, str] = {}               # file -> deepest identified directory
@@ -269,6 +285,10 @@ def _covered(root: Path, store: AnalysisStore, rels: Sequence[str],
         total = sum(len(functions[r]) for r in mine)
         theirs = sum(len(functions[r]) for r in claimed)
         flat = all(str(PurePosixPath(r).parent) == d for r in claimed)
+        if (enclosing is not None and claimed and not flat and theirs < 0.5 * total
+                and not _hash_matched(f) and _below(d, claimed)):
+            enclosing.append(f)
+            continue
         if claimed and flat and theirs < 0.5 * total and not _is_package(root / d):
             names = rule_names(entry[0])
             stems = {_key(PurePosixPath(r).stem) for r in claimed}
@@ -367,6 +387,20 @@ def _common(a: str, b: str) -> str:
     while n < min(len(pa), len(pb)) and pa[n] == pb[n]:
         n += 1
     return "/".join(pa[:n])
+
+
+def _below(d: str, files: Sequence[str]) -> bool:
+    """All of *files* lie in one subdirectory of *d* (not in *d* itself)."""
+    parents = {str(PurePosixPath(f).parent) for f in files}
+    common = parents.pop()
+    for p in parents:
+        common = _common(common, p) or "."
+    common = common or "."
+    return common != d and (d == "." or common.startswith(d + "/"))
+
+
+def _hash_matched(finding: Finding) -> bool:
+    return any(e.technique is Technique.HASH_COMPARISON for e in finding.evidence)
 
 
 def _inside(d: str, home: str) -> bool:

@@ -215,7 +215,10 @@ class Rule:
     license: Optional[str] = None
     supplier: Optional[str] = None
     """Who produces the upstream component. NTIA's first minimum element and
-    CISA 2026's "Component Producer": without it a reader has nobody to ask."""
+    CISA 2026's "Component Producer": without it a reader has nobody to ask.
+    A rule that names none takes the owner of its ``pkg:github``, ``pkg:gitlab``
+    or ``pkg:bitbucket`` purl (``the-tcpdump-group`` for libpcap): the account
+    that publishes the releases the rule records."""
     support: Optional[Support] = None
     """Maintenance status and end-of-support date of the upstream project, with
     where to check it. Optional: most rules say nothing, and the SBOM then says
@@ -291,6 +294,15 @@ class Rule:
     def cpe_aliases_with_version(self, version: Optional[str]) -> List[str]:
         return [c for c in (_splice_version(a, version) for a in self.cpe_aliases) if c]
 
+
+
+_HOSTED_PURL = re.compile(r"^pkg:(github|gitlab|bitbucket)/([^/@?#]+)/[^/@?#]+")
+
+
+def _purl_owner(purl) -> Optional[str]:
+    """The owner part of a hosted-repository purl, or None."""
+    match = _HOSTED_PURL.match(str(purl or ""))
+    return match.group(2) if match else None
 
 def _splice_version(cpe: Optional[str], version: Optional[str]) -> Optional[str]:
     if not cpe:
@@ -610,7 +622,8 @@ def rule_from_dict(data: Mapping[str, Any], source_path: str = "") -> Rule:
         cpe_evidence=evidence,
         cpe_status=(str(upstream["cpe_status"]) if upstream.get("cpe_status") else None),
         homepage=(str(upstream["homepage"]) if upstream.get("homepage") else None),
-        supplier=(str(upstream["supplier"]) if upstream.get("supplier") else None),
+        supplier=(str(upstream["supplier"]) if upstream.get("supplier")
+                  else _purl_owner(upstream.get("purl"))),
         license=(str(upstream["license"]) if upstream.get("license") else None),
         support=_parse_rule_support(upstream.get("support"), source_path),
         advisory_scope=_parse_advisory_scope(upstream.get("advisory_scope"), source_path),

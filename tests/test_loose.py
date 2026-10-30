@@ -279,3 +279,16 @@ def test_a_subdirectory_of_the_component_found_at_the_root_is_the_same_copy(tmp_
     _tree(tree, {**lib, "COPYING": "GPL\n", "tools/glue.c": _code(9000, 30, 3)})
     found = _scan(tmp_path / "rules", tree, tmp_path)["findings"]
     assert [(f["directory"], f["files"]) for f in found] == [(".", [])]
+
+
+def test_a_project_root_with_a_licence_is_not_a_library_dropped_loose_in_it(tmp_path):
+    # 0.15.0 asked the licensed root, found every function of tinylib under it and
+    # reported the whole project as tinylib; the copy is app/'s files
+    lib = {"tinylib.c": _code(100, 9), "tinylib_util.c": _code(200, 3)}
+    _rule(tmp_path / "rules", "tinylib", lib)
+    tree = tmp_path / "tree"
+    _tree(tree, {**APP, "LICENSE": "proprietary\n", **{f"app/{n}": t for n, t in lib.items()},
+                 "app/tinylib.h": "int fn100(int);\n"})
+    found = _scan(tmp_path / "rules", tree, tmp_path)["findings"]
+    assert [(f["directory"], f["files"]) for f in found] == [
+        ("app", ["app/tinylib.c", "app/tinylib.h", "app/tinylib_util.c"])]

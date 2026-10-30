@@ -122,9 +122,13 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
     if options.loose:
         # What no directory explains: a component's files dropped in among the
         # project's own (app/lwprintf.c beside app/main.c).
+        superseded: List[Finding] = []
         loose = find_loose(root, engine, store, findings,
                            build_facts.compiled if build_facts and build_facts.compiled else None,
-                           asserted=options.possible_below, absorbed=absorbed)
+                           asserted=options.possible_below, absorbed=absorbed,
+                           superseded=superseded)
+        # A directory that only encloses a copy found below it is not that copy.
+        findings = [f for f in findings if not any(f is s for s in superseded)]
         # A resemblance at a directory gives way to the component's own files in it.
         placed = {(f.rule_id, f.directory) for f in loose}
         findings = [f for f in findings if f.identity_confidence >= options.possible_below
