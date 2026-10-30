@@ -36,3 +36,17 @@ def test_a_vendor_rule_wins_when_only_the_directory_name_agrees():
     winners = resolve([_finding("generic/lwip", 0),
                        _finding("espressif/esp-idf/lwip", 1)], SPECIFICITY)
     assert [w.rule_id for w in winners] == ["espressif/esp-idf/lwip"]
+
+
+def test_a_note_without_confidence_is_not_a_witness():
+    # The vendor rule fired outside its own paths, so it carries a note saying the
+    # supplier is not asserted. That note must not count as a fourth kind of
+    # evidence and outrank the general rule's anchored, better-versioned claim.
+    vendor = _finding("espressif/esp-idf/lwip", 0)
+    vendor.evidence.append(Evidence(Technique.HASH_COMPARISON, 0.98, "init.h matches"))
+    vendor.evidence.append(Evidence(Technique.OTHER, 0.0, "supplier not asserted"))
+    general = _finding("generic/lwip", 0)
+    general.evidence.append(Evidence(Technique.HASH_COMPARISON, 0.98, "init.h matches"))
+    general.version_confidence = 0.95
+    winners = resolve([vendor, general], SPECIFICITY)
+    assert [w.rule_id for w in winners] == ["generic/lwip"]

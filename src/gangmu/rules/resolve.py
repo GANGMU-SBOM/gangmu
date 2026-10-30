@@ -25,9 +25,12 @@ def _corroboration(finding: Finding) -> int:
     more witnesses is the better-supported claim -- otherwise the vendor rule's
     higher specificity labels every pristine upstream copy as that vendor's fork.
     A path or name hint is not a witness: that is what ``path_match`` ranks.
+    Nor is a note with no confidence of its own, such as a vendor rule's "this
+    is not where that vendor's copy lives": counted, it made the vendor claim
+    the better supported one, and a pristine Mbed TLS 4.1.1 Zephyr's.
     """
     return len({e.technique for e in finding.evidence
-                if e.technique is not Technique.FILENAME})
+                if e.technique is not Technique.FILENAME and e.confidence > 0})
 
 
 def _rank(finding: Finding, specificity: int) -> tuple:
