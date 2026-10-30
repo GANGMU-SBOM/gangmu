@@ -142,7 +142,7 @@ The GitHub Action is listed on the [GitHub Marketplace](https://github.com/marke
 ```yaml
 # .pre-commit-config.yaml
 - repo: https://github.com/GANGMU-SBOM/gangmu
-  rev: v0.14.0
+  rev: v0.15.0
   hooks:
     - id: gangmu-scan
 ```
