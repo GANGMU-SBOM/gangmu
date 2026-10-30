@@ -306,13 +306,14 @@ def test_a_probe_header_beside_the_src_directory_is_read(rules_dir, tmp_path):
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text((Path(__file__).parent / "fixtures" / "upstream"
                        / "tinynet" / probe.file).read_text())
+    engine = MatchEngine(load_rules(rules_dir, strict=True))
     evidence = []
-    found = MatchEngine._probe_version(None, root / "src", rule, evidence, "lib/src")
+    found = engine._probe_version(root / "src", rule, evidence, "lib/src")
     assert found == "1.4.2"
     assert evidence[0].locator == f"lib/{probe.file}"
     # A directory that is not a source subdirectory does not look upwards.
     (root / "other").mkdir()
-    assert MatchEngine._probe_version(None, root / "other", rule, [], "lib/other") is None
+    assert engine._probe_version(root / "other", rule, [], "lib/other") is None
 
 
 def test_a_rule_file_one_directory_down_is_found(tmp_path):

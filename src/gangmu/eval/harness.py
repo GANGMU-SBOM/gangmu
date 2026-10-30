@@ -167,9 +167,10 @@ def _measure(signature, dirprint):
         abstract_verdict = infer_version(signature.abstract_view(), dirprint.abstract_functions)
         at = (abstract_verdict.best_index if abstract_verdict.best_index >= 0
               else verdict.best_index)
-        own_abs = signature.version_abstract_hashes(at) if at >= 0 else set()
-        if own_abs:
-            abstract = len(dirprint.abstract_functions & own_abs) / len(own_abs)
+        held, total = (signature.abstract_view().application_presence(
+            at, dirprint.abstract_functions) if at >= 0 else (0, 0))
+        if total:
+            abstract = held / total
         if exact < DEFAULT_FUNCTION_THRESHOLDS["strong"] and abstract >= exact + RENAMED_MARGIN:
             used = True
             if abstract_verdict.best:
@@ -180,14 +181,15 @@ def _measure(signature, dirprint):
 def _containment(signature, dirprint, best_index: int) -> Tuple[float, float, float]:
     """(effective, exact, abstract) -- the engine's own rule, so the benchmark
     measures the tool rather than one of its layers."""
-    own = (signature.version_application_hashes(best_index)
-           if best_index >= 0 else set())
-    exact = len(dirprint.functions & own) / len(own) if own else 0.0
+    held, total = (signature.application_presence(best_index, dirprint.functions)
+                   if best_index >= 0 else (0, 0))
+    exact = held / total if total else 0.0
     abstract = 0.0
     if signature.abstract_hashes and best_index >= 0:
-        own_abs = signature.version_abstract_hashes(best_index)
-        if own_abs:
-            abstract = len(dirprint.abstract_functions & own_abs) / len(own_abs)
+        held, total = signature.abstract_view().application_presence(
+            best_index, dirprint.abstract_functions)
+        if total:
+            abstract = held / total
     return max(exact, abstract), exact, abstract
 
 

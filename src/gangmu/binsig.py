@@ -115,7 +115,7 @@ def match_image(signature, present: Set[int]
     image of 1.0.0 contains no literal that only 1.1.0 added, which is what separates
     it from 1.1.0 even though every literal it has is shared by both.
     """
-    matched = present & signature.hash_set
+    matched = signature.recorded(present)
     if len(matched) < MIN_MATCHES:
         return None
     scores = []

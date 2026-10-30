@@ -48,6 +48,8 @@ import struct
 import sys
 from array import array
 from bisect import bisect_left
+from collections import Counter, OrderedDict
+from collections.abc import Mapping
 from itertools import islice
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -72,12 +74,13 @@ class FunctionSignature:
     abstract_hashes: MutableSequence[int] = field(default_factory=list)
     abstract_bitmaps: MutableSequence[int] = field(default_factory=list)
 
-    _index: Optional[Dict[int, int]] = field(default=None, repr=False, compare=False)
+    _index: Optional[Mapping[int, int]] = field(default=None, repr=False, compare=False)
     _abstract_borrowed: Set[int] = field(default_factory=set, repr=False, compare=False)
     # Derived sets, built once per signature rather than once per directory
     # scanned. Cleared whenever segmentation changes what they would contain.
     _derived: Dict[object, object] = field(default_factory=dict, repr=False,
                                            compare=False)
+    _generation: int = field(default=0, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         # Packed machine words, not lists of Python ints: a list costs about 40
@@ -193,9 +196,14 @@ class FunctionSignature:
     # ------------------------------------------------------------- queries
 
     @property
-    def index(self) -> Dict[int, int]:
+    def index(self) -> Mapping[int, int]:
+        """Hash -> position. The file stores hashes ascending, so this is a
+        binary search over them rather than a dict: a dict per loaded signature
+        held 264 MB on ESP-IDF with the free rule base."""
         if self._index is None:
-            self._index = {h: i for i, h in enumerate(self.hashes)}
+            ordered = self.ordered_hashes
+            self._index = (_Positions(self.hashes) if ordered is self.hashes
+                           else {h: i for i, h in enumerate(self.hashes)})
         return self._index
 
     def _memo(self, key, build):
@@ -203,6 +211,10 @@ class FunctionSignature:
         if value is None:
             value = self._derived[key] = build()
         return value
+
+    def _lru(self, key, build):
+        """A whole-signature set, kept in the shared, bounded _SETS cache."""
+        return _SETS.get(self, key, build)
 
     @property
     def ordered_hashes(self) -> List[int]:
@@ -216,11 +228,11 @@ class FunctionSignature:
 
     @property
     def hash_set(self) -> FrozenSet[int]:
-        return self._memo("all", lambda: frozenset(self.hashes))
+        return self._lru("all", lambda: frozenset(self.hashes))
 
     @property
     def abstract_set(self) -> FrozenSet[int]:
-        return self._memo("abstract", lambda: frozenset(self.abstract_hashes))
+        return self._lru("abstract", lambda: frozenset(self.abstract_hashes))
 
     @property
     def application_hashes(self) -> FrozenSet[int]:
@@ -229,8 +241,33 @@ class FunctionSignature:
         CENTRIS's segmentation: if A vendors B, B's functions must not count
         towards detecting A, or every firmware containing B appears to contain A.
         """
-        return self._memo("application", lambda: frozenset(
+        return self._lru(("application", self._generation), lambda: frozenset(
             h for h, f in zip(self.hashes, self.flags) if f & FLAG_APPLICATION))
+
+    def recorded(self, present: Set[int]) -> Set[int]:
+        """The members of *present* this signature records. A small directory
+        against a large signature is looked up by bisection, which spares
+        building (and caching) the signature's whole set for it."""
+        hashes = self.hashes
+        if len(present) * 32 < len(hashes) and self.ordered_hashes is hashes:
+            n, out = len(hashes), set()
+            for h in present:
+                i = bisect_left(hashes, h)
+                if i < n and hashes[i] == h:
+                    out.add(h)
+            return out
+        return present & self.hash_set
+
+    def application_matched(self, present: Set[int]) -> Set[int]:
+        """The application functions among *present*, without the whole set."""
+        idx, flags = self.index, self.flags
+        return {h for h in self.recorded(present) if flags[idx[h]] & FLAG_APPLICATION}
+
+    def borrowed_matched(self, present: Set[int]) -> Set[int]:
+        """The functions among *present* segmentation marked as another rule's."""
+        idx, flags = self.index, self.flags
+        return {h for h in self.recorded(present)
+                if not flags[idx[h]] & FLAG_APPLICATION}
 
     def segment(self, borrowed: Set[int]) -> int:
         """Mark *borrowed* hashes as not-application-code. Returns how many."""
@@ -241,6 +278,7 @@ class FunctionSignature:
                 marked += 1
         if marked:
             self._derived.clear()
+            self._generation += 1
         return marked
 
     def segment_abstract(self, borrowed: Set[int]) -> int:
@@ -288,6 +326,48 @@ class FunctionSignature:
         return self._memo("discriminating", lambda: frozenset(
             h for h, b in zip(self.hashes, self.bitmaps) if b != full))
 
+    def version_counts(self) -> Tuple[List[int], List[int]]:
+        """(discriminating, application) functions per recorded version, counted
+        from the bitmaps: what scoring needs, without a set per version. Building
+        those sets for every version of every rule a scan evaluates held 1.5 GB on
+        ESP-IDF with the free rule base (6.7 GB had every version been built)."""
+        def build() -> Tuple[List[int], List[int]]:
+            n = len(self.versions)
+            full = (1 << n) - 1
+            disc, app = [0] * n, [0] * n
+            # Releases share most bitmaps (a function present from one release
+            # on), so walk each distinct (bitmap, flags) pair once.
+            for (b, f), count in Counter(zip(self.bitmaps, self.flags)).items():
+                d = count if n == 1 or b != full else 0
+                a = count if f & FLAG_APPLICATION else 0
+                v = 0
+                while b:
+                    if b & 1:
+                        disc[v] += d
+                        app[v] += a
+                    b >>= 1
+                    v += 1
+            return disc, app
+        return self._memo("version-counts", build)
+
+    def application_presence(self, index: int, present: Set[int]) -> Tuple[int, int]:
+        """(held, total): application functions of one version found in *present*,
+        and how many it has. The counts behind containment, without the set.
+        Index -1 stands for every version together."""
+        if index < 0:
+            total = self._memo("application-total", lambda: sum(
+                1 for f in self.flags if f & FLAG_APPLICATION))
+            return len(self.application_matched(present)), total
+        bit = 1 << index
+        idx = self.index
+        bitmaps, flags = self.bitmaps, self.flags
+        held = 0
+        for h in self.recorded(present):
+            i = idx[h]
+            if bitmaps[i] & bit and flags[i] & FLAG_APPLICATION:
+                held += 1
+        return held, self.version_counts()[1][index]
+
     def version_hashes(self, index: int) -> FrozenSet[int]:
         """Every function of one recorded version, reconstructed from bitmaps."""
         bit = 1 << index
@@ -311,6 +391,66 @@ class FunctionSignature:
         return self._memo(("abstract", index), lambda: frozenset(
             h for h, b in zip(self.abstract_hashes, self.abstract_bitmaps)
             if b & bit and h not in self._abstract_borrowed))
+
+
+class _SetCache:
+    """Whole-signature frozensets, most recently used kept, bounded by how many
+    hashes they hold together. Memoised on each signature they held 570 MB on
+    ESP-IDF with the free rule base, every signature a scan touched at once;
+    rebuilding one from its packed array is quick."""
+
+    def __init__(self, cap: int) -> None:
+        self.cap = cap
+        self.size = 0
+        self._sets: "OrderedDict[Tuple[int, object], Tuple[object, FrozenSet[int]]]" = \
+            OrderedDict()
+
+    def get(self, owner, key, build) -> FrozenSet[int]:
+        slot = (id(owner), key)
+        hit = self._sets.get(slot)
+        if hit is not None and hit[0] is owner:
+            self._sets.move_to_end(slot)
+            return hit[1]
+        value = build()
+        if hit is not None:
+            self.size -= len(hit[1])
+        self._sets[slot] = (owner, value)
+        self.size += len(value)
+        while self.size > self.cap and len(self._sets) > 1:
+            _, (_, old) = self._sets.popitem(last=False)
+            self.size -= len(old)
+        return value
+
+
+_SETS = _SetCache(1_500_000)
+
+
+class _Positions(Mapping):
+    """Read-only hash -> position over an ascending sequence, by bisection."""
+
+    __slots__ = ("_values",)
+
+    def __init__(self, values: Sequence[int]) -> None:
+        self._values = values
+
+    def __getitem__(self, h: int) -> int:
+        i = bisect_left(self._values, h)
+        if i < len(self._values) and self._values[i] == h:
+            return i
+        raise KeyError(h)
+
+    def __contains__(self, h: object) -> bool:
+        try:
+            self[h]                                    # type: ignore[index]
+        except (KeyError, TypeError):
+            return False
+        return True
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def __len__(self) -> int:
+        return len(self._values)
 
 
 def _packed(code: str, values: Iterable[int]) -> "array":
@@ -390,11 +530,22 @@ DECISIVE_MIN = 3
 DECISIVE_SHARE = 0.5
 
 
-def _takes_sides(voters: Set[int], best: FrozenSet[int], other: FrozenSet[int]) -> bool:
-    only_best = best - other
-    held = len(voters & only_best)
-    return (held >= DECISIVE_MIN and held >= DECISIVE_SHARE * len(only_best)
-            and voters.isdisjoint(other - best))
+def _takes_sides(signature: FunctionSignature, voters: Set[int], best: int, other: int) -> bool:
+    """Does the tree hold most of what *best* has and *other* lacks, and nothing
+    *other* has and *best* lacks? Counted from the bitmaps."""
+    b_bit, o_bit = 1 << best, 1 << other
+    full = (1 << len(signature.versions)) - 1
+    only_best = sum(1 for b in signature.bitmaps
+                    if b != full and b & b_bit and not b & o_bit)
+    held = 0
+    index, bitmaps = signature.index, signature.bitmaps
+    for h in voters:
+        b = bitmaps[index[h]]
+        if b & o_bit and not b & b_bit:
+            return False
+        if b & b_bit and not b & o_bit:
+            held += 1
+    return held >= DECISIVE_MIN and held >= DECISIVE_SHARE * only_best
 
 
 def infer_version(signature: FunctionSignature, present: Set[int]) -> VersionVerdict:
@@ -407,29 +558,36 @@ def infer_version(signature: FunctionSignature, present: Set[int]) -> VersionVer
     if not signature.versions:
         return VersionVerdict(None, None, None, 0.0, False, "no versions recorded")
 
-    discriminating = signature.discriminating()
-    matched = present & signature.hash_set
-    voters = matched & discriminating
+    matched = signature.recorded(present)
+    index = signature.index
+    n = len(signature.versions)
+    full = (1 << n) - 1
+    bitmaps = signature.bitmaps
+    voters = matched if n == 1 else {h for h in matched if bitmaps[index[h]] != full}
     if not voters:
         return VersionVerdict(
             None, None, None, 0.0, False,
             "no version-discriminating function matched: every function present "
             "appears in all recorded versions, so the version cannot be narrowed")
 
-    index = signature.index
     # Score each version by Jaccard over discriminating functions, not by raw
     # coverage. Coverage alone cannot separate a release from its successor: the
     # successor contains everything the release did, so it always ties. Jaccard
     # charges a version for the discriminating functions it has and the tree
     # does not, which is exactly the evidence that says "not that one".
+    overlaps: List[int] = [0] * n
+    for h in voters:
+        b, v = bitmaps[index[h]], 0
+        while b:
+            if b & 1:
+                overlaps[v] += 1
+            b >>= 1
+            v += 1
+    sizes = signature.version_counts()[0]
     scores: List[float] = []
-    overlaps: List[int] = []
-    for v in range(len(signature.versions)):
-        own = signature.version_discriminating(v)
-        overlap = len(voters & own)
-        union = len(voters | own)
-        overlaps.append(overlap)
-        scores.append(overlap / union if union else 0.0)
+    for v in range(n):
+        union = len(voters) + sizes[v] - overlaps[v]
+        scores.append(overlaps[v] / union if union else 0.0)
 
     best_score = max(scores)
     best_index = scores.index(best_score)
@@ -439,10 +597,8 @@ def infer_version(signature: FunctionSignature, present: Set[int]) -> VersionVer
     # 0258: 14 of 1659), so a tree that holds most of what the best release
     # changed, and nothing the other one has instead, is not the other one.
     threshold = best_score * 0.95
-    best_own = signature.version_discriminating(best_index)
     explained = [i for i, s in enumerate(scores) if s >= threshold
-                 and (i == best_index or not _takes_sides(voters, best_own,
-                                                         signature.version_discriminating(i)))]
+                 and (i == best_index or not _takes_sides(signature, voters, best_index, i))]
     low_index, high_index = min(explained), max(explained)
 
     best_bit = 1 << best_index
@@ -450,10 +606,10 @@ def infer_version(signature: FunctionSignature, present: Set[int]) -> VersionVer
                       if not signature.bitmaps[index[h]] & best_bit)
     multi = unexplained > 0
     foreign = len(present) - len(matched)
-    best_app = signature.version_application_hashes(best_index)
-    changed = len(best_app - present)
+    held, best_app = signature.application_presence(best_index, present)
+    changed = best_app - held
     edge = ""
-    if len(signature.versions) > 1 and best_app and changed / len(best_app) >= EDGE_ALTERED_SHARE:
+    if len(signature.versions) > 1 and best_app and changed / best_app >= EDGE_ALTERED_SHARE:
         edge = ("oldest" if best_index == 0 else
                 "newest" if best_index == len(signature.versions) - 1 else "")
 
@@ -496,7 +652,7 @@ def infer_version_subset(signature: FunctionSignature, present: Set[int]) -> Ver
     what is here. Releases tie when the functions present did not change between
     them, and the answer is then the range they span.
     """
-    matched = present & signature.hash_set
+    matched = signature.recorded(present)
     if not signature.versions or not matched:
         return VersionVerdict(None, None, None, 0.0, False, "no recorded function matched")
     index = signature.index

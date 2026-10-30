@@ -27,6 +27,7 @@ import os
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
+from collections import abc
 from typing import TYPE_CHECKING, AbstractSet, Dict, List, Optional, Sequence, Set, Tuple
 
 from .fingerprint import (ALGO, DEFAULT_K, DEFAULT_SKETCH, DEFAULT_WINDOW, Signature,
@@ -101,7 +102,7 @@ def _analyse_one(args) -> Tuple[str, List[int], List[int], List[int]]:
 @dataclass
 class DirectoryPrint:
     root: Path
-    files: List[Path] = field(default_factory=list)
+    files: Sequence[Path] = field(default_factory=list)
     file_hashes: Dict[str, str] = field(default_factory=dict)
     k: int = DEFAULT_K
     window: int = DEFAULT_WINDOW
@@ -119,8 +120,6 @@ class DirectoryPrint:
     _fileset: Optional[str] = field(default=None, repr=False)
     _sketches: Dict[Tuple[int, int, int], Signature] = field(default_factory=dict,
                                                              repr=False)
-    # The union of the files' stored bottom values: a superset of every sketch.
-    _bottoms: Optional[Set[int]] = field(default=None, repr=False)
 
     @property
     def file_count(self) -> int:
@@ -211,37 +210,25 @@ class DirectoryPrint:
         self._functions = fn_out
         self._abstract = ab_out
 
-    def _bottom_union(self) -> Set[int]:
-        """Every file's stored bottom values together; computed once per print."""
-        if self._bottoms is None:
-            assert self.store is not None
-            self._bottoms = self.store.bottom_union(self.rels)
-        return self._bottoms
-
     def _store_sketch(self, size: int) -> Optional[Signature]:
         """Exact bottom-k sketch from per-file bottoms; see analysis.py."""
         store = self.store
         if store is None or size > store.cap or (self.k, self.window) != (
                 store.k, store.window):
             return None
-        return signature_from_fingerprints(self._bottom_union(), self.k, self.window, size)
+        return Signature(values=store.smallest_bottoms(self.rels, size),
+                         k=self.k, window=self.window, size=size)
 
     def sketch_cannot_share(self, values: AbstractSet[int], k: int, window: int,
                             size: int) -> bool:
-        """True when no value of *values* can be in this directory's sketch.
-
-        Every value of the bottom-*size* sketch is among the bottom values its own
-        file keeps in the store, so values missing from all of those are missing
-        from the sketch too. The union is formed once per print and shared by every
-        rule; no smallest-*size* selection is needed. False means "cannot tell":
-        take the exact sketch.
-        """
+        """True when no value of *values* is in this directory's sketch, read
+        straight from the stored bottoms (a merge of a few hundred values); False
+        means "cannot tell": take the exact sketch."""
         store = self.store
         if (store is None or size > store.cap or (k, window) != (self.k, self.window)
-                or (k, window) != (store.k, store.window)
-                or (k, window, size) in self._sketches):
+                or (k, window) != (store.k, store.window)):
             return False
-        return values.isdisjoint(self._bottom_union())
+        return values.isdisjoint(self.signature(k, window, size).values)
 
     def signature(self, k: Optional[int] = None, window: Optional[int] = None,
                   size: int = DEFAULT_SKETCH) -> Signature:
@@ -336,15 +323,38 @@ def print_directory(root: Path, include: Sequence[str] = DEFAULT_INCLUDE,
     return out
 
 
+class _Paths(abc.Sequence):
+    """Root-relative paths seen as Paths under the root, built when read: a
+    scan makes thousands of prints whose file list is only ever counted."""
+
+    __slots__ = ("_base", "_rels")
+
+    def __init__(self, base: Path, rels: List[str]) -> None:
+        self._base, self._rels = base, rels
+
+    def __len__(self) -> int:
+        return len(self._rels)
+
+    def __getitem__(self, i):
+        if isinstance(i, slice):
+            return [self._base / r for r in self._rels[i]]
+        return self._base / self._rels[i]
+
+    def __eq__(self, other) -> bool:
+        return list(self) == list(other)
+
+
 def print_from_store(store: "AnalysisStore", directory: Path,
                      include: Sequence[str] = DEFAULT_INCLUDE,
                      exclude: Sequence[str] = DEFAULT_EXCLUDE,
                      k: int = DEFAULT_K, window: int = DEFAULT_WINDOW,
-                     only: Optional[Sequence[str]] = None) -> DirectoryPrint:
+                     only: Optional[Sequence[str]] = None,
+                     among: Optional[Sequence[str]] = None) -> DirectoryPrint:
     """Pass 1 from a scan-wide store: no walk, and no file hashed twice.
 
-    *only* restricts the print to those root-relative files of the directory."""
-    rels = store.select(Path(directory), include, exclude, only)
+    *only* restricts the print to those root-relative files of the directory;
+    *among* only narrows the search (see ``AnalysisStore.select``)."""
+    rels = store.select(Path(directory), include, exclude, only, among)
     if rels is None:
         return print_directory(directory, include, exclude, k, window,
                                jobs=store.jobs)
@@ -353,7 +363,7 @@ def print_from_store(store: "AnalysisStore", directory: Path,
     cut = 0 if Path(directory) == base else len(
         Path(directory).relative_to(base).as_posix()) + 1
     kept = [r for r in rels if r in shas]
-    out = DirectoryPrint(root=Path(directory), files=[base / r for r in rels],
+    out = DirectoryPrint(root=Path(directory), files=_Paths(base, rels),
                          k=k, window=window, jobs=store.jobs,
                          store=store, rels=kept)
     for rel in kept:

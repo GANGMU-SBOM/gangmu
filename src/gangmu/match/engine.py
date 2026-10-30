@@ -27,11 +27,15 @@ comes from similarity alone.
 from __future__ import annotations
 
 import operator
+import os
+from array import array
+from bisect import bisect_left
 from collections import Counter
 from dataclasses import dataclass, field, replace
+from functools import lru_cache
 from itertools import chain, compress, islice
 from pathlib import Path, PurePosixPath
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 from ..analysis import AnalysisStore
 from ..dirprint import (DEFAULT_EXCLUDE, DEFAULT_INCLUDE, DirectoryPrint,
@@ -39,7 +43,7 @@ from ..dirprint import (DEFAULT_EXCLUDE, DEFAULT_INCLUDE, DirectoryPrint,
 from ..fingerprint import DEFAULT_K as DEFAULT_K_FALLBACK
 from ..fingerprint import DEFAULT_WINDOW as DEFAULT_WINDOW_FALLBACK
 from ..fnsig import infer_version, infer_version_subset, intersects
-from ..core.globbing import matches_suffix
+from ..core.globbing import compile_any, matches_suffix
 from ..manifest import ManifestFacts, read_manifest
 from ..model import Evidence, Finding, Technique
 from ..rules.loader import RuleBase
@@ -95,6 +99,9 @@ class PrintCache:
         self.store = store
         # directory -> the only files its prints cover (see MatchEngine.identify_files)
         self._only: Dict[str, Tuple[str, ...]] = {}
+        self._supersets: Dict[str, Optional["Superset"]] = {}
+        # the include patterns the superset's selectable pattern is made of
+        self.selectable_includes: frozenset = frozenset()
 
     def get(self, directory: Path, include: Sequence[str], exclude: Sequence[str],
             k: int, window: int) -> DirectoryPrint:
@@ -106,8 +113,11 @@ class PrintCache:
                                                     exclude, k, window, only=only)
             elif self.store is not None and (k, window) == (self.store.k,
                                                             self.store.window):
+                sup = self._supersets.get(key[0])
+                among = (sup.rels if sup is not None and self.selectable_includes
+                         and self.selectable_includes.issuperset(include) else None)
                 self._cache[key] = print_from_store(self.store, directory, include,
-                                                    exclude, k, window)
+                                                    exclude, k, window, among=among)
             else:
                 self._cache[key] = print_directory(directory, include, exclude, k,
                                                    window, jobs=self.jobs,
@@ -119,6 +129,51 @@ class PrintCache:
         prefix = str(directory)
         for key in [key for key in self._cache if key[0] == prefix]:
             del self._cache[key]
+        self._supersets.pop(prefix, None)
+
+    def superset(self, directory: Path, selectable, owners_of) -> Optional["Superset"]:
+        """The rules sharing a function (exact or abstract) with, and every stored
+        bottom value of, the analysed files under *directory* that any rule's
+        include globs (*selectable*, a compiled pattern) could pick: a superset of
+        what each rule's own print holds once the files it selects are analysed,
+        built once per directory. *owners_of(analysis)* gives a file's rules.
+        ``missing`` lists (directory-relative) the files left out for want of an
+        analysis. None with no store or a file-restricted print."""
+        key = str(directory)
+        if key in self._supersets:
+            return self._supersets[key]
+        result: Optional[Superset] = None
+        store = self.store
+        if store is not None and key not in self._only and selectable is not None:
+            try:
+                rel_dir = directory.relative_to(store.root).as_posix()
+            except ValueError:
+                rel_dir = None
+            if rel_dir is not None:
+                cut = 0 if rel_dir in ("", ".") else len(rel_dir) + 1
+                rels = [rel for rel in store.index.under(rel_dir)
+                        if selectable.match(rel[cut:]) and store.index.stat(rel) is not None]
+                # Past SUPERSET_BOTTOM_FILES files the sketch values are not
+                # gathered: the scan root's union was 100 MB, and a rule there is
+                # answered from its own print's sketch, a merge of a few hundred.
+                result = Superset(set(), set() if len(rels) <= SUPERSET_BOTTOM_FILES
+                                  else None, rels)
+                store.load_cached(rels)
+                for rel in rels:
+                    if not store.analysed(rel):
+                        result.missing.append(rel[cut:])
+                        continue
+                    a = store.analysis(rel)
+                    result.owners |= owners_of(a)
+                    if result.bottoms is not None:
+                        result.bottoms.update(a.bottom)
+        self._supersets[key] = result
+        return result
+
+    def drop_partial_supersets(self) -> None:
+        """Forget supersets built while some of their files were unanalysed."""
+        for key in [k for k, v in self._supersets.items() if v is not None and not v.complete]:
+            del self._supersets[key]
 
     def restrict(self, directory: Path, rels: Optional[Sequence[str]]) -> None:
         """Make the directory's prints cover only *rels* (root-relative), or, with
@@ -128,6 +183,96 @@ class PrintCache:
             self._only.pop(str(directory), None)
         else:
             self._only[str(directory)] = tuple(rels)
+
+
+SUPERSET_BOTTOM_FILES = 2048
+
+
+@dataclass
+class Superset:
+    owners: set          # positions (MatchEngine._rule_pos) of sidecars sharing a function
+    bottoms: Optional[set]   # every stored bottom value of the selectable files, or
+                             # None: not gathered, any sketch may share
+    rels: List[str] = field(default_factory=list)      # the selectable files
+    missing: List[str] = field(default_factory=list)   # selectable, not analysed
+
+    @property
+    def complete(self) -> bool:
+        return not self.missing
+
+
+@lru_cache(maxsize=None)
+def _plain(relpath: str) -> bool:
+    """A relative path as the store's walk spells it: no ``.``/``..`` parts."""
+    parts = relpath.split("/")
+    return "\\" not in relpath and all(p not in ("", ".", "..") for p in parts)
+
+
+def _selects_any(include: Sequence[str], exclude: Sequence[str],
+                 subs: Sequence[str]) -> bool:
+    inc, exc = compile_any(include), compile_any(exclude)
+    return inc is not None and any(inc.match(sub) and not (exc is not None and exc.match(sub))
+                                   for sub in subs)
+
+
+class FunctionOwners:
+    """Which rules may record a function, for every function of every rule: per
+    level (exact, abstract) a few chunks of parallel arrays, each ascending by
+    the hash's top 32 bits. 4 bytes per recorded function and 2 or 4 for its
+    owner, about 30 MB for the free rule base, against a set per rule or a
+    hash-to-rules dict, which cost far more. Two hashes alike in their top bits
+    only add a rule whose own test then answers. Chunks bound what sorting
+    needs at once: one sort of a replicated rule base's every hash, as Python
+    ints, peaked at 3.5 GB."""
+
+    CHUNK = 2_000_000
+
+    def __init__(self, per_rule: Sequence[Tuple[Sequence[int], Sequence[int]]]) -> None:
+        code = "H" if len(per_rule) < 1 << 16 else "I"
+        self.levels = [self._build([sets[level] for sets in per_rule], code)
+                       for level in (0, 1)]
+        self._memo: Dict[int, Tuple[object, frozenset]] = {}
+
+    @classmethod
+    def _build(cls, lists: Sequence[Sequence[int]], code: str) -> List[Tuple[array, array]]:
+        chunks: List[Tuple[array, array]] = []
+        keyed: List[int] = []
+
+        def flush() -> None:
+            keyed.sort()
+            chunks.append((array("I", (k >> 24 for k in keyed)),
+                           array(code, (k & 0xFFFFFF for k in keyed))))
+            keyed.clear()
+
+        for pos, hashes in enumerate(lists):
+            keyed.extend(((h >> 32) << 24) | pos for h in hashes)
+            if len(keyed) >= cls.CHUNK:
+                flush()
+        if keyed:
+            flush()
+        return chunks
+
+    def of(self, analysis) -> frozenset:
+        """Positions of the rules sharing a function (exact or abstract) with one
+        file's analysis. Memoised per analysis object: a file analysed once is
+        looked up once, however many directories hold it."""
+        key = id(analysis)
+        hit = self._memo.get(key)
+        if hit is not None and hit[0] is analysis:
+            return hit[1]
+        found: set = set()
+        for chunks, values in zip(self.levels, (analysis.functions, analysis.abstract)):
+            tops = {h >> 32 for h in values}
+            for hashes, owners in chunks:
+                n = len(hashes)
+                for h in tops:
+                    i = bisect_left(hashes, h)
+                    while i < n and hashes[i] == h:
+                        found.add(owners[i])
+                        i += 1
+        result = frozenset(found)
+        self._memo[key] = (analysis, result)
+        return result
 
 
 @dataclass
@@ -146,6 +291,8 @@ class MatchEngine:
         "rule_checks": 0, "rule_checks_skipped": 0}, repr=False)
 
     def __post_init__(self) -> None:
+        self._prefixes: Dict[str, Tuple[str, bool]] = {}
+        self._prefetched: Set[str] = set()
         if self.segment:
             self.segment_rule_base()
         if self.prefilter:
@@ -169,6 +316,9 @@ class MatchEngine:
         """
         fn: Dict[str, Tuple[List[int], List[int]]] = {}
         sk: Dict[str, frozenset] = {}
+        # Rules sharing a loaded signature or a sketch share one entry.
+        sidecar_of: Dict[str, int] = {}
+        sketches: Dict[Tuple[int, ...], frozenset] = {}
         for rule in self.rulebase:
             if rule.functions is not None:
                 try:
@@ -178,29 +328,91 @@ class MatchEngine:
                 if signature is not None:
                     fn[rule.id] = (signature.ordered_hashes,
                                    signature.ordered_abstract)
+                    sidecar_of[rule.id] = id(signature)
             if rule.signature is not None:
-                sk[rule.id] = frozenset(rule.signature.signature.values)
+                values = tuple(rule.signature.signature.values)
+                sk[rule.id] = sketches.setdefault(values, frozenset(values))
         self._fn_index = fn
         self._sketch_index = sk
+        includes = {p for rule in self.rulebase for p in (rule.include or DEFAULT_INCLUDE)}
+        self._selectable = compile_any(sorted(includes)) if includes else None
+        self._flat_rules = {rule.id for rule in self.rulebase if flat_include(rule)}
+        self.cache.selectable_includes = frozenset(includes)
+        # Every recorded hash once, ascending, with the signature that records it
+        # (rules sharing a loaded signature share its position): a file is looked
+        # up once (FunctionOwners.of) instead of every rule being tested against
+        # every directory, which grew with the rule base (352,261 disjointness
+        # tests on ESP-IDF with the free rule base).
+        slots: Dict[int, int] = {}
+        self._rule_pos = {rid: slots.setdefault(sidecar_of[rid], len(slots)) for rid in fn}
+        firsts: Dict[int, str] = {}
+        for rid, pos in self._rule_pos.items():
+            firsts.setdefault(pos, rid)
+        self._owners = FunctionOwners([fn[firsts[pos]] for pos in range(len(slots))])
 
     def _always_checked(self, directory: Path, rule: Rule) -> bool:
-        # An anchor can only fire through a file that exists.
-        if any((directory / anchor.path).is_file() for anchor in rule.anchors):
-            return True
+        # An anchor can only fire through a file that exists (os.path, not pathlib:
+        # this runs for every anchor of every rule in every candidate directory).
+        if rule.anchors:
+            base = str(directory)
+            index = self._tree_index(directory)
+            if index is not None:
+                rel_dir, tree = index
+                if any((f"{rel_dir}{anchor.path}" in tree or not _plain(anchor.path))
+                       and os.path.isfile(os.path.join(base, anchor.path))
+                       for anchor in rule.anchors):
+                    return True
+            elif any(os.path.isfile(os.path.join(base, anchor.path))
+                     for anchor in rule.anchors):
+                return True
         if rule.functions is not None and rule.functions.thresholds["floor"] <= 0:
             return True
         if rule.signature is not None and rule.thresholds["floor"] <= 0:
             return True
         return False
 
+    def _tree_index(self, directory: Path):
+        """(root-relative prefix, the store's walk) for *directory*, or None: the
+        walk answers "is there such a file" without a stat per anchor of every
+        rule in every candidate directory. It skips only .git and __pycache__."""
+        store = self.cache.store
+        if store is None:
+            return None
+        key = str(directory)
+        cached = self._prefixes.get(key)
+        if cached is None:
+            try:
+                rel_dir = directory.relative_to(store.root).as_posix()
+            except ValueError:
+                rel_dir = None
+            cached = self._prefixes[key] = (
+                "" if rel_dir in (None, "", ".") else rel_dir + "/", rel_dir is not None)
+        prefix, inside = cached
+        return (prefix, store.index) if inside else None
+
     def _could_fire(self, directory: Path, rule: Rule) -> bool:
         if self._fn_index is None or self._always_checked(directory, rule):
             return True
+        # One test against everything the directory holds, before a print of the
+        # rule's own globs: a rule that shares no function and no sketch value with
+        # the whole directory shares none with any part of it, and cannot match its
+        # file set byte for byte either. On ESP-IDF this spared building a print
+        # per distinct glob set, about 127 per directory with the free rule base.
+        # Files no rule selects are never analysed, so the superset counts on
+        # prefetch having analysed every file some rule selects.
+        # A flattened copy's print (``_function_print``) uses other globs than the
+        # superset covers, so rules that may read one are not judged by it.
+        sup = self.cache.superset(directory, getattr(self, "_selectable", None), self._owners.of)
+        if (sup is None or not (sup.complete or str(directory) in self._prefetched)
+                or rule.id in self._flat_rules):
+            sup = None
+        if sup is not None and not self._may_share(rule, sup):
+            return False
         include = rule.include or DEFAULT_INCLUDE
         exclude = rule.exclude or DEFAULT_EXCLUDE
         dp = self.cache.get(directory, include, exclude, spec_k(rule),
                             spec_window(rule))
-        if rule.functions is not None:
+        if rule.functions is not None and (sup is None or self._shares_function(rule, sup)):
             sets = self._fn_index.get(rule.id)
             if sets is not None and not dp.functions:
                 dp = self._function_print(directory, rule)[0]
@@ -219,6 +431,27 @@ class MatchEngine:
             if dp.sketch_cannot_share(values, k, window, size):
                 return False
             if not values.isdisjoint(dp.signature(k, window, size).values):
+                return True
+        return False
+
+    def _shares_function(self, rule: Rule, sup: Superset) -> bool:
+        pos = self._rule_pos.get(rule.id)
+        return pos is None or pos in sup.owners
+
+    def _may_share(self, rule: Rule, sup: Superset) -> bool:
+        if rule.functions is not None and self._shares_function(rule, sup):
+            return True
+        if rule.signature is not None:
+            values = self._sketch_index.get(rule.id) if self._sketch_index else None
+            store = self.cache.store
+            spec = rule.signature.signature
+            # prefetch leaves unanalysed the files of a function-less rule whose
+            # file set it already matched byte for byte
+            if (values is None or (not sup.complete and rule.functions is None
+                                   and rule.signature.fileset_sha256)
+                    or store is None or spec.size > store.cap
+                    or (spec.k, spec.window) != (store.k, store.window)
+                    or sup.bottoms is None or not values.isdisjoint(sup.bottoms)):
                 return True
         return False
 
@@ -245,8 +478,20 @@ class MatchEngine:
                    spec_k(rule), spec_window(rule))
             groups.setdefault(key, []).append(rule)
         wanted: List[str] = []
+        selectable = getattr(self, "_selectable", None)
         for directory in directories:
+            # Only a glob set selecting a file not analysed yet can add work: with
+            # a warm cache that is few or none, and a print per glob set (about
+            # 127 per directory with the free rule base) only found that out.
+            missing = None
+            if self._fn_index is not None and selectable is not None:
+                sup = self.cache.superset(directory, selectable, self._owners.of)
+                missing = sup.missing if sup is not None else None
+                if missing is not None and not missing:
+                    continue
             for (include, exclude, k, window), rules in groups.items():
+                if missing is not None and not _selects_any(include, exclude, missing):
+                    continue
                 dp = self.cache.get(directory, include, exclude, k, window)
                 if dp.store is None:
                     continue
@@ -257,6 +502,8 @@ class MatchEngine:
                        for r in rules):
                     wanted.extend(dp.rels)
         store.ensure(wanted)
+        self.cache.drop_partial_supersets()
+        self._prefetched.update(str(d) for d in directories)
 
     def segment_rule_base(self) -> int:
         """CENTRIS code segmentation, applied across the loaded rules.
@@ -613,9 +860,11 @@ class MatchEngine:
         """Every release whose recorded hash the first matching anchor file has."""
         prefix = flat_prefix(rule)
         for anchor in rule.anchors:
-            path = _locate(directory, anchor.path)
+            tree = self._tree_index(directory)
+            path = _locate(directory, anchor.path, tree=tree)
             if path is None and prefix and anchor.path.startswith(prefix + "/"):
-                path = _locate(directory, anchor.path[len(prefix) + 1:])   # a flattened copy
+                path = _locate(directory, anchor.path[len(prefix) + 1:],
+                               tree=tree)   # a flattened copy
             if path is None:
                 continue
             try:
@@ -690,12 +939,12 @@ class MatchEngine:
                 locator=rel))
 
         verdict = infer_version(signature, present)
-        own = (signature.version_application_hashes(verdict.best_index)
-               if verdict.best_index >= 0 else signature.application_hashes)
-        if not own:
+        # with no best release, every release's application functions together
+        matched, own_count = signature.application_presence(
+            verdict.best_index if verdict.best_index >= 0 else -1, present)
+        if not own_count:
             return None
-        containment = len(present & own) / len(own)
-        matched = len(present & own)
+        containment = matched / own_count
 
         # A vendor who renames symbols -- prefixing a whole library with their
         # own tag is routine -- defeats exact hashing: renaming a tenth of the
@@ -706,11 +955,12 @@ class MatchEngine:
         bands = spec.thresholds
         if containment < bands["strong"] and signature.abstract_hashes:
             abstract_present = candidate.abstract_functions
+            view = signature.abstract_view()
 
             def abstract_share(index: int):
-                hashes = signature.version_abstract_hashes(index) if index >= 0 else set()
-                return (len(abstract_present & hashes) / len(hashes) if hashes else 0.0,
-                        hashes)
+                held, total = (view.application_presence(index, abstract_present)
+                               if index >= 0 else (0, 0))
+                return (held / total if total else 0.0), held, total
 
             # A cheap test first, against the release the exact bodies point to (or
             # the newest, when they point to none): most directories that fall short
@@ -721,13 +971,12 @@ class MatchEngine:
             if abstract_share(gate)[0] >= containment + RENAMED_MARGIN:
                 # The version is read from the abstracted bodies too: with names
                 # changed, few exact bodies are left to vote and the range widens.
-                abstract_verdict = infer_version(signature.abstract_view(), abstract_present)
+                abstract_verdict = infer_version(view, abstract_present)
                 at = abstract_verdict.best_index if abstract_verdict.best_index >= 0 else gate
-                abstract_containment, own_abs = abstract_share(at)
+                abstract_containment, held, total = abstract_share(at)
                 if abstract_containment >= containment + RENAMED_MARGIN:
                     containment = abstract_containment
-                    matched = len(abstract_present & own_abs)
-                    own = own_abs
+                    matched, own_count = held, total
                     abstracted = True
                     if abstract_verdict.best:
                         verdict = replace(
@@ -763,7 +1012,7 @@ class MatchEngine:
         evidence.append(Evidence(
             technique=Technique.AST_FINGERPRINT,
             confidence=identity,
-            summary=(f"{matched} of {len(own)} "
+            summary=(f"{matched} of {own_count} "
                      + ("identifier-abstracted " if abstracted else "")
                      + f"functions of {rule.upstream_name} "
                        f"{verdict.best or '?'} are present "
@@ -804,7 +1053,7 @@ class MatchEngine:
         say nothing about this component, or a copy of the other one's headers
         reads as a partial copy of this one.
         """
-        matched = present & signature.application_hashes
+        matched = signature.application_matched(present)
         if len(matched) < subset_min:
             return None
         share = len(matched) / len(present)
@@ -839,7 +1088,7 @@ class MatchEngine:
         advisories as ``in_triage``, never as exploitable. Borrowed code does not
         count, as in ``_by_subset``.
         """
-        matched = present & signature.application_hashes
+        matched = signature.application_matched(present)
         if len(matched) < DERIVATIVE_MIN_FUNCTIONS:
             return None
         share = len(matched) / len(present)
@@ -888,7 +1137,7 @@ class MatchEngine:
             bases.append((directory.parent, str(PurePosixPath(rel).parent)))
         for probe in rule.probes:
             for base, where in bases:
-                path = _locate(base, probe.file, by_name=True)
+                path = _locate(base, probe.file, by_name=True, tree=self._tree_index(base))
                 if path is None:
                     continue
                 try:
@@ -974,7 +1223,8 @@ def flat_include(rule: Rule) -> Optional[Tuple[str, ...]]:
     return tuple(pattern[len(prefix) + 1:] for pattern in rule.include)
 
 
-def _locate(directory: Path, relpath: str, by_name: bool = False) -> Optional[Path]:
+def _locate(directory: Path, relpath: str, by_name: bool = False,
+            tree=None) -> Optional[Path]:
     """The file a rule names, at its path or else one nested level or two below.
 
     A vendor that wraps a library in an extra directory (lwIP's ``core/`` in
@@ -985,10 +1235,42 @@ def _locate(directory: Path, relpath: str, by_name: bool = False) -> Optional[Pa
     path = directory / relpath
     if path.is_file():
         return path
-    found = _unique_glob(directory, relpath, NESTED_LOOKUP_DEPTH)
+    unique = _unique_glob
+    if tree is not None and _plain(relpath) and not any(c in relpath for c in "*?["):
+        def unique(directory, tail, depth, deep=False):
+            return _unique_below(directory, tree, tail, depth, deep)
+    found = unique(directory, relpath, NESTED_LOOKUP_DEPTH)
     if found is None and by_name:
-        found = _unique_glob(directory, Path(relpath).name, NAMED_LOOKUP_DEPTH, deep=True)
+        found = unique(directory, Path(relpath).name, NAMED_LOOKUP_DEPTH, deep=True)
     return found
+
+
+def _unique_below(directory: Path, tree, tail: str, depth: int,
+                  deep: bool = False) -> Optional[Path]:
+    """``_unique_glob`` read off the store's walk (*tree*: the directory's
+    root-relative prefix and the index), by file name rather than a glob per
+    level: the anchors of every candidate rule were looked up this way, 11,000
+    globs on ESP-IDF with the free rule base."""
+    prefix, index = tree
+    tail = tail.strip("/")
+    end = "/" + tail
+    levels: Dict[int, List[str]] = {}
+    for rel in index.named(tail[tail.rfind("/") + 1:]):
+        if not rel.startswith(prefix) or not rel.endswith(end):
+            continue
+        middle = rel[len(prefix):len(rel) - len(end)]
+        if not middle:
+            continue
+        level = middle.count("/") + 1
+        if level <= depth:
+            levels.setdefault(level, []).append(rel)
+    found: List[str] = []
+    for level in range(1, depth + 1):
+        found += [r for r in levels.get(level, ())
+                  if os.path.isfile(os.path.join(str(index.root), r))]
+        if found and not deep:
+            break
+    return directory / found[0][len(prefix):] if len(found) == 1 else None
 
 
 def _unique_glob(directory: Path, tail: str, depth: int, deep: bool = False) -> Optional[Path]:
@@ -1110,7 +1392,7 @@ def _bundled_keep(contributors, shared: set, abstract_shared: set):
 def _without_borrowed(signature, present):
     """*present* minus the functions segmentation marked as another rule's. What is left
     still counts the directory's own, unrecorded functions (a vendor's additions)."""
-    borrowed = signature.hash_set - signature.application_hashes
+    borrowed = signature.borrowed_matched(present)
     return present - borrowed if borrowed else present
 
 

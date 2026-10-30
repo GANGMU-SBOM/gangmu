@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import bisect
 import hashlib
+import heapq
 import os
 import sqlite3
 import sys
@@ -170,6 +171,23 @@ class TreeIndex:
         rels.sort()
         self.rels = rels
         self._ok: Dict[str, Optional[os.stat_result]] = {}
+        self._members: Optional[Set[str]] = None
+        self._by_name: Optional[Dict[str, List[str]]] = None
+
+    def named(self, name: str) -> List[str]:
+        """Root-relative paths of every file called *name*."""
+        if self._by_name is None:
+            by_name: Dict[str, List[str]] = {}
+            for rel in self.rels:
+                by_name.setdefault(rel[rel.rfind("/") + 1:], []).append(rel)
+            self._by_name = by_name
+        return self._by_name.get(name, [])
+
+    def __contains__(self, rel: str) -> bool:
+        """Was *rel* seen by the walk (any kind of file, not only printable)?"""
+        if self._members is None:
+            self._members = set(self.rels)
+        return rel in self._members
 
     def under(self, rel_dir: str) -> List[str]:
         """Root-relative paths of every file below *rel_dir* (posix)."""
@@ -197,8 +215,6 @@ class TreeIndex:
 
 # ---------------------------------------------------------------------- store
 
-SHARED_UNION_FILES = 256   # file lists this long share their bottom-value union
-SHARED_UNIONS = 4          # ... and this many are kept
 
 
 class AnalysisStore:
@@ -212,10 +228,7 @@ class AnalysisStore:
         self.jobs = max(1, jobs)
         self._sha: Dict[str, str] = {}
         self._analysis: Dict[str, FileAnalysis] = {}
-        # The bottom values of a large file list, shared by the directory prints
-        # that select it: rules with different globs mostly pick the same files of
-        # a big directory (the scan root above all), and the union is the same.
-        self._bottoms: Dict[Tuple[str, ...], Set[int]] = {}
+        self._unvouched: Set[str] = set()   # load_cached found no stat-cached hash
         self._pool: Optional[ProcessPoolExecutor] = None
         self._params = f"{ANALYSIS_DIGEST}-{k}-{window}-{cap}"
         self._db: Optional[sqlite3.Connection] = None
@@ -256,10 +269,13 @@ class AnalysisStore:
     # ---- selection
     def select(self, directory: Path, include: Sequence[str],
                exclude: Sequence[str],
-               only: Optional[Sequence[str]] = None) -> Optional[List[str]]:
+               only: Optional[Sequence[str]] = None,
+               among: Optional[Sequence[str]] = None) -> Optional[List[str]]:
         """Root-relative files a print of *directory* covers, or None if the
         directory is not under this store's root. With *only*, the print covers
-        those of its files alone (a component copied in among other files)."""
+        those of its files alone (a component copied in among other files).
+        *among* is a list of the directory's files known to hold every file the
+        globs can pick, in walk order: fewer paths to test."""
         try:
             rel_dir = directory.relative_to(self.root).as_posix()
         except ValueError:
@@ -267,7 +283,11 @@ class AnalysisStore:
         inc, exc = compile_any(include), compile_any(exclude)
         cut = 0 if rel_dir in ("", ".") else len(rel_dir) + 1
         out: List[str] = []
-        for rel in sorted(only) if only is not None else self.index.under(rel_dir):
+        if only is not None:
+            pool: Sequence[str] = sorted(only)
+        else:
+            pool = among if among is not None else self.index.under(rel_dir)
+        for rel in pool:
             sub = rel[cut:]
             if inc is None or not inc.match(sub):
                 continue
@@ -285,7 +305,7 @@ class AnalysisStore:
             self._hash(missing)
         return {r: self._sha[r] for r in rels if self._sha.get(r)}
 
-    def _hash(self, rels: List[str]) -> None:
+    def _hash(self, rels: List[str], read: bool = True) -> None:
         todo: List[str] = []
         now = time.time()
         if self._db is not None:
@@ -298,7 +318,7 @@ class AnalysisStore:
             if st is not None and hit and hit[0] == st.st_size and hit[1] == st.st_mtime_ns:
                 self._sha[rel] = hit[2]
                 self.stats["stat_hits"] += 1
-            else:
+            elif read:
                 todo.append(rel)
         base = str(self.root)
         paths = [os.path.join(base, r) for r in todo]
@@ -345,21 +365,10 @@ class AnalysisStore:
     # ---- pass 2: analyses
     def ensure(self, rels: Iterable[str]) -> None:
         """Analyse every file in *rels* not analysed yet, in one parallel batch."""
-        wanted: Dict[str, str] = {}
-        for rel in rels:
-            sha = self._sha.get(rel)
-            if sha and sha not in self._analysis and sha not in wanted:
-                wanted[sha] = rel
+        wanted = self._unanalysed(rels)
         if not wanted:
             return
-        if self._db is not None:
-            for sha, blob in self._blob_lookup(list(wanted)):
-                try:
-                    self._analysis[sha] = FileAnalysis.from_blob(blob)
-                    del wanted[sha]
-                    self.stats["cache_hits"] += 1
-                except (ValueError, KeyError):
-                    pass
+        self._load(wanted)
         if not wanted:
             return
         base = str(self.root)
@@ -442,22 +451,58 @@ class AnalysisStore:
             self.ensure([rel])
         return self._analysis.get(sha, EMPTY)
 
-    def bottom_union(self, rels: Sequence[str]) -> Set[int]:
-        """Every file's bottom values together. Kept for a few large file lists
-        only: a small directory's union is cheap to form again, and holding every
-        one would grow the scan's memory with the tree."""
-        key = tuple(rels) if len(rels) >= SHARED_UNION_FILES else None
-        if key is not None and key in self._bottoms:
-            return self._bottoms[key]
-        self.ensure(rels)
-        union: Set[int] = set()
+    def _unanalysed(self, rels: Iterable[str]) -> Dict[str, str]:
+        wanted: Dict[str, str] = {}
         for rel in rels:
-            union.update(self.analysis(rel).bottom)
-        if key is not None:
-            if len(self._bottoms) >= SHARED_UNIONS:
-                self._bottoms.pop(next(iter(self._bottoms)))
-            self._bottoms[key] = union
-        return union
+            sha = self._sha.get(rel)
+            if sha and sha not in self._analysis and sha not in wanted:
+                wanted[sha] = rel
+        return wanted
+
+    def _load(self, wanted: Dict[str, str]) -> None:
+        """Read the cached analyses among *wanted* (sha -> rel), removing them."""
+        if self._db is None:
+            return
+        for sha, blob in self._blob_lookup(list(wanted)):
+            try:
+                self._analysis[sha] = FileAnalysis.from_blob(blob)
+                del wanted[sha]
+                self.stats["cache_hits"] += 1
+            except (ValueError, KeyError):
+                pass
+
+    def load_cached(self, rels: Sequence[str]) -> None:
+        """Read whatever analyses the cache holds for *rels*, never reading a file:
+        what a warm scan already knows, without new work. A file whose hash the
+        stat cache does not vouch for is left as it is."""
+        missing = [r for r in rels if r not in self._sha and r not in self._unvouched]
+        if missing:
+            self._hash(missing, read=False)
+            self._unvouched.update(r for r in missing if r not in self._sha)
+        wanted = self._unanalysed(rels)
+        if wanted:
+            self._load(wanted)
+
+    def analysed(self, rel: str) -> bool:
+        """Has this file's analysis been read or computed (not merely hashed)?"""
+        sha = self._sha.get(rel)
+        return bool(sha) and sha in self._analysis
+
+    def smallest_bottoms(self, rels: Sequence[str], size: int) -> List[int]:
+        """The *size* smallest distinct bottom values of the files together,
+        ascending: the directory sketch. Each file's bottom is stored ascending,
+        so this is a merge stopped after *size* values, never their union (the
+        scan root's unions held 430 MB on ESP-IDF with the free rule base)."""
+        self.ensure(rels)
+        out: List[int] = []
+        last = None
+        for value in heapq.merge(*(self.analysis(rel).bottom for rel in rels)):
+            if value != last:
+                out.append(value)
+                last = value
+                if len(out) == size:
+                    break
+        return out
 
 
 def _open_db(directory: Path) -> Optional[sqlite3.Connection]:
