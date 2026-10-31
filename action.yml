@@ -34,7 +34,7 @@ inputs:
     default: ""
   version:
     description: >
-      gangmu-sbom version to install, e.g. 0.15.0. Empty installs the latest release, so the
+      gangmu-sbom version to install, e.g. 0.16.0. Empty installs the latest release, so the
       same commit can give a different SBOM later; pin it for reproducible SBOMs.
     default: ""
   extras:
