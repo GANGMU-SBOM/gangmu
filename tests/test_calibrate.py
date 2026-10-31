@@ -254,7 +254,7 @@ class _Sidecar:
 
 def _by_functions(monkeypatch, sidecars, image_arch):
     from gangmu import binaries
-    monkeypatch.setattr(fprint, "image_features", lambda data: ([{1, 2}], image_arch))
+    monkeypatch.setattr(fprint, "image_features", lambda data, **_: ([{1, 2}], image_arch))
     return binaries._by_functions(b"", [], [("Lib", "lib", s) for s in sidecars])
 
 
