@@ -81,11 +81,28 @@ class Report:
     def false_positives(self, lib: Optional[str] = None) -> int:
         return sum(1 for a, b, _ in self.negatives if lib is None or lib in (a, b))
 
+    def metrics(self, cross_opt_only: bool = False) -> dict:
+        """recall: images whose library is recognised / images; version: among those,
+        exact, and exact or a range containing the truth; precision: library claims
+        that are right / every library claim, the negative-control hits included."""
+        c = self.counts(cross_opt_only=cross_opt_only)
+        total = sum(c.values())
+        found = c["exact"] + c["range"] + c["wrong"]
+        false = len(self.negatives)
+
+        def share(n: int, d: int) -> Optional[float]:
+            return round(n / d, 4) if d else None
+        return {"recall": share(found, total), "version_exact": share(c["exact"], found),
+                "version_contains_truth": share(c["exact"] + c["range"], found),
+                "precision": share(found, found + false),
+                "negative_hit_rate": share(false, self.negative_total)}
+
     def to_dict(self) -> dict:
         libs = sorted({c.lib for c in self.cells})
         return {"min_features": self.min_features, "tie_share": self.tie_share,
                 "overall": self.counts(), "cross_optimisation": self.counts(cross_opt_only=True),
                 "per_library": {l: self.counts(l) for l in libs},
+                "metrics": self.metrics(),
                 "negative_controls": {"pairs": self.negative_total,
                                       "false_positives": len(self.negatives)},
                 "cells": [vars(c) for c in self.cells]}
@@ -203,15 +220,15 @@ def evaluate(corpus: Corpus, min_features: int = 2, tie_share: Optional[float] =
             if built is not None:
                 prints[(lib, ref_opt)] = (built, tags)
     if segment:
-        # As a scan does with the rules it loads (fprint.segment_prints): references
-        # built at one optimisation level stand for one rule base.
+        # As a scan does with the rules it loads (fprint.segment_prints). A rule base
+        # carries every build's references, so each library is segmented against the
+        # others at every optimisation level, never against its own.
         from ..fprint import segment_prints
-        for opt in {o for _, o in prints}:
-            keys = [key for key in prints if key[1] == opt]
-            segmented = segment_prints([(_component(lib), prints[(lib, o)][0])
-                                        for lib, o in keys], min_features)
-            for key, built in zip(keys, segmented):
-                prints[key] = (built, prints[key][1])
+        keys = list(prints)
+        segmented = segment_prints([(_component(lib), prints[(lib, o)][0]) for lib, o in keys],
+                                   min_features)
+        for key, built in zip(keys, segmented):
+            prints[key] = (built, prints[key][1])
     for (lib, ref_opt), (built, tags) in prints.items():
         for img_opt in target.opts(lib):
             for tag in tags:
@@ -286,6 +303,13 @@ def format_report(report: Report) -> str:
         f"{report.counts(cross_opt_only=True)[o]:>7}" for o in OUTCOMES))
     lines.append(f"negative controls: {len(report.negatives)} false positive(s) in "
                  f"{report.negative_total} pairs")
+    m = report.metrics()
+
+    def pct(x: Optional[float]) -> str:
+        return "-" if x is None else f"{100 * x:.1f}%"
+    lines.append(f"recall {pct(m['recall'])}, precision {pct(m['precision'])}, version exact "
+                 f"{pct(m['version_exact'])}, exact or a range containing it "
+                 f"{pct(m['version_contains_truth'])} (of the recognised images)")
     return "\n".join(lines)
 
 
