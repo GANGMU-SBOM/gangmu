@@ -65,14 +65,14 @@ linker map for what survived) and resolves identity against an open rule base.
 
 ## Numbers
 
-Measured on 2026-10-30 with `main` after 0.15.0 and the free rule base 2026.10.29 unless a row says otherwise; all reproducible with the tools in this repository; see
+Measured with the current code and the free rule base 2026.10.29; all reproducible with the tools in this repository; see
 [docs/BENCHMARK.md](docs/BENCHMARK.md) and [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 | | |
 | --- | --- |
-| Source identification (gangmu-bench, 140 cases: 131 upstream release trees, 57 copies in 9 vendor SDKs) | 263 rows: **227 exact**, 23 ranges containing the truth, 8 component only (the copy states no version), 3 wrong, 2 missed |
-| Source false positives | **0** of the 326 components gangmu-bench reports; 2 of 284 (0.7%) in a self-scan of 227 upstream releases |
-| Binary identification (cross-compiled corpus, 15 libraries on 4 architectures) | 0.7% to 3.3% of answers wrong; 0.5% to 0.9% of negative-control pairs match (libraries carrying the same code, such as the xxhash in both lz4 and zstd); many images get a range or no answer |
+| Source identification (gangmu-bench, 139 cases: upstream release trees and 57 copies in 9 vendor SDKs, 264 components to find) | **recall 100%** (264/264), **precision 100%** (0 false positives among 329 components reported); version exact 89.8%, exact or a range containing it 98.8% |
+| Source self-scan (the pinned upstream release of 227 rules, whole rule base) | recall 98.7% (224/227), precision 99.3% (2 false positives among 284 components) |
+| Binary identification (cross-compiled corpus: 14 libraries, 15 builds, 4 architectures, stripped) | same architecture: recall 72% to 81%, precision 95% to 100%; version right or a range containing it for 97% to 100% of the images found, a single exact version for 37% to 47%; across architectures (strings only) recall 36% to 55%. See [BINARY-VALIDATION.md](docs/BINARY-VALIDATION.md) |
 | Separating "vendor fork" from "different release" | whole-tree similarity gap **0.06**; function level **0.24** |
 | Version accuracy on real lwIP releases | **6/6**: five releases reported as exactly their version; Espressif's production fork as `2.2.0~2.2.1`, best match 2.2.0 |
 | Synthetic vendor modifications | **9/9 identified, 9/9 correct version** |
