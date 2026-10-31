@@ -102,14 +102,14 @@ fingerprints against every other library's images):
 
 | reference → images | recall | precision | version exact | exact or range containing truth | negative-control hits |
 | --- | --- | --- | --- | --- | --- |
-| Cortex-M3 → Cortex-M3 | 78.2% | 95.0% | 43.3% | 99.3% | 28 / 9,776 |
-| rv32imac → rv32imac | 76.6% | 99.8% | 37.6% | 99.2% | 1 / 9,776 |
-| AArch64 → AArch64 | 81.2% | 100% | 42.5% | 96.7% | 0 / 11,200 |
-| Xtensa → Xtensa | 72.3% | 100% | 46.5% | 99.6% | 0 / 9,118 |
-| Cortex-M3 → rv32imac (strings only) | 35.8% | 100% | – | 98.4% | 0 / 9,776 |
-| Cortex-M3 → AArch64 | 47.8% | 100% | – | 97.3% | 0 / 10,496 |
-| Cortex-M3 → Xtensa | 55.3% | 98.4% | – | 95.9% | 6 / 9,440 |
-| Xtensa → Cortex-M3 | 42.5% | 100% | – | 100% | 0 / 9,448 |
+| Cortex-M3 → Cortex-M3 | 83.4% | 99.7% | 40.9% | 99.0% | 2 / 9,776 |
+| rv32imac → rv32imac | 78.0% | 99.8% | 36.1% | 98.7% | 1 / 9,776 |
+| AArch64 → AArch64 | 83.2% | 100% | 41.7% | 95.6% | 0 / 11,200 |
+| Xtensa → Xtensa | 77.2% | 100% | 43.3% | 99.6% | 0 / 9,118 |
+| Cortex-M3 → rv32imac (strings only) | 36.3% | 100% | – | 98.4% | 0 / 9,776 |
+| Cortex-M3 → AArch64 | 48.4% | 100% | – | 96.1% | 0 / 10,496 |
+| Cortex-M3 → Xtensa | 58.6% | 100% | – | 97.4% | 0 / 9,440 |
+| Xtensa → Cortex-M3 | 45.2% | 100% | – | 99.7% | 0 / 9,448 |
 
 Inside real trees (the census above): 15 prebuilt files were identified (Lua
 5.1.4 in premake4, libcurl 7.53.1 in premake5, zlib 1.3.1 and 1.2.3 in DLLs,
@@ -118,9 +118,9 @@ versions are coarse or absent.
 
 **In short:** from source the tool almost never names a component that is not
 there, finds nearly every one that is, and gives the exact version for most;
-from binaries what it names is almost always right, but about a quarter of the
-images on the same architecture get no answer and most get a range rather
-than one version.
+from binaries what it names is almost always right, but about one image in five
+on the same architecture gets no answer (two thirds of those are two libraries
+with almost nothing to fingerprint) and most get a range rather than one version.
 
 ## 1. Version accuracy on real lwIP releases
 

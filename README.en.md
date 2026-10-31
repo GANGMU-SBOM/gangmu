@@ -72,7 +72,7 @@ Measured with the current code and the free rule base 2026.10.29; all reproducib
 | --- | --- |
 | Source identification (gangmu-bench, 139 cases: upstream release trees and 57 copies in 9 vendor SDKs, 264 components to find) | **recall 100%** (264/264), **precision 100%** (0 false positives among 329 components reported); version exact 89.8%, exact or a range containing it 98.8% |
 | Source self-scan (the pinned upstream release of 227 rules, whole rule base) | recall 98.7% (224/227), precision 99.3% (2 false positives among 284 components) |
-| Binary identification (cross-compiled corpus: 14 libraries, 15 builds, 4 architectures, stripped) | same architecture: recall 72% to 81%, precision 95% to 100%; version right or a range containing it for 97% to 100% of the images found, a single exact version for 37% to 47%; across architectures (strings only) recall 36% to 55%. See [BINARY-VALIDATION.md](docs/BINARY-VALIDATION.md) |
+| Binary identification (cross-compiled corpus: 14 libraries, 15 builds, 4 architectures, stripped) | same architecture: recall 77% to 83%, precision 99.7% to 100%; version right or a range containing it for 96% to 100% of the images found, a single exact version for 36% to 43%; across architectures (strings only) recall 36% to 59%. See [BINARY-VALIDATION.md](docs/BINARY-VALIDATION.md) |
 | Separating "vendor fork" from "different release" | whole-tree similarity gap **0.06**; function level **0.24** |
 | Version accuracy on real lwIP releases | **6/6**: five releases reported as exactly their version; Espressif's production fork as `2.2.0~2.2.1`, best match 2.2.0 |
 | Synthetic vendor modifications | **9/9 identified, 9/9 correct version** |

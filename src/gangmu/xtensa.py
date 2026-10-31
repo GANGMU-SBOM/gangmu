@@ -49,3 +49,31 @@ def features(code: bytes, base: int, read: Callable[[int, int], Optional[bytes]]
         word = read(target, 4)
         if word is not None:
             emit(int.from_bytes(word, "little"))
+
+
+def calls(code: bytes, base: int, read: Callable[[int, int], Optional[bytes]]) -> List[int]:
+    """Where the function may call: ``call0/4/8/12`` targets, and every word an ``l32r``
+    loads (a long call loads its target into a register first); the caller keeps the ones
+    that are function starts."""
+    out: List[int] = []
+    off, end = 0, len(code)
+    while off < end:
+        op0 = code[off] & 0x0F
+        if op0 >= 8:
+            off += 2
+            continue
+        if off + 3 > end:
+            break
+        word = code[off] | code[off + 1] << 8 | code[off + 2] << 16
+        if op0 == 5:                              # CALLn: offset in bits 6..23, signed
+            offset = word >> 6
+            if offset & (1 << 17):
+                offset -= 1 << 18
+            out.append((((base + off) >> 2) + offset + 1) << 2)
+        elif op0 == 1:
+            target = ((base + off + 3) & ~3) + ((word >> 8) - 0x10000) * 4
+            value = read(target, 4)
+            if value is not None:
+                out.append(int.from_bytes(value, "little"))
+        off += 3
+    return out
