@@ -132,14 +132,14 @@ def load_corpus(directory: Path, use_cache: bool = True) -> Corpus:
 
     arches: List[str] = []
 
-    def features(path: Path) -> List[Set[int]]:
+    def features(path: Path, closures: bool = False) -> List[Set[int]]:
         stat = path.stat()
-        key = str(path.relative_to(root))
+        key = str(path.relative_to(root)) + ("#closures" if closures else "")
         hit = cache.get(key)
         if hit and len(hit) == 4 and hit[:2] == (stat.st_mtime_ns, stat.st_size):
             arches.append(hit[3])
             return hit[2]
-        feats, arch = image_features(path.read_bytes(), min_features=1)
+        feats, arch = image_features(path.read_bytes(), min_features=1, closures=closures)
         cache[key] = (stat.st_mtime_ns, stat.st_size, feats, arch or "")
         arches.append(arch or "")
         return feats
@@ -154,7 +154,9 @@ def load_corpus(directory: Path, use_cache: bool = True) -> Corpus:
                 base = root / lib / rel["tag"]
                 ref, img = base / f"{opt}.elf", base / f"{opt}.strip.elf"
                 if ref.exists() and img.exists():
-                    corpus.builds[lib][rel["tag"]][opt] = Build(features(ref), features(img))
+                    # an image is matched as a scan matches firmware, closures included
+                    corpus.builds[lib][rel["tag"]][opt] = Build(features(ref),
+                                                                features(img, closures=True))
     corpus.arch = max(set(arches), key=arches.count) if arches else ""
     if use_cache:
         try:

@@ -701,7 +701,7 @@ def _by_functions(data: bytes, known: Sequence[Embedded], prints: Sequence) -> L
         if name in named or name in done:
             continue
         if image is None:
-            image, arch = image_features(data)
+            image, arch = image_features(data, closures=True)
         candidates = sorted((p for p in todo if p[1] == name),
                             key=lambda p: 0 if arch and p[2].arch == arch else 1)
         for display, name, reference in candidates:

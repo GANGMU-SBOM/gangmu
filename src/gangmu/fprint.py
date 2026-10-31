@@ -51,6 +51,12 @@ MIN_CONTAINMENT = 0.7     # share of a reference function's features the image m
 MIN_MATCHES = 5           # matched functions before a library is claimed
 MIN_COVERAGE = 0.12       # share of the best release's fingerprintable functions matched (0.08 let one
 #                         unrelated library through in 1920 negative pairs on RISC-V)
+SMALL_MATCHES = 3         # fewer than MIN_MATCHES are enough when they are most of the release:
+SMALL_COVERAGE = 0.5      # a library with four fingerprintable functions could never reach five
+MAGNET_RATIO = 32         # a print is not found in a function this many times its size: an
+#                           error-string switch or a constant table holds hundreds of values and
+#                           so, by chance, small prints of unrelated libraries (Cortex-M corpus:
+#                           ~2,300 wrong-library matches there against ~170 in all smaller sets)
 TIE_SHARE = 0.85         # releases scoring within this share of the best are reported as a span
 #                         (0.95 asserted a wrong release in 3 of 48 real builds, 0.85 in none)
 CONTRA_FULL = 4.0         # features at which a matched print counts in full as evidence
@@ -181,10 +187,12 @@ class FeatureSet(set):
     include ones the compiler derived (reciprocal multipliers, packed literals), which do not."""
 
     strings: Set[int]
+    calls: Set[int]           # direct call targets (addresses), for closures
 
-    def __init__(self, items=(), strings=()):
+    def __init__(self, items=(), strings=(), calls=()):
         super().__init__(items)
         self.strings = set(strings)
+        self.calls = set(calls)
 
 
 def _a64(insn, reg: int) -> str:
@@ -219,6 +227,7 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
 
     if arch == "xtensa":
         xtensa.features(code, address, mem.read, emit)
+        out.calls.update(xtensa.calls(code, address, mem.read))
         return out
     assert spec is not None     # only xtensa has none, and it returned above
     md = disasm.capstone.Cs(spec.cs_arch, spec.cs_mode)
@@ -235,6 +244,9 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
         m = insn.mnemonic
         if m == "db":
             continue
+        target = spec.call(insn)
+        if target is not None:
+            out.calls.add(target)
         if arch in _TEXT_ONLY and not _OPERAND_HINT.search(insn.op_str):
             continue          # no number and no RIP in the text: nothing to read from it
         ops = insn.operands
@@ -416,14 +428,16 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
 
 
 def image_features(data: bytes, arch: Optional[str] = None, base: Optional[int] = None,
-                   min_features: Optional[int] = None, ignore_symbols: bool = False
-                   ) -> Tuple[List[Set[int]], Optional[str]]:
+                   min_features: Optional[int] = None, ignore_symbols: bool = False,
+                   closures: bool = False) -> Tuple[List[Set[int]], Optional[str]]:
     """Feature sets of the fingerprintable functions of an ELF or a Cortex-M ``.bin``, and
     the architecture they were decoded as (None if nothing could be decoded).
 
     *min_features*: functions with fewer are left out (default ``MIN_FEATURES``); the
     benchmark passes 1 and applies its own threshold, so one extraction serves every one.
-    *ignore_symbols*: recover boundaries as if the ELF were stripped (for a self-test)."""
+    *ignore_symbols*: recover boundaries as if the ELF were stripped (for a self-test).
+    *closures*: also list each function together with what it calls (:func:`closures`),
+    for an image to be matched against references built with other inlining."""
     if not disasm.available():
         return [], None
     from .elf import parse_elf
@@ -445,12 +459,41 @@ def image_features(data: bytes, arch: Optional[str] = None, base: Optional[int] 
         mem = Memory([(start, data)] if start is not None else [])
     if rec is None or not rec.functions or not mem.regions:
         return [], None
-    found: List[Set[int]] = []
-    for f in rec.functions:
-        feats = function_features(mem, rec.arch, f.address, f.size)
-        if len(feats) >= (MIN_FEATURES if min_features is None else min_features):
-            found.append(feats)
+    floor = MIN_FEATURES if min_features is None else min_features
+    every = {f.address: function_features(mem, rec.arch, f.address, f.size)
+             for f in rec.functions}
+    found: List[Set[int]] = [feats for feats in every.values() if len(feats) >= floor]
+    if closures:
+        found += [c for c in closures_of(every) if len(c) >= floor]
     return found, rec.arch
+
+
+MAX_CALLEES = 16          # a function calling more than this is a dispatcher: its closure is
+#                           most of the program and would contain unrelated prints by chance
+
+
+def closures_of(functions: Dict[int, "FeatureSet"]) -> List["FeatureSet"]:
+    """Each function's features together with those of the functions it calls directly,
+    where that adds something.
+
+    The compiler inlines a callee at one optimisation level and calls it at another, so a
+    reference function built at -O2 can hold features that an -O0 image keeps in two
+    functions (N2NMatcher, arXiv:2608.10043, on inlining and binary decomposition). Matching
+    is by containment, so the union is what such a reference is found in. Only the image
+    side is closed: a closure of the references would claim the callees twice."""
+    out: List[FeatureSet] = []
+    for address, feats in functions.items():
+        callees = [functions[c] for c in feats.calls if c != address and c in functions]
+        callees = [c for c in callees if c]
+        if not callees or len(callees) > MAX_CALLEES:
+            continue
+        closure = FeatureSet(feats, feats.strings)
+        for c in callees:
+            closure |= c
+            closure.strings |= c.strings
+        if len(closure) > len(feats):
+            out.append(closure)
+    return out
 
 
 def image_function_features(data: bytes, arch: Optional[str] = None,
@@ -552,6 +595,13 @@ def segment_prints(items: Sequence[Tuple[str, "FunctionPrints"]],
 
 
 # ------------------------------------------------------------------ reference prints
+
+def _enough(matched: int, coverage: float) -> bool:
+    """Whether *matched* functions covering *coverage* of a release claim the library."""
+    if matched >= MIN_MATCHES:
+        return coverage >= MIN_COVERAGE
+    return matched >= SMALL_MATCHES and coverage >= SMALL_COVERAGE
+
 
 @dataclass
 class FunctionPrints:
@@ -697,9 +747,10 @@ class FunctionPrints:
                     votes[i] = votes.get(i, 0) + 1
             for i, hits in votes.items():
                 size = self.strings[i] if by_string else len(self.functions[i][1])
-                if hits >= min(floor, size) and hits >= MIN_CONTAINMENT * size:
+                if hits >= min(floor, size) and hits >= MIN_CONTAINMENT * size \
+                        and len(feats) <= MAGNET_RATIO * size:
                     matched.add(i)
-        if len(matched) < MIN_MATCHES:
+        if len(matched) < SMALL_MATCHES:
             return None
         if tie_share is None:
             return self._contradiction(matched, by_string, floor)
@@ -720,7 +771,7 @@ class FunctionPrints:
         index_best = scores.index(best)
         own = owns[index_best]
         coverage = len(own & matched) / len(own) if own else 0.0
-        if coverage < MIN_COVERAGE or len(own & matched) < MIN_MATCHES:
+        if not _enough(len(own & matched), coverage):
             return None
         tied = [i for i, s in enumerate(scores) if s >= best * tie_share]
         low, high = self.versions[min(tied)], self.versions[max(tied)]
@@ -752,7 +803,7 @@ class FunctionPrints:
         index_best = scores.index(best)
         own = owns[index_best]
         coverage = len(own & matched) / len(own) if own else 0.0
-        if coverage < MIN_COVERAGE or len(own & matched) < MIN_MATCHES:
+        if not _enough(len(own & matched), coverage):
             return None
         tied = [i for i, sc in enumerate(scores) if sc >= best - CONTRA_SPAN]
         low, high = self.versions[min(tied)], self.versions[max(tied)]
