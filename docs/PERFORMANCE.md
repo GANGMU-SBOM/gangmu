@@ -6,7 +6,7 @@
 
 ## 整棵 SDK：ESP-IDF v5.4.2
 
-测试对象是 ESP-IDF v5.4.2，带全部子模块，共 10,767 个 `.c`/`.h` 文件。2026-10-30 用 gangmu-sbom 0.15.0 之后的 `main`（含 #155 的内存与耗时优化）和免费规则库 gangmu-rules 2026.10.29（1027 条规则）测得；4 核，Python 3.13，装了 numpy，没装 Capstone，没有提供构建信息（这是最慢的情形）。扫描得到 343 个候选目录和 20 条识别结果。同一时段这台机器的校准耗时约 0.063 s（CI 的 runner 在 0.033 到 0.060 s 之间）；这台机器的速度会波动，数字只能在同一时段、同一台机器上比较。
+测试对象是 ESP-IDF v5.4.2，带全部子模块，共 10,767 个 `.c`/`.h` 文件。2026-10-30 用 `main` 和免费规则库 gangmu-rules 2026.10.29（1027 条规则）测得；4 核，Python 3.13，装了 numpy，没装 Capstone，没有提供构建信息（这是最慢的情形）。扫描得到 343 个候选目录和 20 条识别结果。同一时段这台机器的校准耗时约 0.063 s（CI 的 runner 在 0.033 到 0.060 s 之间）；这台机器的速度会波动，数字只能在同一时段、同一台机器上比较。
 
 | 设置 | 耗时 | 峰值内存 |
 | --- | --- | --- |
@@ -14,8 +14,6 @@
 | 单进程，热缓存（再扫一遍） | 40.0 s | 751 MB |
 | 4 进程，冷缓存 | 57.5 s | 784 MB |
 | 4 进程，热缓存 | 37.5 s | 751 MB |
-
-和 0.15.0 在同一台机器、同样不装 numpy 的条件下比：冷扫 115 s / 2.6 GB → 79 s / 0.77 GB，热扫 73 s / 2.6 GB → 39 s / 0.73 GB，20 条结论完全相同。0.15.0 比上一次记录的 0.13.3（223 条规则，冷扫 50.1 s / 375 MB）慢得多，原因是多处开销随规则条数增长；规则从 223 条涨到 1027 条后，这些开销占了大头。#155 去掉了其中的大部分，见 [更新记录](CHANGELOG.md)。
 
 单进程、热缓存下，关掉各个附加步骤各省多少：
 
@@ -31,23 +29,11 @@
 * 热缓存下 4 进程只比单进程快一点（37.5 s 与 40.0 s）：分词已经缓存，剩下的是逐个目录的规则匹配，它不并行。4 进程主要在冷扫时省下分词的时间。
 * 三个都关以后剩下的 32 s 几乎全是规则匹配本身：1027 条规则、343 个候选目录。
 
-### 历史：0.5 到 0.6
-
-下表测于 0.6，当时的规则集包含商业版乐鑫规则包，**之后没有重测**，也不能用免费规则库复现。它说明的是 0.6 那一轮优化（见下面“做了什么”）买到了什么，不是当前的耗时。
-
-| 设置 | 0.5 | 0.6 | 0.6，不装 numpy |
-| --- | --- | --- | --- |
-| 单进程，无缓存 | 72.5 s / 366 MB | **11.0 s / 123 MB** | 17.9 s / 134 MB |
-| 4 进程，冷缓存 | 35.8 s / 369 MB | **5.5 s / 74 MB**（工作进程 92 MB） | |
-| 4 进程，热缓存（再扫一遍） | 10.2 s / 53 MB | **2.1 s / 69 MB** | |
-
-两个版本的结果逐条一致：组件、版本、置信度和未识别目录都相同。另外 6 棵本地树（铜锁、GmSSL 伪装示例、Zephyr HAL、OpenHarmony 片段等）也逐条比对过，结果同样一致。
-
 ## 规则数与耗时
 
 社区规则库会持续增长，所以规则多了以后扫描不能线性变慢。测法是把已加载的规则复制若干份，并给每份的哈希加盐，使副本不会命中任何真实代码。扫描对象是一棵带种子的合成 SDK：1,152 个文件，59 个组件，其中有嵌套组件，也有完全相同的副本。
 
-**当前（0.15.0 之后的 `main`，免费规则库 1027 条加 1 条测试夹具为 1 倍）**，单进程，无缓存，装了 numpy，同一台 4 核机器（校准 0.063 s）：
+免费规则库 1027 条加 1 条测试夹具为 1 倍，单进程，无缓存，装了 numpy，同一台 4 核机器（校准 0.063 s）：
 
 | 规则数 | 耗时 / 峰值内存 |
 | --- | --- |
@@ -55,32 +41,21 @@
 | 4,112（4 倍） | 23.4 s / 919 MB |
 | 16,448（16 倍） | 81.6 s / 2,530 MB |
 
-规则多了 16 倍，耗时约 7.3 倍。1 倍时热缓存重扫 7.6 s。规则预筛让绝大多数规则根本不执行：1 倍时实际匹配 11 次，跳过 61,669 次；16 倍时匹配 161 次，跳过 986,719 次。内存随规则数近似线性增长，主要是规则自己的函数签名，以及 #155 加的「哪条规则记录了哪个函数」的索引（每个函数 6 字节）。CI 里的基线见 `benchmarks/perf-baseline.json`。
-
-**历史（0.6，27 / 108 / 432 条规则）**，同一棵合成树：
-
-| 规则数 | 0.5 | 0.6 |
-| --- | --- | --- |
-| 27 | 21.3 s / 167 MB | **3.2 s / 64 MB** |
-| 108 | 27.1 s / 190 MB | **3.8 s / 87 MB** |
-| 432 | 56.8 s / 281 MB | **6.8 s / 181 MB** |
-
-0.6 中，规则从 27 条增加到 432 条，增加的时间主要花在跨规则的代码切分和预筛上。真正对每个目录执行完整匹配的规则，从 0.5 的"每条都跑"变成了"只跑可能命中的"。在那棵树上，16 倍规则时一共只跑了 16 次匹配，跳过了 26,864 次。
+规则多了 16 倍，耗时约 7.3 倍。1 倍时热缓存重扫 7.6 s。规则预筛让绝大多数规则根本不执行：1 倍时实际匹配 11 次，跳过 61,669 次；16 倍时匹配 161 次，跳过 986,719 次。内存随规则数近似线性增长，主要是规则自己的函数签名，以及「哪条规则记录了哪个函数」的索引（每个函数 6 字节）。CI 里的基线见 `benchmarks/perf-baseline.json`。
 
 ## 漏洞比对：全量 NVD
 
-`gangmu vuln` 要能直接读一份完整的 NVD 本地镜像（按年份分文件，2002 到 2026 共 27 个 NVD 2.0 JSON 文件，解压后 2.7 GB）。2026-10-30 重测：测试 SBOM 是上面 ESP-IDF v5.4.2 那次扫描输出的 CycloneDX（203 个组件），4 核：
+`gangmu vuln` 要能直接读一份完整的 NVD 本地镜像（按年份分文件，2002 到 2026 共 27 个 NVD 2.0 JSON 文件，解压后 2.7 GB）。2026-10-30 测得：测试 SBOM 是上面 ESP-IDF v5.4.2 那次扫描输出的 CycloneDX（203 个组件），4 核：
 
-| 镜像格式 | 0.5 | 0.6 | 现在 |
-| --- | --- | --- | --- |
-| NVD 2.0 JSON（解压后） | 200.8 s / 3,902 MB | 8.9 s / 25 MB | **9.3 到 9.6 s / 60 MB**（两次） |
-| fkie-cad 镜像（`.json.xz`） | 读不了，0 条 | 14.1 s / 48 MB | 没有重测（这次没有下载这个镜像） |
+| 镜像格式 | 耗时 / 峰值内存 |
+| --- | --- |
+| NVD 2.0 JSON（解压后） | **9.3 到 9.6 s / 60 MB**（两次） |
 
-峰值内存是主进程的。两次运行都找到 92 条与这些组件相关的记录；0.6 时的 38 条来自另一份 SBOM（当时的规则集和组件都不同），两者不能直接比较。做法没变：一条一条地流式解码，只要记录里没有出现 SBOM 中任何一个 CPE 产品或 purl，就直接丢掉，不建对象；年份文件由多个进程并行读取。
+峰值内存是主进程的。两次运行都找到 92 条与这些组件相关的记录。做法：一条一条地流式解码，只要记录里没有出现 SBOM 中任何一个 CPE 产品或 purl，就直接丢掉，不建对象；年份文件由多个进程并行读取。fkie-cad 镜像（`.json.xz`）也能读，这次没有测。
 
 ## 做了什么
 
-以下是 0.6 那一轮做的优化，仍然是现在的做法；0.6 之后新增的默认步骤（预编译库清点等）见上面 ESP-IDF 一节的分解。
+扫描为什么能这么快，以及规则多了以后为什么不线性变慢：
 
 | 改动 | 解决的问题 |
 | --- | --- |
@@ -89,11 +64,12 @@
 | 每个文件只保留最小的 256 个指纹 | 目录草图是并集里最小的 k 个值，这些值一定也在各自文件的最小 k 个里，所以结果**完全精确**，内存却有上限 |
 | 增量缓存（SQLite，按内容哈希和分析代码的摘要做键） | 改一个文件只重新分析这一个文件；分词器或提取器的代码一改，旧缓存自动失效，不需要人记得去改版本号 |
 | 规则预筛：函数、草图、锚点文件、文件集哈希都对不上的规则直接跳过 | 以前每个目录都要跑一遍全部规则的完整匹配；预筛对排序好的哈希表做二分查找，不另外占内存 |
-| 函数签名的派生集合按签名缓存 | 版本区间推断以前每个目录都要重建一遍各版本的集合 |
+| 版本打分直接数各版本的位图，不为每个版本建集合；签名按已排序的哈希二分查找；整签名集合放进有总量上限的缓存 | 规则多了以后，每条规则每个版本一个集合的开销会压过扫描本身 |
+| 所有规则记录的函数合成一份按哈希排序的索引，每个文件查一次；每个目录先用这份上界排除不可能命中的规则 | 不用对每个目录、每条规则各做一次不相交测试 |
 | 一个进程池覆盖整次扫描，一次性批量预取 | 以前每个目录各起一个进程池，小组件低于并行阈值时只能串行 |
 | 分词改用 `findall`，k-gram 循环内联，窗口最小值改用 C 层的 `min` | 不装 numpy 的纯 Python 路径也更快，输出逐值不变 |
 | 可选 numpy 向量路径（`pip install gangmu-sbom[fast]`） | 滚动哈希和 splitmix 用 uint64 向量运算，回绕算术与 Python 的 mod 2⁶⁴ 完全一致，测试会逐值比对两条路径 |
-| 规则预筛先查“各文件保存的最小指纹的并集”（每个目录只算一次），全不相交就直接跳过，只有相交时才算精确草图 | 预筛以前对每个目录、每组 glob 都要合并并选出最小的 256 个值；目录草图的每个值都在某个文件保存的最小值里，所以跳过的规则和以前完全相同 |
+| 目录草图由各文件已排序的最小指纹归并得到，不求并集 | 扫描根目录这样的大目录，并集要几百 MB；归并只需要几百个值 |
 | 函数签名文件整表解码（`struct.iter_unpack`、`array.frombytes`），规则间重复哈希和有序性检查改在 C 层比较 | 加载规则库、做代码切分是每次扫描的固定开销，热扫描时尤其明显 |
 
 numpy 只在需要时才导入。默认安装不带 numpy，内存不会因此增加；装了 `[fast]` 以后，扫描很小的树时进程内存会多出约 10 MB，这是导入 numpy 本身的开销。
@@ -112,7 +88,7 @@ gangmu perf esp-idf --rules rules --jobs 4
 
 `gangmu perf` 的每次扫描都在单独的进程里运行，所以峰值内存只算这次扫描本身。输出里的 `units` 是扫描耗时除以一个固定的单核校准负载的耗时，因此笔记本和 CI 机器上测出的数字可以互相比较。校准取 9 轮的中位数，并在整套扫描之前和之后各测一次、取平均（两次的比值记在输出 JSON 的 `calibration_drift`），这样一轮侥幸的快或慢不会定下单位。
 
-**但单位并不和机器无关。** CI 的 runner 不是同一种机器：校准耗时约 0.033、0.045、0.060 s 各有，而一次扫描里有约 0.5 到 0.6 秒的固定开销不随 CPU 变快，所以同样的代码在快的 runner 上以校准单位算要高 20% 到 30%。基线必须落在这个范围里。`benchmarks/perf-baseline.json` 因此是从多次 CI 运行的 `perf.json` 制品重录的（用 `benchmarks/rebaseline.py`）：耗时和内存取中位数，工作计数取最大值。当前这版取自 2026-10-30 #155 合并后的 7 次 CI 运行（规则库 2026.10.29，加测试夹具共 1028 条规则；其中一次落在校准约 0.031 s 的快 runner 上），各次对新基线在 0.96 到 1.23 倍之间，1.23 倍的就是那次快 runner。#155 让 1 倍冷扫从 383.5 降到 192.1 个校准单位、16 倍从 3,281 降到 1,227；16 倍时的峰值内存从 2,177 MB 涨到 2,522 MB（多了「哪条规则记录了哪个函数」的索引），在 1.35 倍的限制之内。再上一版取自 2026-10-28 的 7 次运行，对它在 0.81 到 1.08 倍之间。上一版是 817 条规则时录的，规则涨到 1028 条后，快的 runner 上热扫描到了 1.71 倍，主线 `performance` 因此失败；同一份规则下 0.13.9 和 0.14.0 的耗时没有差别。规则库或合成树变了之后，要重录一次。
+**但单位并不和机器无关。** CI 的 runner 不是同一种机器：校准耗时约 0.033、0.045、0.060 s 各有，而一次扫描里有约 0.5 到 0.6 秒的固定开销不随 CPU 变快，所以同样的代码在快的 runner 上以校准单位算要高 20% 到 30%。基线必须落在这个范围里。`benchmarks/perf-baseline.json` 因此是从多次 CI 运行的 `perf.json` 制品重录的（用 `benchmarks/rebaseline.py`）：耗时和内存取中位数，工作计数取最大值。当前这版取自 2026-10-30 的 7 次 CI 运行（规则库 2026.10.29，加测试夹具共 1028 条规则；其中一次落在校准约 0.031 s 的快 runner 上），各次对它在 0.96 到 1.23 倍之间，1.23 倍的就是那次快 runner。规则库或合成树变了之后，要重录一次。
 
 ## CI 回归检查
 
@@ -137,7 +113,7 @@ gangmu perf --rules .gangmu-rules/rules --rules tests/fixtures/rules \
 
 ## Performance (in English)
 
-**Whole SDK, ESP-IDF v5.4.2** (with submodules, 10,767 `.c`/`.h` files). Measured on 2026-10-30 with `main` after 0.15.0 (including #155's memory and time work) and the free rule base gangmu-rules 2026.10.29 (1027 rules); 4 cores, Python 3.13, numpy installed, no Capstone, no build facts (the slowest case). The scan sees 343 candidate directories and reports 20 findings. This machine's calibration was about 0.063 s at the time (CI runners: 0.033 to 0.060 s); its speed varies, so compare numbers only from one machine and one sitting.
+**Whole SDK, ESP-IDF v5.4.2** (with submodules, 10,767 `.c`/`.h` files). Measured on 2026-10-30 with `main` and the free rule base gangmu-rules 2026.10.29 (1027 rules); 4 cores, Python 3.13, numpy installed, no Capstone, no build facts (the slowest case). The scan sees 343 candidate directories and reports 20 findings. This machine's calibration was about 0.063 s at the time (CI runners: 0.033 to 0.060 s); its speed varies, so compare numbers only from one machine and one sitting.
 
 | Setting | Time | Peak memory |
 | --- | --- | --- |
@@ -145,8 +121,6 @@ gangmu perf --rules .gangmu-rules/rules --rules tests/fixtures/rules \
 | 1 process, warm cache | 40.0 s | 751 MB |
 | 4 processes, cold cache | 57.5 s | 784 MB |
 | 4 processes, warm cache | 37.5 s | 751 MB |
-
-Against 0.15.0 on the same machine, both without numpy: cold 115 s / 2.6 GB -> 79 s / 0.77 GB, warm 73 s / 2.6 GB -> 39 s / 0.73 GB, the same 20 findings. 0.15.0 was much slower than the last recorded 0.13.3 (223 rules, cold 50.1 s / 375 MB) because several costs grew with the number of rules, and the rule base went from 223 to 1027; #155 removed most of them (see the [changelog](CHANGELOG.en.md)).
 
 Single process, warm cache, with each extra step switched off:
 
@@ -162,8 +136,6 @@ Single process, warm cache, with each extra step switched off:
 * With a warm cache, 4 processes are only a little faster than 1 (37.5 s against 40.0 s): tokenising is cached, and what remains is rule matching directory by directory, which does not run in parallel. Extra processes mainly save tokenising time on a cold scan.
 * With all three off, the 32 s left are rule matching itself: 1027 rules over 343 candidate directories.
 
-**History, 0.5 to 0.6.** Measured at 0.6 with the rule set of that time, which included the commercial Espressif pack, **not re-measured since** and not reproducible with the free rule base. It shows what the 0.6 optimisations bought, not today's times: ESP-IDF single-process 72.5 s → 11.0 s (366 MB → 123 MB), 4 workers 35.8 s → 5.5 s, warm rescan 10.2 s → 2.1 s, every finding identical.
-
 **Rule count** (seeded synthetic SDK, 1,152 files, single process, no cache, numpy installed, same machine, calibration 0.063 s; the 1027 free rules plus one test fixture are 1x):
 
 | Rules | Time / peak memory |
@@ -172,22 +144,21 @@ Single process, warm cache, with each extra step switched off:
 | 4,112 (4x) | 23.4 s / 919 MB |
 | 16,448 (16x) | 81.6 s / 2,530 MB |
 
-16 times the rules cost about 7.3 times the time; the warm rescan at 1x is 7.6 s. Rules that share no function, sketch value, anchor file or file set with a directory are never evaluated: 11 full matches and 61,669 skipped at 1x, 161 and 986,719 at 16x. Memory grows about linearly with the rules: their own function signatures, and the index of which rule records which function that #155 added (6 bytes a function). At 0.6, going from 27 to 432 rules cost 3.2 s -> 6.8 s (0.5: 21.3 s -> 56.8 s).
+16 times the rules cost about 7.3 times the time; the warm rescan at 1x is 7.6 s. Rules that share no function, sketch value, anchor file or file set with a directory are never evaluated: 11 full matches and 61,669 skipped at 1x, 161 and 986,719 at 16x. Memory grows about linearly with the rules: their own function signatures, and the index of which rule records which function (6 bytes a function).
 
-**Vulnerability matching against a full NVD mirror** (27 NVD 2.0 JSON year files, 2002 to 2026, 2.7 GB unpacked; re-measured on 2026-10-30 with the CycloneDX SBOM of the ESP-IDF scan above, 203 components, 4 cores): 9.3 to 9.6 s and 60 MB peak in the main process over two runs, 92 matching records. At 0.6: 8.9 s / 25 MB, from 200.8 s / 3.9 GB at 0.5, with a different SBOM (38 records), so the record counts do not compare. The fkie-cad `.json.xz` mirror (0.6: 14.1 s / 48 MB) was not re-measured. `gangmu vuln` streams the mirror and keeps only records naming the SBOM's products.
+**Vulnerability matching against a full NVD mirror** (27 NVD 2.0 JSON year files, 2002 to 2026, 2.7 GB unpacked; measured on 2026-10-30 with the CycloneDX SBOM of the ESP-IDF scan above, 203 components, 4 cores): 9.3 to 9.6 s and 60 MB peak in the main process over two runs, 92 matching records. `gangmu vuln` streams the mirror, plain or `.json.xz` (the fkie-cad mirror, not measured here), and keeps only records naming the SBOM's products.
 
-The 0.6 optimisations, still how it works today:
+How it is fast, and why more rules do not cost proportionally more:
 * per-file analysis keyed by content hash, with one walk and one pool per scan;
-* per-file bottom-k sketches, which give exactly the same directory sketch;
+* per-file bottom-k sketches, which give exactly the same directory sketch, merged from the files' sorted bottoms rather than a union;
 * an incremental SQLite cache, keyed by content and by a digest of the analysing code;
-* the rule prefilter;
-* `gangmu vuln` streams a full NVD mirror (plain or `.json.xz`) and keeps only records naming the SBOM's products (the figures above, measured at 0.6);
+* the rule prefilter: every function the rules record in one index sorted by hash, so a file is looked up once and each directory first rules out what cannot fire;
+* versions scored from the signatures' bitmaps, signatures searched by bisection, and whole-signature sets in a cache bounded by their total size;
+* function-signature sidecars decoded table at once;
 * an optional numpy path that is checked value for value against the pure-Python one.
-* the prefilter first tests a rule's sketch values against the union of the files' stored bottom values (formed once per directory) and builds the exact sketch only when they meet; every sketch value is among those, so exactly the same rules are skipped;
-* function-signature sidecars are decoded table at once, and the rule-base segmentation compares neighbours in C. Together these cut the synthetic benchmark by about 20% cold and warm, with every counter and finding unchanged.
 
 `gangmu perf` reproduces these numbers. In CI, `--check benchmarks/perf-baseline.json` fails a pull request in any of these cases:
 * its findings change;
 * its work counters grow;
-* its time grows past 1.6× the baseline, in calibration units (the calibration is the median of nine rounds, measured before and after the scans and averaged). The units are not machine-independent, though: CI runners differ (calibration about 0.033, 0.045 or 0.060 s) and a scan has a fixed cost of about half a second that does not shrink with the CPU, so the same code reads 20 to 30% dearer on the fast runners. `benchmarks/perf-baseline.json` is therefore re-recorded from the `perf.json` artifacts of several CI runs (`benchmarks/rebaseline.py`: median time and memory, largest work counters); the current one is from 7 runs on 2026-10-30 after #155 (rule base 2026.10.29, 1028 rules with the test fixtures; one of them on a fast runner, calibration about 0.031 s), which read 0.96x to 1.23x against it, the 1.23x being that fast runner. #155 took the cold 1x scan from 383.5 to 192.1 calibration units and 16x from 3,281 to 1,227; peak memory at 16x went from 2,177 MB to 2,522 MB (the index of which rule records which function), inside the 1.35x limit. The one before was from 7 runs on 2026-10-28, which read 0.81x to 1.08x against it. The previous one was recorded with 817 rules; with 1028 the warm scan read 1.71x on a fast runner and `performance` failed on `main`, while 0.13.9 and 0.14.0 cost the same on the same rules. Re-record it when the rule base or the synthetic tree changes;
+* its time grows past 1.6× the baseline, in calibration units (the calibration is the median of nine rounds, measured before and after the scans and averaged). The units are not machine-independent, though: CI runners differ (calibration about 0.033, 0.045 or 0.060 s) and a scan has a fixed cost of about half a second that does not shrink with the CPU, so the same code reads 20 to 30% dearer on the fast runners. `benchmarks/perf-baseline.json` is therefore re-recorded from the `perf.json` artifacts of several CI runs (`benchmarks/rebaseline.py`: median time and memory, largest work counters); the current one is from 7 runs on 2026-10-30 (rule base 2026.10.29, 1028 rules with the test fixtures; one of them on a fast runner, calibration about 0.031 s), which read 0.96x to 1.23x against it, the 1.23x being that fast runner. Re-record it when the rule base or the synthetic tree changes;
 * its peak memory grows past 1.35× the baseline.

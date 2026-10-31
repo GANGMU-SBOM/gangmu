@@ -22,6 +22,7 @@ from .model import Evidence, Finding, ScanResult, Technique
 from .rules.loader import RuleBase
 from .rules.resolve import resolve
 from .rules.schema import Rule
+from .vuln.version import compare
 from .support import stamp as stamp_support
 from .unknown import discover_unknown
 from .core.cpe import escape_value, join_cpe, split_cpe
@@ -327,9 +328,15 @@ def _banner_patterns(rulebase: RuleBase):
 
 def _function_prints(rulebase: RuleBase):
     # a rule may carry one sidecar per architecture; the matcher tries the one built for the
-    # image's CPU first (binaries._by_functions)
-    return [(r.upstream_name, _norm(r.ships_as or r.upstream_name), spec.load())
-            for r in rulebase for spec in r.binary_function_specs()]
+    # image's CPU first (binaries._by_functions). Functions two rules' prints share are
+    # evidence for neither (fprint.segment_prints).
+    from .fprint import segment_prints
+    items = [(r.upstream_name, _norm(r.ships_as or r.upstream_name), spec.load())
+             for r in rulebase for spec in r.binary_function_specs()]
+    if len(items) < 2:
+        return items
+    prints = segment_prints([(name, p) for _, name, p in items])
+    return [(display, name, p) for (display, name, _), p in zip(items, prints)]
 
 
 def _binary_summary(emb, version: Optional[str]) -> str:
@@ -744,6 +751,21 @@ def _drop_shadowing_ancestors(candidates: List[Finding]) -> List[Finding]:
     return [f for f in candidates if id(f) not in shadowed]
 
 
+def _distinct_releases(a: Optional[str], b: Optional[str]) -> bool:
+    """Do two reported versions (a release or a ``low~high`` range) share no
+    release? Unknown or unorderable versions are not known to differ."""
+    if not a or not b:
+        return False
+    lo_a, _, hi_a = a.partition("~")
+    lo_b, _, hi_b = b.partition("~")
+    hi_a, hi_b = hi_a or lo_a, hi_b or lo_b
+    below = compare(hi_a, lo_b)
+    above = compare(hi_b, lo_a)
+    if below is None or above is None:
+        return False
+    return below < 0 or above < 0
+
+
 def _drop_nested_duplicates(findings: List[Finding]) -> List[Finding]:
     """A wrapper directory and the component inside it are one component.
 
@@ -762,9 +784,33 @@ def _drop_nested_duplicates(findings: List[Finding]) -> List[Finding]:
         return b != a and b.startswith(a.rstrip("/") + "/")
 
     dropped = set()
+    # A directory holding two or more copies of the component side by side
+    # (the Allwinner R128 SDK keeps FreeRTOS/ 10.2.0 and FreeRTOS-orig/ 10.4.3
+    # under kernel/) wraps those copies and is none of them: it matched only
+    # because it contains them all. Each copy is reported, not the wrapper.
+    # Only when the copies are of different releases and the wrapper has no
+    # byte-for-byte evidence of its own: a component root found by its anchor
+    # (pf-ring, whose drivers/ and kernel/ match the same rule and release)
+    # is the component, not a wrapper.
+    for outer in findings:
+        if any(e.technique is Technique.HASH_COMPARISON and e.confidence > 0
+               for e in outer.evidence):
+            continue
+        inside = [f for f in findings
+                  if f.upstream_name == outer.upstream_name
+                  and is_ancestor(outer.directory, f.directory)]
+        apart = [f for f in inside
+                 if not any(is_ancestor(o.directory, f.directory) for o in inside)]
+        if any(_distinct_releases(a.version, b.version)
+               for k, a in enumerate(apart) for b in apart[k + 1:]):
+            dropped.add(outer.directory)
     for i, outer in enumerate(findings):
+        if outer.directory in dropped:
+            continue
         for j, inner in enumerate(findings):
             if i == j or outer.upstream_name != inner.upstream_name:
+                continue
+            if inner.directory in dropped:
                 continue
             if not is_ancestor(outer.directory, inner.directory):
                 continue

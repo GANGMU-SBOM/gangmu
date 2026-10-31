@@ -34,6 +34,5 @@ gangmu scan /tmp/gangmu-disguise/firmware --app-name demo-firmware --app-version
 
 The serial number and timestamp differ between runs.
 
-These files were generated with gangmu 0.12.0 and rule pack 2026.10.18, from the
-released PyPI packages. A later release may write more fields, so a fresh run
+These files were generated on 2026-10-31 with gangmu `main` (0.15.0) and rule pack 2026.10.29. A later release may write more fields, so a fresh run
 will not match them byte for byte.

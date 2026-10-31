@@ -41,12 +41,12 @@ TIVER（ICSE 2025）。
 塞进厂商函数、再删掉 8 个源文件，纲目仍然识别为 GmSSL 3.0.0，标记为 vendor-modified，
 置信度 0.88。脚本是 `examples/disguise.sh`。
 
-在 lwIP 上，整棵目录的相似度只能把「厂商 fork」和「换了个版本」拉开 0.06，函数级拉开到 0.25。
-真实 lwIP 发布版的版本识别 6/6 精确，合成修改场景 9/9 识别、9/9 版本正确。
+在 lwIP 上，整棵目录的相似度只能把「厂商 fork」和「换了个版本」拉开 0.06，函数级拉开到 0.24。
+真实 lwIP 发布版的版本识别 6/6 正确（5 个精确，乐鑫 fork 给出最可能是 2.2.0 的区间），合成修改场景 9/9 识别、9/9 版本正确。
 
 ## 支持哪些芯片 SDK，包括哪些国产芯片？
 
-免费的 [gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules) 现有 223 条规则（Zephyr 及其 HAL、通用开源组件）。主要覆盖：
+免费的 [gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules) 现有 1027 条规则（Zephyr 及其 HAL、通用开源组件）。主要覆盖：
 
 - **Zephyr**：Mbed TLS 4.1、TF-PSA-Crypto、hostap（wpa_supplicant / hostapd）、FatFs、littlefs、MCUboot、nanopb、zcbor、uOSCORE/uEDHOC；
 - **国产与亚太芯片 HAL**（取自 Zephyr 4.4 的锁定提交）：兆易创新 GD32、博流智能 BL60x/BL70x、沁恒 CH32、
@@ -142,7 +142,7 @@ ONEKEY、Finite State 等固件二进制分析产品面向没有源码的场景�
 - 不做安全测试或渗透测试；
 - 不替你下法律结论；
 - 不替代 ENISA 或工信部的官方报送平台；
-- 不猜 CPE：免费规则库 223 条里 97 条带 CPE，新增的都附有 NVD 里的 CVE 作为证据（`cpe_evidence`）；另外 126 条写明了没有 CPE 的原因。PURL 和 OSV 是一等匹配通道。
+- 不猜 CPE：免费规则库 1027 条里 412 条带 CPE，新增的都附有 NVD 里的 CVE 作为证据（`cpe_evidence`）；另外 615 条写明了没有 CPE 的原因。PURL 和 OSV 是一等匹配通道。
 
 ## 怎么贡献一条规则？
 
@@ -199,7 +199,7 @@ ONEKEY、Finite State 等固件二进制分析产品面向没有源码的场景�
    "name": "支持哪些芯片 SDK，包括哪些国产芯片？",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "免费的 gangmu-rules 现有 223 条规则（Zephyr 及其 HAL、通用开源组件）。主要覆盖："
+    "text": "免费的 gangmu-rules 现有 1027 条规则（Zephyr 及其 HAL、通用开源组件）。主要覆盖："
    }
   },
   {
@@ -279,7 +279,7 @@ ONEKEY、Finite State 等固件二进制分析产品面向没有源码的场景�
    "name": "纲目不做什么？",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "- 不做深度二进制分析（只做清单、版本横幅、函数边界和指纹比对等较低置信度的补充证据，以及工具链写下的依赖清单）； - 不做安全测试或渗透测试； - 不替你下法律结论； - 不替代 ENISA 或工信部的官方报送平台； - 不猜 CPE：免费规则库 223 条里 97 条带 CPE，新增的都附有 NVD 里的 CVE 作为证据（cpe_evidence）；另外 126 条写明了没有 CPE 的原因。PURL 和 OSV 是一等匹配通道。"
+    "text": "- 不做深度二进制分析（只做清单、版本横幅、函数边界和指纹比对等较低置信度的补充证据，以及工具链写下的依赖清单）； - 不做安全测试或渗透测试； - 不替你下法律结论； - 不替代 ENISA 或工信部的官方报送平台； - 不猜 CPE：免费规则库 1027 条里 412 条带 CPE，新增的都附有 NVD 里的 CVE 作为证据（cpe_evidence）；另外 615 条写明了没有 CPE 的原因。PURL 和 OSV 是一等匹配通道。"
    }
   },
   {

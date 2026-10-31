@@ -85,7 +85,8 @@ def cmd_binary_eval(args: argparse.Namespace) -> int:
         except (OSError, ValueError) as exc:
             print(f"error: cannot read the corpus in {args.images}: {exc}", file=sys.stderr)
             return 2
-    report = ev.evaluate(corpus, args.min_features, args.tie_share, images)
+    report = ev.evaluate(corpus, args.min_features, args.tie_share, images,
+                         segment=not args.no_segment)
     folds = ev.leave_one_library_out(corpus) if args.loo and images is None else None
     if args.format == "json":
         out = report.to_dict()

@@ -490,6 +490,67 @@ def split_shared(sets: Sequence[Set[int]], images: Sequence[Sequence[Set[int]]],
     return kept, len(sets) - len(kept)
 
 
+BUNDLED_SHARE = 0.8      # this much of one library inside another: it is bundled there
+
+
+def segment_prints(items: Sequence[Tuple[str, "FunctionPrints"]],
+                   floor: Optional[int] = None) -> List["FunctionPrints"]:
+    """The prints of *items* (component key, prints) without the functions another
+    component's prints of the same architecture also hold, by the matching rule.
+
+    Binary counterpart of the source segmentation (CENTRIS): a reference function two
+    libraries share, the xxHash both lz4 and zstd bundle, says only that the shared code
+    is there, and kept, it made each match the other's images (81 of the 91
+    negative-control hits on the Cortex-M corpus). It counts for neither, except where
+    one library lies almost wholly inside the other (``BUNDLED_SHARE``): that one is the
+    bundled component and keeps its functions; the host gives them up. Prints under one
+    key (one component's builds) are not compared with each other."""
+    k = MIN_FEATURES if floor is None else floor
+    drop: List[Set[int]] = [set() for _ in items]
+
+    def inverted(prints: "FunctionPrints") -> Dict[int, List[int]]:
+        out: Dict[int, List[int]] = {}
+        for n, (_, feats) in enumerate(prints.functions):
+            for f in feats:
+                out.setdefault(f, []).append(n)
+        return out
+
+    def held(x: "FunctionPrints", index: Dict[int, List[int]]) -> Set[int]:
+        found = set()
+        for i, (_, feats) in enumerate(x.functions):
+            votes: Dict[int, int] = {}
+            for f in feats:
+                for n in index.get(f, ()):
+                    votes[n] = votes.get(n, 0) + 1
+            size = len(feats)
+            if any(h >= min(k, size) and h >= MIN_CONTAINMENT * size for h in votes.values()):
+                found.add(i)
+        return found
+
+    indexes = [inverted(p) for _, p in items]
+    for a, (key_a, x) in enumerate(items):
+        for b, (key_b, y) in enumerate(items):
+            if a == b or key_a == key_b or x.arch != y.arch or not x.functions:
+                continue
+            in_y = held(x, indexes[b])
+            if not in_y:
+                continue
+            if len(in_y) >= BUNDLED_SHARE * len(x.functions):
+                drop[b] |= held(y, indexes[a])     # x is bundled in y: y gives them up
+            else:
+                drop[a] |= in_y
+    out = []
+    for (_, p), gone in zip(items, drop):
+        if not gone:
+            out.append(p)
+            continue
+        keep = [i for i in range(len(p.functions)) if i not in gone]
+        strings = [p.strings[i] for i in keep] if len(p.strings) == len(p.functions) else []
+        out.append(FunctionPrints(p.versions, [p.functions[i] for i in keep], dict(p.meta),
+                                  p.arch, strings))
+    return out
+
+
 # ------------------------------------------------------------------ reference prints
 
 @dataclass

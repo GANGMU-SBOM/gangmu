@@ -94,7 +94,7 @@ Plus two that avoid the work entirely: the lazy second pass above, and a disk
 cache keyed by `fileset_sha256` — correct by construction, since a tree whose
 files all hash the same cannot have a different sketch.
 
-Since 0.6 a scan analyses each file once, whatever directories and rules ask
+A scan analyses each file once, whatever directories and rules ask
 about it, and caches the result per file. Whole-scan numbers, the rule-count
 curve and the CI regression check are in [PERFORMANCE.md](PERFORMANCE.md).
 

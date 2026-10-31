@@ -113,6 +113,42 @@ def test_different_components_nested_in_each_other_both_survive():
     assert len(_drop_nested_duplicates([outer, inner])) == 2
 
 
+def test_a_directory_holding_two_releases_side_by_side_is_neither():
+    # Allwinner R128 keeps FreeRTOS/Source (10.2.0) and FreeRTOS-orig/Source
+    # (10.4.3) under kernel/; kernel/ matched too, holding both, and swallowed them.
+    from gangmu.model import Finding
+    from gangmu.scan import _drop_nested_duplicates
+
+    def f(d, v, c):
+        return Finding(directory=d, rule_id="r", upstream_name="FreeRTOS", version=v,
+                       identity_confidence=c, version_confidence=c)
+    kept = _drop_nested_duplicates([f("kernel", "10.4.0~10.4.3", 0.95),
+                                    f("kernel/FreeRTOS/Source", "10.2.0", 0.82),
+                                    f("kernel/FreeRTOS-orig/Source", "10.4.3", 0.95)])
+    assert sorted(x.directory for x in kept) == ["kernel/FreeRTOS-orig/Source",
+                                                  "kernel/FreeRTOS/Source"]
+
+
+def test_a_root_with_two_matching_parts_of_one_release_stays_one_component():
+    # pf-ring's drivers/ and kernel/ match its rule at the same release: parts of
+    # the component, not copies of it. An anchored root keeps its claim either way.
+    from gangmu.model import Evidence, Finding, Technique
+    from gangmu.scan import _drop_nested_duplicates
+
+    def f(d, v, c, anchored=False):
+        ev = [Evidence(Technique.HASH_COMPARISON, 0.98, "anchor")] if anchored else []
+        return Finding(directory=d, rule_id="r", upstream_name="PF_RING", version=v,
+                       identity_confidence=c, version_confidence=c, evidence=ev)
+    same = _drop_nested_duplicates([f(".", "9.4.0", 0.95),
+                                    f("drivers/intel", "9.4.0", 0.9),
+                                    f("kernel", "9.4.0", 0.9)])
+    assert [x.directory for x in same] == ["."]
+    anchored = _drop_nested_duplicates([f(".", "9.4.0", 0.95, anchored=True),
+                                        f("drivers/intel", "9.2.0", 0.9),
+                                        f("kernel", "9.4.0", 0.9)])
+    assert [x.directory for x in anchored] == ["."]
+
+
 def test_a_shared_file_does_not_make_a_false_exact_match(upstream_dir, rules_dir,
                                                          tmp_path):
     """Two forks of one upstream often share a file byte for byte.
