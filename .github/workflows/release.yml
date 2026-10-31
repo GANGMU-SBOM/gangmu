@@ -39,3 +39,19 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  # `uses: GANGMU-SBOM/gangmu@v0` reads action.yml at the v0 tag. A git tag never moves on
+  # its own, so each release moves its major tag here, once the package it installs is on
+  # PyPI.
+  major-tag:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: move the major tag to this release
+        run: |
+          major="${GITHUB_REF_NAME%%.*}"
+          git tag -f "$major" "$GITHUB_SHA"
+          git push -f origin "refs/tags/$major"

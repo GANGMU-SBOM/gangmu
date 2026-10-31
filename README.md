@@ -154,18 +154,24 @@ GPL 类只信 SPDX 文件头。`--no-licenses` 关闭。
 
 ### 在 CI 里用
 
-GitHub Action 已上架 [GitHub Marketplace](https://github.com/marketplace/actions/gangmu-sbom)。
+GitHub Action 已上架 [GitHub Marketplace](https://github.com/marketplace/actions/gangmu-sbom)。`@v0` 跟着每个 0.x 版本走，也可以写成固定的 `@v0.15.0`。
 
 ```yaml
 # GitHub Actions
 - uses: GANGMU-SBOM/gangmu@v0
+  id: sbom
   with:
+    version: 0.15.0                  # 固定 gangmu 版本，同一个提交过一阵再跑，SBOM 也一样
     compile-db: build/compile_commands.json
     link-map: build/my-project.map
     app-name: my-firmware
     app-version: ${{ github.ref_name }}
     output: sbom.cdx.json
+    upload: true                     # 把 SBOM 作为 workflow artifact 上传
+# 之后的步骤里可以用 ${{ steps.sbom.outputs.sbom-file }} 和 ${{ steps.sbom.outputs.components }}
 ```
+
+默认带上 Capstone（`extras: disasm`），预编译库和固件镜像也逐函数识别；`extras: ""` 只装纲目本身。每次运行都在 job 的 Summary 里写出工具版本、SBOM 文件和组件数。
 
 ```yaml
 # .pre-commit-config.yaml
@@ -184,7 +190,6 @@ GitHub Action 已上架 [GitHub Marketplace](https://github.com/marketplace/acti
     fail-on: quantum-vulnerable
 ```
 
-迁移摘要需要 gangmu 0.9 及以上。
 
 ### 漏洞比对与合规
 

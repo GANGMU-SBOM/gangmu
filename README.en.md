@@ -130,17 +130,24 @@ also available). No finding claims certainty: confidence is capped at 0.95.
 
 ### In CI
 
-The GitHub Action is listed on the [GitHub Marketplace](https://github.com/marketplace/actions/gangmu-sbom).
+The GitHub Action is listed on the [GitHub Marketplace](https://github.com/marketplace/actions/gangmu-sbom). `@v0` follows every 0.x release; pin `@v0.15.0` to stay on one.
 
 ```yaml
 # GitHub Actions
 - uses: GANGMU-SBOM/gangmu@v0
+  id: sbom
   with:
+    version: 0.15.0                  # pin gangmu: the same commit gives the same SBOM later
     compile-db: build/compile_commands.json
     link-map: build/my-project.map
     app-name: my-firmware
+    app-version: ${{ github.ref_name }}
     output: sbom.cdx.json
+    upload: true                     # upload the SBOM as a workflow artifact
+# later steps can use ${{ steps.sbom.outputs.sbom-file }} and ${{ steps.sbom.outputs.components }}
 ```
+
+Capstone is installed by default (`extras: disasm`), so prebuilt libraries and firmware images are identified function by function; `extras: ""` installs gangmu alone. Every run writes the tool version, the SBOM file and the component count to the job summary.
 
 ```yaml
 # .pre-commit-config.yaml
@@ -160,7 +167,6 @@ the job when a quantum-vulnerable algorithm is found, use [gangmu-action](https:
     fail-on: quantum-vulnerable
 ```
 
-The migration summary needs gangmu 0.9 or later.
 
 ### Cryptographic BOM (CBOM) and AI BOM (AIBOM)
 

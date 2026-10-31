@@ -26,6 +26,28 @@ jobs:
       # Unused and undefined names (pyproject.toml [tool.ruff]); not style.
       - run: ruff check src tests
 
+  # The published action (action.yml), run as a user runs it. It installs gangmu from PyPI,
+  # so this checks the wrapper: inputs, outputs, the summary and the artifact step.
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        id: sbom
+        with:
+          path: examples
+          format: spdx3
+          output: sbom.spdx3.json
+          upload: "true"
+          artifact-name: action-sbom
+      - name: the outputs are set
+        env:
+          SBOM: ${{ steps.sbom.outputs.sbom-file }}
+          COMPONENTS: ${{ steps.sbom.outputs.components }}
+        run: |
+          test "$SBOM" = sbom.spdx3.json && test -s "$SBOM"
+          test -n "$COMPONENTS"
+
   types:
     runs-on: ubuntu-latest
     steps:

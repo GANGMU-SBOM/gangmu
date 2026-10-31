@@ -18,7 +18,7 @@ inputs:
     description: path to compile_commands.json from the real build (optional)
     default: ""
   link-map:
-    description: path to the linker map file (GNU ld, lld, IAR ilink or Arm armlink) from the real build (optional)
+    description: path to the linker map file (GNU ld, lld, IAR ilink, Arm armlink or TI) from the real build (optional)
     default: ""
   support:
     description: JSON or YAML file naming each component's maintenance status and end-of-support date (optional)
@@ -33,25 +33,50 @@ inputs:
     description: fail if any component's confidence is below this (optional, e.g. 0.6)
     default: ""
   version:
-    description: gangmu-sbom version to install, e.g. 0.6.1 (default latest)
+    description: >
+      gangmu-sbom version to install, e.g. 0.15.0. Empty installs the latest release, so the
+      same commit can give a different SBOM later; pin it for reproducible SBOMs.
     default: ""
+  extras:
+    description: >
+      pip extras to install with gangmu-sbom, comma-separated. The default, disasm, adds
+      Capstone so prebuilt libraries and firmware images are identified function by function;
+      empty installs gangmu alone.
+    default: disasm
+  python-version:
+    description: Python version for actions/setup-python
+    default: "3.12"
+  upload:
+    description: upload the SBOM as a workflow artifact ("true" or "false")
+    default: "false"
+  artifact-name:
+    description: name of the uploaded artifact
+    default: sbom
+outputs:
+  sbom-file:
+    description: path of the SBOM that was written
+    value: ${{ steps.scan.outputs.sbom }}
+  components:
+    description: number of components in the SBOM (empty for the table format)
+    value: ${{ steps.summary.outputs.components }}
 runs:
   using: composite
   steps:
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
-        python-version: "3.12"
+        python-version: ${{ inputs.python-version }}
     - name: Install gangmu
       shell: bash
       env:
         GANGMU_VERSION: ${{ inputs.version }}
+        GANGMU_EXTRAS: ${{ inputs.extras }}
       run: |
-        if [ -n "$GANGMU_VERSION" ]; then
-          python -m pip install "gangmu-sbom==$GANGMU_VERSION"
-        else
-          python -m pip install gangmu-sbom
-        fi
+        spec=gangmu-sbom
+        [ -n "$GANGMU_EXTRAS" ] && spec="gangmu-sbom[$GANGMU_EXTRAS]"
+        [ -n "$GANGMU_VERSION" ] && spec="$spec==$GANGMU_VERSION"
+        python -m pip install "$spec"
     - name: Scan
+      id: scan
       shell: bash
       env:
         IN_PATH: ${{ inputs.path }}
@@ -71,4 +96,54 @@ runs:
         [ -n "$IN_APP_NAME" ] && args+=(--app-name "$IN_APP_NAME")
         [ -n "$IN_APP_VERSION" ] && args+=(--app-version "$IN_APP_VERSION")
         [ -n "$IN_FAIL_UNDER" ] && args+=(--fail-under "$IN_FAIL_UNDER")
+        echo "sbom=$IN_OUTPUT" >> "$GITHUB_OUTPUT"
         gangmu "${args[@]}"
+    - name: Summary
+      id: summary
+      if: ${{ !cancelled() }}
+      shell: bash
+      env:
+        IN_OUTPUT: ${{ inputs.output }}
+        IN_FORMAT: ${{ inputs.format }}
+      run: |
+        python - <<'PY'
+        import json, os, subprocess
+        path, fmt = os.environ["IN_OUTPUT"], os.environ["IN_FORMAT"]
+        version = subprocess.run(["gangmu", "--version"], capture_output=True,
+                                 text=True).stdout.strip()
+        count = ""
+        try:
+            with open(path, encoding="utf-8") as fh:
+                doc = json.load(fh)
+            if fmt == "cyclonedx":
+                count = len(doc.get("components", []))
+            elif fmt == "spdx":          # the package the document describes is the product
+                roots = {r.get("relatedSpdxElement") for r in doc.get("relationships", [])
+                         if r.get("relationshipType") == "DESCRIBES"}
+                count = sum(1 for p in doc.get("packages", []) if p.get("SPDXID") not in roots)
+            elif fmt == "spdx3":
+                graph = doc.get("@graph", [])
+                roots = {r for e in graph if e.get("type") == "software_Sbom"
+                         for r in e.get("rootElement", [])}
+                count = sum(1 for e in graph if e.get("type") == "software_Package"
+                            and e.get("spdxId") not in roots)
+            elif fmt == "json":
+                count = len(doc.get("findings", []))
+        except (OSError, ValueError, AttributeError):
+            pass
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+            out.write(f"components={count}\n")
+        lines = ["### gangmu SBOM", "", f"- tool: {version or 'gangmu'}",
+                 f"- file: `{path}` ({fmt})"]
+        if count != "":
+            lines.append(f"- components: {count}")
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+            summary.write("\n".join(lines) + "\n")
+        PY
+    - name: Upload
+      if: ${{ inputs.upload == 'true' && !cancelled() }}
+      uses: actions/upload-artifact@v5
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.output }}
+        if-no-files-found: warn
