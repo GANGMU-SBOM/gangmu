@@ -130,14 +130,14 @@ also available). No finding claims certainty: confidence is capped at 0.95.
 
 ### In CI
 
-The GitHub Action is listed on the [GitHub Marketplace](https://github.com/marketplace/actions/gangmu-sbom). `@v0` follows every 0.x release; pin `@v0.15.0` to stay on one.
+The GitHub Action is listed on the [GitHub Marketplace](https://github.com/marketplace/actions/gangmu-sbom). `@v0` follows every 0.x release; pin `@v0.16.0` to stay on one.
 
 ```yaml
 # GitHub Actions
 - uses: GANGMU-SBOM/gangmu@v0
   id: sbom
   with:
-    version: 0.15.0                  # pin gangmu: the same commit gives the same SBOM later
+    version: 0.16.0                  # pin gangmu: the same commit gives the same SBOM later
     compile-db: build/compile_commands.json
     link-map: build/my-project.map
     app-name: my-firmware
@@ -152,7 +152,7 @@ Capstone is installed by default (`extras: disasm`), so prebuilt libraries and f
 ```yaml
 # .pre-commit-config.yaml
 - repo: https://github.com/GANGMU-SBOM/gangmu
-  rev: v0.15.0
+  rev: v0.16.0
   hooks:
     - id: gangmu-scan
 ```

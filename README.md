@@ -154,14 +154,14 @@ GPL 类只信 SPDX 文件头。`--no-licenses` 关闭。
 
 ### 在 CI 里用
 
-GitHub Action 已上架 [GitHub Marketplace](https://github.com/marketplace/actions/gangmu-sbom)。`@v0` 跟着每个 0.x 版本走，也可以写成固定的 `@v0.15.0`。
+GitHub Action 已上架 [GitHub Marketplace](https://github.com/marketplace/actions/gangmu-sbom)。`@v0` 跟着每个 0.x 版本走，也可以写成固定的 `@v0.16.0`。
 
 ```yaml
 # GitHub Actions
 - uses: GANGMU-SBOM/gangmu@v0
   id: sbom
   with:
-    version: 0.15.0                  # 固定 gangmu 版本，同一个提交过一阵再跑，SBOM 也一样
+    version: 0.16.0                  # 固定 gangmu 版本，同一个提交过一阵再跑，SBOM 也一样
     compile-db: build/compile_commands.json
     link-map: build/my-project.map
     app-name: my-firmware
@@ -176,7 +176,7 @@ GitHub Action 已上架 [GitHub Marketplace](https://github.com/marketplace/acti
 ```yaml
 # .pre-commit-config.yaml
 - repo: https://github.com/GANGMU-SBOM/gangmu
-  rev: v0.15.0
+  rev: v0.16.0
   hooks:
     - id: gangmu-scan
 ```

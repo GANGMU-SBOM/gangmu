@@ -1,6 +1,6 @@
 # Benchmark
 
-> Version-identification accuracy on real upstream releases and vendor SDKs is run by [gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench); the rules these numbers depend on live in [gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules). Every number on this page was measured with the current code (gangmu 0.15.0 plus this branch's engine changes, free rule base 2026.10.29, measured 2026-10-31) and can be re-run. Older measurements are not kept here; the CHANGELOG says what changed between releases.
+> Version-identification accuracy on real upstream releases and vendor SDKs is run by [gangmu-bench](https://github.com/GANGMU-SBOM/gangmu-bench); the rules these numbers depend on live in [gangmu-rules](https://github.com/GANGMU-SBOM/gangmu-rules). Every number on this page was measured with the current code (the source matching of gangmu 0.16.0, free rule base 2026.10.29, measured 2026-10-31; the binary figures include the 0.16.0 matching changes) and can be re-run. Older measurements are not kept here; the CHANGELOG says what changed between releases.
 
 ## Why these numbers and not someone else's
 
