@@ -698,6 +698,9 @@ def build_parser() -> argparse.ArgumentParser:
     be.add_argument("--loo", action="store_true",
                     help="also choose the thresholds with one library held out, per library")
     be.add_argument("--no-cache", action="store_true", help="re-extract every feature")
+    be.add_argument("--no-segment", action="store_true",
+                    help="keep the functions libraries share in each one's references "
+                         "(a scan removes them, as it does for source)")
     be.add_argument("--format", choices=["table", "json"], default="table")
     be.set_defaults(func=cmd_binary_eval)
 

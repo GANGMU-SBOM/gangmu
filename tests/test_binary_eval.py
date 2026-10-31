@@ -146,3 +146,39 @@ def test_a_library_and_its_fuller_build_are_one_component():
     assert _same_component("mbedtls-full", "mbedtls")
     assert not _same_component("lz4", "zstd")
     assert not _same_component("libpng", "png")
+
+
+def _prints(*funcs, arch="thumb"):
+    from gangmu.fprint import FunctionPrints
+    return FunctionPrints(["1.0", "2.0"], [(3, tuple(f)) for f in funcs], arch=arch,
+                          strings=[0] * len(funcs))
+
+
+def test_a_function_two_libraries_share_counts_for_neither():
+    from gangmu.fprint import segment_prints
+    shared = (1, 2, 3, 4)
+    lz4 = _prints(shared, (10, 11, 12), (13, 14, 15), (16, 17, 18))
+    zstd = _prints(shared, (20, 21, 22), (23, 24, 25), (26, 27, 28))
+    a, b = segment_prints([("lz4", lz4), ("zstd", zstd)])
+    assert shared not in [f for _, f in a.functions] and len(a.functions) == 3
+    assert shared not in [f for _, f in b.functions] and len(b.functions) == 3
+
+
+def test_a_library_bundled_whole_keeps_its_functions_and_the_host_gives_them_up():
+    from gangmu.fprint import segment_prints
+    xx = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
+    xxhash = _prints(*xx)
+    zstd = _prints(*xx, (20, 21, 22), (23, 24, 25), (26, 27, 28), (29, 30, 31))
+    kept_xxhash, kept_zstd = segment_prints([("xxhash", xxhash), ("zstd", zstd)])
+    assert len(kept_xxhash.functions) == 3
+    assert [f for _, f in kept_zstd.functions] == [(20, 21, 22), (23, 24, 25),
+                                                   (26, 27, 28), (29, 30, 31)]
+
+
+def test_one_components_prints_and_other_architectures_are_not_compared():
+    from gangmu.fprint import segment_prints
+    shared = (1, 2, 3, 4)
+    one, two = _prints(shared, (5, 6, 7)), _prints(shared, (8, 9, 10))
+    assert [len(p.functions) for p in segment_prints([("m", one), ("m", two)])] == [2, 2]
+    other = _prints(shared, (8, 9, 10), arch="riscv32")
+    assert [len(p.functions) for p in segment_prints([("a", one), ("b", other)])] == [2, 2]

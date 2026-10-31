@@ -151,6 +151,10 @@ def load_corpus(directory: Path, use_cache: bool = True) -> Corpus:
 
 # ----------------------------------------------------------------------- evaluation
 
+def _component(lib: str) -> str:
+    return lib.split("-", 1)[0]
+
+
 def _same_component(a: str, b: str) -> bool:
     """One library under two builds (``mbedtls`` and ``mbedtls-full``, its TLS and
     X.509 layers too) is no negative control for itself: counted as one, the two
@@ -184,7 +188,7 @@ def _prints_for(corpus: Corpus, lib: str, ref_opt: str, k: int) -> Tuple[Any, Li
 
 
 def evaluate(corpus: Corpus, min_features: int = 2, tie_share: Optional[float] = None,
-             images: Optional[Corpus] = None) -> Report:
+             images: Optional[Corpus] = None, segment: bool = True) -> Report:
     """Score *corpus*. With *images* (a corpus of the same libraries built for another
     architecture) the references come from *corpus* and the images from *images*, which
     is how a rule author's references meet firmware for a different CPU."""
@@ -196,19 +200,29 @@ def evaluate(corpus: Corpus, min_features: int = 2, tie_share: Optional[float] =
             continue
         for ref_opt in corpus.opts(lib):
             built, tags = _prints_for(corpus, lib, ref_opt, min_features)
-            if built is None:
-                continue
-            prints[(lib, ref_opt)] = (built, tags)
-            for img_opt in target.opts(lib):
-                for tag in tags:
-                    build = target.builds[lib].get(tag, {}).get(img_opt)
-                    if build is None:
-                        continue
-                    hit = built.match(_filter(build.img, min_features), min_features, tie_share,
-                                      target.arch)
-                    outcome, reported = _classify(hit, tags, tag)
-                    report.cells.append(Cell(lib, ref_opt, img_opt, tag, outcome, reported,
-                                             hit[3] if hit else 0.0, hit[1] if hit else 0))
+            if built is not None:
+                prints[(lib, ref_opt)] = (built, tags)
+    if segment:
+        # As a scan does with the rules it loads (fprint.segment_prints): references
+        # built at one optimisation level stand for one rule base.
+        from ..fprint import segment_prints
+        for opt in {o for _, o in prints}:
+            keys = [key for key in prints if key[1] == opt]
+            segmented = segment_prints([(_component(lib), prints[(lib, o)][0])
+                                        for lib, o in keys], min_features)
+            for key, built in zip(keys, segmented):
+                prints[key] = (built, prints[key][1])
+    for (lib, ref_opt), (built, tags) in prints.items():
+        for img_opt in target.opts(lib):
+            for tag in tags:
+                build = target.builds[lib].get(tag, {}).get(img_opt)
+                if build is None:
+                    continue
+                hit = built.match(_filter(build.img, min_features), min_features, tie_share,
+                                  target.arch)
+                outcome, reported = _classify(hit, tags, tag)
+                report.cells.append(Cell(lib, ref_opt, img_opt, tag, outcome, reported,
+                                         hit[3] if hit else 0.0, hit[1] if hit else 0))
     for (lib, _ref_opt), (built, _) in prints.items():
         for other in target.builds:
             if _same_component(other, lib):
