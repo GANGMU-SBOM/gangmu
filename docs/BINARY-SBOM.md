@@ -106,7 +106,7 @@
 想直接拿 GitHub 上工业设备的 exe 和固件来测，但这个环境里 GitHub 的发布页和 API 对未挂载的仓库返回 403，
 只开放匿名的 `git clone`。克隆了 `libplctag`、`OpenModScan`、OpenEVSE 的 ESP32 固件仓库、`OpenPLC_Editor`、
 `4diac-forte` 五个仓库，按文件头在源码树里找二进制：**一个也没有**（只有两个 `.docx`），因为这些项目的 exe、dll、固件
-都在 Releases 里。所以改用同一批开源项目发布到 PyPI 和 NuGet 的真实产物，下面是结果（`gangmu scan`，规则库 gangmu-rules 2026.10.11）：
+都在 Releases 里。所以改用同一批开源项目发布到 PyPI 和 NuGet 的真实产物，下面是 2026-10-31 用当前的 `main` 和规则库 gangmu-rules 2026.10.29 扫出的结果（`gangmu scan`）：
 
 | 样本（来源） | 读到什么 | 没读到什么 |
 |---|---|---|
@@ -115,7 +115,7 @@
 | `BACnet.dll` 4.0.0 | 名字、版本、PDB 路径（确定性构建的 `/_/obj/...`）、引用 `Microsoft.Extensions.Logging.Abstractions` | |
 | `EasyModbus.dll` 5.6.0 | 名字、版本；PDB 路径 `W:\Projekte\...\obj\Debug\EasyModbus.pdb` | 说明发布的是 Debug 构建，还带出了开发者的目录 |
 | `NModbus.dll` 3.0.83、`S7.Net.dll`（S7netplus 0.20.0） | 名字、版本、CI 构建机上的 PDB 路径 | |
-| `Opc.Ua.Core.dll` 2.0.1（OPC Foundation 官方 OPC UA 栈） | 名字、版本、已签名、10 到 13 个第三方程序集引用 | 每个引用只有程序集版本，没有包版本 |
+| `Opc.Ua.Core.dll`（OPC Foundation 官方 OPC UA 栈，NuGet 包 1.5.374.126，6 个目标框架） | 名字、版本、第三方程序集引用（`Opc.Ua.Security.Certificates`、`Microsoft.Extensions.Logging.Abstractions`、`Newtonsoft.Json` 等） | 每个引用只有程序集版本，没有包版本 |
 | `libplctag.NativeImport.dll` 1.0.41（Allen-Bradley PLC 通信库的 .NET 包装） | 名字、版本；**切出了里面嵌的 10 个原生库**（4 个 Linux ELF、2 个 macOS Mach-O、4 个 Windows PE，见下一节），各自的架构、工具链、导出符号 | 切出的 10 个原生库**都认出是 libplctag**（按 `plc_tag_*` 导出符号，不给版本；ELF、Mach-O 的 SONAME 写明 2.6 系列）；外层 .NET 包装本身不会被报成含有它 |
 
 这组结果的结论要诚实地读：**.NET 库（自带元数据）识别得很好；静态链接的 C/C++ 库（snap7、SOEM）一个都没认出来**，
@@ -160,7 +160,7 @@
   只能借 Win32 版本资源里的 `ProductVersion`。
 - **UTF-16 编码的版本横幅**没有匹配；库的版本横幅匹配的仍然是单字节字符串。
 - **签名只看有没有**，不验证证书，也不读签名人。
-- **PE 和 Mach-O 上的函数级指纹**只验证过很窄的范围：函数恢复和指纹生成（`rules binary-prints`、`binary-eval`）已支持 PE（x86、x64、ARM、Thumb、ARM64，含 Windows CE 的 ARM）和 Mach-O，真实样本只有 lz4.exe、zstd.exe 和 zstandard 的 wheel（见 BINARY-VALIDATION.md）；`gangmu scan` 对 `.exe`、`.dll` 的函数级比对只在某条规则带有这种 CPU 的参考指纹时才做（和 ELF 库一样；.NET 程序集没有原生代码，不做），免费库里有 x86-64 指纹的有 zlib、littlefs、Mbed TLS、Lua、zstd、bzip2、libdeflate、expat、libpng、Brotli、yyjson 和 PCRE2（见 BINARY-VALIDATION.md 末节：mingw 编的 Mbed TLS 2.28.8 的 DLL 被识别为 `2.28.0~2.28.8`），其余库的 PE 还不能被函数级识别；`binary-functions` 仍然只读 ELF 和裸镜像。
+- **PE 和 Mach-O 上的函数级指纹**：函数恢复和指纹生成（`rules binary-prints`、`binary-eval`）支持 PE（x86、x64、ARM、Thumb、ARM64，含 Windows CE 的 ARM）和 Mach-O，但真实 PE、Mach-O 样本上的准确率这一轮没有测（见 BINARY-VALIDATION.md「这一轮没有测的」）。`gangmu scan` 对 `.exe`、`.dll` 的函数级比对只在某条规则带有这种 CPU 的参考指纹时才做（和 ELF 库一样；.NET 程序集没有原生代码，不做），免费库里有 x86-64 指纹的有 zlib、littlefs、Mbed TLS、Lua、zstd、bzip2、libdeflate、expat、libpng、Brotli、yyjson 和 PCRE2，其余库的 PE 还不能被函数级识别；`binary-functions` 仍然只读 ELF 和裸镜像。
   字符串常量比对对任何文件的字节都会跑，但我没有在真实 PE 上验证它的准确率。
 - **没有验证的想法：** Rust 程序的 panic 信息可能带着 `registry/src/.../crate-版本/` 路径，能补充没有 `cargo auditable` 的程序；
   我在一个小样本里没找到这类字符串，所以没做。

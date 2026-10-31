@@ -78,10 +78,10 @@ Measured on 2026-10-30 with `main` after 0.15.0 and the free rule base 2026.10.2
 | Synthetic vendor modifications | **9/9 identified, 9/9 correct version** |
 | 10% of identifiers renamed | exact hashing 0.462 → abstract level **0.807** |
 | NTIA 2021 / CISA 2026 minimum elements | the example SBOM **10.0 / 10** on both; the whole ESP-IDF tree 6.1 / 7.0: 183 of its 203 components are Espressif prebuilt archives no rule identifies, and all 20 identified ones carry an identifier |
-| Whole ESP-IDF v5.4.2 (10,767 sources, free rule base of 1027 rules) | single process: cold 72.9 s / 794 MB, warm cache 40.0 s (34.5 s with `--no-binaries`); 0.15.0 on the same machine: cold 115 s / 2.6 GB; see [PERFORMANCE.md](docs/PERFORMANCE.md) |
-| 16x more rules (1,028 → 16,448, synthetic SDK, median of 7 CI runs) | cold scan time grows 6.4x: 11.5 s → 73.7 s (0.15.0: 18.1 s → 158.1 s) |
-| FreeRTOS / RT-Thread copies in 7 Chinese vendor SDKs | **14/14** found, version exact or a range containing it (still so on 2026-10-30); the Allwinner R128 SDK's two FreeRTOS kernels side by side are reported as one finding in their parent, so one is missed |
-| Matching an SBOM against a full NVD mirror (27 year files, 2.7 GB unpacked) | **9.3 s / 60 MB** (0.5: 200.8 s / 3.9 GB) |
+| Whole ESP-IDF v5.4.2 (10,767 sources, free rule base of 1027 rules) | single process: cold 72.9 s / 794 MB, warm cache 40.0 s (34.5 s with `--no-binaries`); see [PERFORMANCE.md](docs/PERFORMANCE.md) |
+| 16x more rules (1,028 → 16,448, synthetic SDK, median of 7 CI runs) | cold scan time grows 6.4x: 11.5 s → 73.7 s |
+| FreeRTOS / RT-Thread copies in 7 Chinese vendor SDKs | **14/14** found, version exact or a range containing it; the Allwinner R128 SDK's two FreeRTOS kernels side by side are reported as one finding in their parent, so one is missed |
+| Matching an SBOM against a full NVD mirror (27 year files, 2.7 GB unpacked) | **9.3 s / 60 MB** |
 
 Identification is function level, following CENTRIS (ICSE 2021) and TIVER
 (ICSE 2025): a component is identified by how much of its own code is present,
@@ -111,7 +111,7 @@ gangmu patch-build CVE-2025-1866 --db advisories/ -o patches.json   # record the
 gangmu vuln sbom.json --db advisories/ --source ROOT --patches patches.json   # test the code, not the version: fixed body present -> resolved, vulnerable body present -> exploitable, edited -> left for a person (a near-identical variant is reported as likely_fixed / likely_vulnerable; --patch-near-vex lets it change the state)
 gangmu patch-verify rules/patches/*.json   # rebuild every patch record from the upstream commits it names; fails on any difference
 # Records in an installed rule pack's patches/ directory are used by `vuln --source` on their own (--no-pack-patches to skip).
-gangmu rules index rules/                                   # precompile a rule directory (223 rules: about 1.3 s -> 0.26 s to load); each entry is checked by file hash, so a stale index only costs speed
+gangmu rules index rules/                                   # precompile a rule directory (1027 rules: about 0.65 s -> 0.3 s to load); each entry is checked by file hash, so a stale index only costs speed
 gangmu merge ours.cdx.json vendor.cdx.json yocto.cdx.json -o product.cdx.json [--fail-on-disagreement]   # join CycloneDX documents (same purl, or name + version, is one component; the first document wins; version and VEX disagreements are reported)
 gangmu license-check sbom.json [--fail-on copyleft|incompatible|unlicensed]   # triage licences: copyleft, possibly incompatible pairs (per the FSF list), components with no licence; a prompt for a person, not a legal conclusion
 gangmu vuln-coverage sbom.json --db advisories/        # how many findings a CPE-only scanner would miss on this SBOM
@@ -224,7 +224,7 @@ The rules come in two parts: the free gangmu-rules holds the general open-source
 and its HAL modules, and community contributions; rules tied to one company (its own SDK, its firmware library, or an
 open-source component it forked) belong to the commercial rule packs: contact us (see the end of this page). Rule ids are the same on both sides and the commercial packs overlay automatically once installed. CI re-derives every rule's evidence from the upstream
 release it names (`gangmu rules verify`), so review cost is close to zero.
-Rules never guess a CPE: 97 of the 223 free rules carry one, new ones citing the NVD records
+Rules never guess a CPE: 412 of the 1027 free rules carry one, new ones citing the NVD records
 that prove it, and the other 45 say why they have none. PURL is a first-class
 matching channel. See [contributing a rule](https://github.com/GANGMU-SBOM/gangmu-rules/blob/main/CONTRIBUTING.md).
 

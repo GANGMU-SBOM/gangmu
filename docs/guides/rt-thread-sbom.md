@@ -31,8 +31,7 @@ gangmu scan ~/proj/rt-thread-bsp --format cyclonedx -o sbom.cdx.json
 ## 国产 SDK 里的 RTOS 内核
 
 博流、沁恒、联盛德等国产 SDK 几乎都带一份 FreeRTOS 或 RT-Thread，常常改了目录名、去掉 LICENSE、藏在示例目录深处。
-评测用 7 套 SDK 里找到的全部 14 份内核副本，14 份全部识别，版本正确或给出包含正确版本的区间。
-方法与数字见 [BENCHMARK](../BENCHMARK.md#1b-rtos-kernels-inside-chinese-vendor-sdks)。
+评测用这些 SDK 里能找到的全部内核副本，方法与当前版本的结果见 [BENCHMARK](../BENCHMARK.md#1b-rtos-kernels-inside-chinese-vendor-sdks)。
 
 - [示例产物](https://github.com/GANGMU-SBOM/gangmu/tree/main/examples/output) · [国产生态覆盖](../CHINA.md)
 - 其他 SDK：[ESP-IDF](esp-idf-sbom.md) · [Zephyr](zephyr-sbom.md) · [IAR / Keil / CCS](iar-keil-ccs-sbom.md) · [STM32 / NXP / Nordic](stm32-nxp-nordic-sbom.md)

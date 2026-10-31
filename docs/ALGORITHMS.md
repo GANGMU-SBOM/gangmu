@@ -60,12 +60,12 @@ Same trees, same include globs, function level instead of whole-tree:
 | lwIP 2.2.0 vs upstream 2.1.3 | 0.887 | **0.654** |
 | **separation between the two** | **0.06** | **0.24** |
 
-(gangmu-sbom 0.15.0, 2026-10-30; function level is the Jaccard index of the two trees'
+(Measured 2026-10-30; function level is the Jaccard index of the two trees'
 function sets under the lwIP rule's include globs.)
 
 Four times the separation, which is the difference between a threshold that
 works and one that does not. Version accuracy over six real trees including the
-fork: **6/6 exact**. See [BENCHMARK.md](BENCHMARK.md).
+fork: **6/6 right**, five exact and the fork a range whose best match is 2.2.0. See [BENCHMARK.md](BENCHMARK.md).
 
 ## And it is faster
 

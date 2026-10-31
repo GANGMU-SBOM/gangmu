@@ -80,10 +80,10 @@ Python、JavaScript、Go、Rust 都有锁文件，生成 SBOM 基本就是读文
 | 重命名 10% 标识符后的保留率 | 精确哈希 0.462 → 抽象层 **0.807** |
 | SBOM 最小要素（NTIA 2021 / CISA 2026） | 示例 SBOM 均 **10.0 / 10**；整棵 ESP-IDF 6.1 / 7.0：203 个组件里 183 个是没有规则认得的乐鑫预编译库，认出的 20 个都有标识符 |
 | 匹配开销 | 函数集比 winnowing 指纹小 **50 倍**，0.37 s vs 0.82 s（lwIP 2.2.0，单进程） |
-| 整棵 ESP-IDF v5.4.2（10,767 个源文件，免费规则库 1027 条） | 单进程冷扫 72.9 s / 794 MB，热缓存 40.0 s（`--no-binaries` 后 34.5 s）；同一台机器上 0.15.0 冷扫 115 s / 2.6 GB，见 [PERFORMANCE.md](docs/PERFORMANCE.md) |
-| 规则数增加 16 倍（1,028 → 16,448 条，合成 SDK，CI 上 7 次的中位数） | 冷扫耗时增加 6.4 倍：11.5 s → 73.7 s（0.15.0 时 18.1 s → 158.1 s） |
-| 国产 SDK 里的 RTOS 内核 | 7 个 SDK 中 **14/14** 份 FreeRTOS / RT-Thread 副本全部找到，版本全对或区间包含真值（2026-10-30 重测仍是如此）；全志 R128 并排放着的两份 FreeRTOS 被合成一条报在上一级目录，漏了一份 |
-| 读完整 NVD 镜像做漏洞比对（27 个年份文件，解压后 2.7 GB） | **9.3 s / 60 MB**（0.5 时 200.8 s / 3.9 GB） |
+| 整棵 ESP-IDF v5.4.2（10,767 个源文件，免费规则库 1027 条） | 单进程冷扫 72.9 s / 794 MB，热缓存 40.0 s（`--no-binaries` 后 34.5 s），见 [PERFORMANCE.md](docs/PERFORMANCE.md) |
+| 规则数增加 16 倍（1,028 → 16,448 条，合成 SDK，CI 上 7 次的中位数） | 冷扫耗时增加 6.4 倍：11.5 s → 73.7 s |
+| 国产 SDK 里的 RTOS 内核 | 7 个 SDK 中 **14/14** 份 FreeRTOS / RT-Thread 副本全部找到，版本全对或区间包含真值；全志 R128 并排放着的两份 FreeRTOS 被合成一条报在上一级目录，漏了一份 |
+| 读完整 NVD 镜像做漏洞比对（27 个年份文件，解压后 2.7 GB） | **9.3 s / 60 MB** |
 
 为什么换到函数级：一个厂商 fork 往往**同时包含多个上游版本的函数**。
 在整棵树的相似度上，它恰好落在两个相邻版本之间，任何阈值都分不开；
@@ -305,7 +305,7 @@ ok   generic/gmssl
 对不上就直接拒绝，并给出差异。第一条 cJSON 规则就是这样被拦下的：
 用仓库 HEAD 取指纹却声称是 v1.7.19，相似度 0.9922，期望 1.0。
 
-**规则库不猜 CPE。** 免费规则库 223 条里有 97 条带 CPE。新加的 CPE 都附有 NVD 里的 CVE 作为证据（`cpe_evidence`）。另外 126 条没有 CPE，每条都写明原因，多数是在完整的 NVD 镜像里确实查无记录。
+**规则库不猜 CPE。** 免费规则库 1027 条里有 412 条带 CPE。新加的 CPE 都附有 NVD 里的 CVE 作为证据（`cpe_evidence`）。另外 615 条没有 CPE，每条都写明原因，多数是在完整的 NVD 镜像里确实查无记录。
 写错一个字的 CPE 匹配不到任何 CVE，SBOM 看起来却是干净的，这是规则出错最昂贵的方式。
 所以 PURL / OSV 是一等通道，不是兜底。
 
@@ -378,7 +378,7 @@ ONEKEY、Finite State、Cybellum、NetRise 面向大型企业做固件二进制�
 | `gangmu vuln-fetch --db DIR` | 联网填充漏洞库目录：`--sbom` 只拉相关产品（秒级），`--all` 全量 NVD（按年分片，之后增量）；`--threat` 另外下载 CISA KEV 和 EPSS 到 `DIR/threat/`，`gangmu vuln` 会据此按「已被利用 → EPSS → CVSS」排序，`--fail-on kev` 遇到已被利用的漏洞就失败（Article 14 的 24 小时报送由「已被积极利用」触发） |
 | `gangmu vuln SBOM --db DIR --source ROOT` | 函数级可达性：按每条 CVE 的漏洞函数（`--symbols FILE` 给出；没有就从公告文字里猜）判断它在你的源码里是「不存在 / 已定义但无人引用 / 可达」。调用图按名字、宏、函数指针表做保守的过近似，看不到二进制库和汇编，所以默认只标注（`--config`/`-D` 给出构建配置后，`#if` 排除的分支不算，只存在于被排除分支的函数判为不存在）；再给 `--link-map`（`-ffunction-sections` 构建的 GNU ld map）或 `--elf`，漏洞函数被链接器丢弃的判为 `discarded`（不在镜像里）；加 `--reachability-vex` 才把不存在/已丢弃/不可达的写成 `not_affected`（`code_not_present` / `code_not_reachable`） |
 | `gangmu patch-build CVE --db DIR -o patches.json`；`gangmu vuln SBOM --db DIR --source ROOT --patches patches.json` | 补丁存在性检测：用修复提交改动过的函数（修复前、修复后各记一份函数体哈希；提交号可从 OSV 记录里读，或用 `--repo URL --fix SHA` 指定）去测你源码里的那个目录——有修复后的函数体就写成 `resolved`，仍是修复前的函数体就确认为 `exploitable`，被厂商改过的函数体（既不是修复前也不是修复后）留给人判断。批量生成：`gangmu vuln-fetch --db DIR --sbom SBOM --build-patches patches.json` 对 SBOM 匹配到、且 OSV 记录写明修复提交的每条公告各生成一条（联网，需要 git；`--patch-limit N` 限制单次条数，下次接着做）。魔改的 fork 只报告它所基于的版本号，版本区间匹配会让它永远停在 `in_triage`；这一项直接看代码，不看版本 |
-| `gangmu rules index DIR` | 预编译规则目录，写出 `DIR/.rule-index.json`，加载时不再解析 YAML（规则越多越明显：223 条规则加载约 1.3 秒 → 0.26 秒）。每条按文件哈希校验，规则改了或索引过期只会变慢，不会读错；规则包在打包时运行一次 |
+| `gangmu rules index DIR` | 预编译规则目录，写出 `DIR/.rule-index.json`，加载时不再解析 YAML（规则越多越明显：1027 条规则加载约 0.65 秒 → 0.3 秒）。每条按文件哈希校验，规则改了或索引过期只会变慢，不会读错；规则包在打包时运行一次 |
 | `gangmu keygen` / `gangmu sign FILE --key K` / `gangmu sign-verify FILE --pubkey P` | 给 SBOM 或证据包的 `manifest.json` 做 Ed25519 分离签名并校验（`pip install gangmu-sbom[sign]`；密钥是标准 PEM，OpenSSL 可直接验）。只证明“这把密钥签过”，不含时间戳和密钥托管；要时间戳或免密钥签名，对同一文件用 `cosign sign-blob` |
 | `gangmu vuln SBOM --db DIR` | 漏洞比对，输出 CycloneDX VEX；`--format openvex` / `--format csaf`（须加 `--publisher`）输出 OpenVEX 0.2.0 或 CSAF 2.0 VEX |
 | `gangmu cn-db-check DIR` | 检查 CNNVD / CNVD 导出目录：每个文件能读出多少条，读不了的明确报出来 |
