@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="纲目 Gangmu">
+  <title>纲目 Gangmu</title>
+  <rect width="256" height="256" rx="56" fill="#24292f"/>
+  <!-- 「目」字外框：固件镜像 -->
+  <rect x="68" y="48" width="120" height="160" rx="14" fill="none" stroke="#ffffff" stroke-width="14"/>
+  <!-- 「纲」：根节点 -->
+  <circle cx="98" cy="96" r="9" fill="#2da44e"/>
+  <!-- 「目」：层级条目，长短不一，像依赖树 / SBOM 条目 -->
+  <rect x="120" y="89" width="46" height="14" rx="7" fill="#ffffff"/>
+  <rect x="98" y="121" width="68" height="14" rx="7" fill="#ffffff" opacity=".85"/>
+  <rect x="120" y="153" width="46" height="14" rx="7" fill="#ffffff" opacity=".7"/>
+  <!-- 树枝连线 -->
+  <path d="M98 105V160" stroke="#2da44e" stroke-width="6" stroke-linecap="round" fill="none"/>
+</svg>
