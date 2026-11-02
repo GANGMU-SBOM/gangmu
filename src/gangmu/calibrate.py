@@ -86,12 +86,14 @@ def calibrate(builds: Dict[str, Dict[str, bytes]], negatives: Sequence[bytes] = 
         union: List[set] = []
         for name, data in per_build.items():
             ref, ref_arch = fprint.image_features(data, min_features=1)
-            img = fprint.image_function_features(data, min_features=1, ignore_symbols=True)
+            # the image as a scan meets it: stripped, and with closures (fprint.closures_of)
+            img = fprint.image_features(data, min_features=1, ignore_symbols=True,
+                                        closures=True)[0]
             archs.add(ref_arch or "")
             corpus.builds[SELF][label][name] = ev.Build(ref, img)
             union += [s for s in ref if len(s) >= k]
         merged.append((label, union))
-    negative_features = [fprint.image_function_features(data, min_features=1)
+    negative_features = [fprint.image_features(data, min_features=1, closures=True)[0]
                          for data in negatives]
     shared = 0
     if negative_features:

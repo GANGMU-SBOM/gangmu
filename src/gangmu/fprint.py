@@ -188,11 +188,13 @@ class FeatureSet(set):
 
     strings: Set[int]
     calls: Set[int]           # direct call targets (addresses), for closures
+    closure: bool             # a function together with its callees (closures_of)
 
-    def __init__(self, items=(), strings=(), calls=()):
+    def __init__(self, items=(), strings=(), calls=(), closure=False):
         super().__init__(items)
         self.strings = set(strings)
         self.calls = set(calls)
+        self.closure = closure
 
 
 def _a64(insn, reg: int) -> str:
@@ -480,14 +482,19 @@ def closures_of(functions: Dict[int, "FeatureSet"]) -> List["FeatureSet"]:
     reference function built at -O2 can hold features that an -O0 image keeps in two
     functions (N2NMatcher, arXiv:2608.10043, on inlining and binary decomposition). Matching
     is by containment, so the union is what such a reference is found in. Only the image
-    side is closed: a closure of the references would claim the callees twice."""
+    side is closed: a closure of the references would claim the callees twice.
+
+    A closure only extends a library already anchored by functions matched on their own
+    (:meth:`FunctionPrints.match`), and never votes on the release: a callee's features can
+    be another release's, and small prints of unrelated libraries sit in a big enough union
+    by chance (LibAM, arXiv:2305.04026: anchors first, then their neighbourhood)."""
     out: List[FeatureSet] = []
     for address, feats in functions.items():
         callees = [functions[c] for c in feats.calls if c != address and c in functions]
         callees = [c for c in callees if c]
         if not callees or len(callees) > MAX_CALLEES:
             continue
-        closure = FeatureSet(feats, feats.strings)
+        closure = FeatureSet(feats, feats.strings, closure=True)
         for c in callees:
             closure |= c
             closure.strings |= c.strings
@@ -735,8 +742,10 @@ class FunctionPrints:
         floor = MIN_FEATURES if min_features is None else min_features
         by_string = bool(arch and self.arch and arch != self.arch and self.knows_strings())
         index = self.index(by_string)
-        matched: Set[int] = set()
+        direct: Set[int] = set()       # matched by a function on its own: the anchors
+        extended: Set[int] = set()     # matched only inside a closure
         for feats in image:
+            into = extended if getattr(feats, "closure", False) else direct
             if by_string:
                 feats = cast(Set[int], getattr(feats, "strings", None) or set())
                 if len(feats) < floor:
@@ -749,11 +758,12 @@ class FunctionPrints:
                 size = self.strings[i] if by_string else len(self.functions[i][1])
                 if hits >= min(floor, size) and hits >= MIN_CONTAINMENT * size \
                         and len(feats) <= MAGNET_RATIO * size:
-                    matched.add(i)
-        if len(matched) < SMALL_MATCHES:
+                    into.add(i)
+        if len(direct) < SMALL_MATCHES:
             return None
+        matched = direct | extended
         if tie_share is None:
-            return self._contradiction(matched, by_string, floor)
+            return self._contradiction(matched, by_string, floor, scored=direct)
         scores, owns = [], []
         for v in range(len(self.versions)):
             own = {i for i, (bits, _) in enumerate(self.functions)
@@ -778,7 +788,8 @@ class FunctionPrints:
         return (self.versions[index_best], len(own & matched), len(own), coverage,
                 "" if low == high else f"{low}~{high}")
 
-    def _contradiction(self, matched: Set[int], by_string: bool, floor: int):
+    def _contradiction(self, matched: Set[int], by_string: bool, floor: int,
+                       scored: Optional[Set[int]] = None):
         """Release scores by the weighted count of matched prints the release lacks.
 
         The share-explained score treats the 3rd contradiction among 20 matches like the
@@ -786,6 +797,9 @@ class FunctionPrints:
         functions, as much as a fifty-feature one. Here each matched print the release
         does not contain costs its weight (CONTRA_FULL features and more: 1), and a
         release is in the span when it trails the best by at most CONTRA_SPAN.
+
+        *scored*: the matches that vote on the release (default: all of *matched*); the
+        others count only towards coverage.
         """
         n = len(self.versions)
         usable = [i for i in range(len(self.functions))
@@ -797,7 +811,7 @@ class FunctionPrints:
             return min(1.0, max(size - 1, 1) / (CONTRA_FULL - 1))
 
         owns = [{i for i in usable if self.functions[i][0] >> v & 1} for v in range(n)]
-        hits = matched & usable_set
+        hits = (matched if scored is None else scored) & usable_set
         scores = [-sum(weight(i) for i in hits - own) for own in owns]
         best = max(scores)
         index_best = scores.index(best)
