@@ -117,16 +117,19 @@ FEATURES_CACHE = ".features.json"
 
 def load_corpus(directory: Path, use_cache: bool = True) -> Corpus:
     """Read ``corpus.json`` and extract features from every ELF (cached beside it)."""
-    from ..fprint import image_features
+    from ..fprint import FeatureSet, image_features
     root = Path(directory)
     manifest = json.loads((root / "corpus.json").read_text())
     cache_path = root / FEATURES_CACHE
-    cache: Dict[str, Tuple[int, int, List[Set[int]], str]] = {}
+    # path -> (mtime, size, feature sets, arch, how many of the sets are plain functions:
+    # with closures, the closures come after them)
+    cache: Dict[str, Tuple[int, int, List[Set[int]], str, int]] = {}
     if use_cache and cache_path.exists():
         try:
             raw = json.loads(cache_path.read_text(encoding="utf-8"))
-            cache = {str(k): (int(v[0]), int(v[1]), [set(map(int, f)) for f in v[2]], str(v[3]))
-                     for k, v in raw.items()}
+            cache = {str(k): (int(v[0]), int(v[1]), [set(map(int, f)) for f in v[2]], str(v[3]),
+                              int(v[4]) if len(v) > 4 else len(v[2]))
+                     for k, v in raw.items() if len(v) > 4 or not str(k).endswith("#closures")}
         except (OSError, ValueError, TypeError, IndexError, AttributeError):
             cache = {}                                     # a bad cache is a miss
 
@@ -136,13 +139,19 @@ def load_corpus(directory: Path, use_cache: bool = True) -> Corpus:
         stat = path.stat()
         key = str(path.relative_to(root)) + ("#closures" if closures else "")
         hit = cache.get(key)
-        if hit and len(hit) == 4 and hit[:2] == (stat.st_mtime_ns, stat.st_size):
+        if hit and hit[:2] == (stat.st_mtime_ns, stat.st_size):
             arches.append(hit[3])
-            return hit[2]
-        feats, arch = image_features(path.read_bytes(), min_features=1, closures=closures)
-        cache[key] = (stat.st_mtime_ns, stat.st_size, feats, arch or "")
-        arches.append(arch or "")
-        return feats
+            feats, plain = hit[2], hit[4]
+        else:
+            feats, arch = image_features(path.read_bytes(), min_features=1, closures=closures)
+            plain = sum(1 for f in feats if not getattr(f, "closure", False))
+            cache[key] = (stat.st_mtime_ns, stat.st_size, feats, arch or "", plain)
+            arches.append(arch or "")
+        if not closures:
+            return feats
+        # the cache is JSON and keeps no FeatureSet: mark the closures again
+        return [FeatureSet(s, getattr(s, "strings", ()), closure=i >= plain)
+                for i, s in enumerate(feats)]
 
     corpus = Corpus()
     for lib, releases in manifest.items():
@@ -161,7 +170,7 @@ def load_corpus(directory: Path, use_cache: bool = True) -> Corpus:
     if use_cache:
         try:
             cache_path.write_text(json.dumps(
-                {k: [v[0], v[1], [sorted(f) for f in v[2]], v[3]] for k, v in cache.items()},
+                {k: [v[0], v[1], [sorted(f) for f in v[2]], v[3], v[4]] for k, v in cache.items()},
                 separators=(",", ":")), encoding="utf-8")
         except OSError:
             pass

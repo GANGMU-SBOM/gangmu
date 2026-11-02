@@ -43,19 +43,47 @@ def test_a_closure_joins_a_function_with_what_it_calls():
     assert len(got) == 1 and got[0] == {1, 2, 3, 4} and got[0].strings == {1, 3}
 
 
-def test_a_closure_finds_a_print_the_compiler_inlined_elsewhere():
-    # The reference was built with the callee inlined: one function, both halves. The
-    # image keeps them apart, so only its closure holds the whole print.
-    inlined = [_feats(f"i{i}", 3) | _feats(f"j{i}", 3) for i in range(6)]
-    prints = FunctionPrints.build([("1.0", inlined), ("1.1", inlined + [_feats("z", 4)])],
-                                  min_features=2)
+def _inlined_library():
+    # The reference was built with each callee inlined: one function, both halves. The
+    # image keeps them apart, so only its closure holds the whole print. Three functions
+    # the compiler did not touch are matched on their own.
+    alone = [_feats(f"a{i}", 4) for i in range(3)]
+    inlined = [_feats(f"i{i}", 3) | _feats(f"j{i}", 3) for i in range(20)]
+    prints = FunctionPrints.build([("1.0", alone + inlined),
+                                   ("1.1", alone + inlined + [_feats("z", 4)])], min_features=2)
     apart = {}
-    for i in range(6):
+    for i in range(20):
         apart[0x1000 + 0x100 * i] = FeatureSet(_feats(f"i{i}", 3), calls={0x8000 + 0x100 * i})
         apart[0x8000 + 0x100 * i] = FeatureSet(_feats(f"j{i}", 3))
-    plain = list(apart.values())
-    assert prints.match(plain) is None
-    assert prints.match(plain + closures_of(apart)) is not None
+    return prints, alone, apart
+
+
+def test_a_closure_finds_a_print_the_compiler_inlined_elsewhere():
+    prints, alone, apart = _inlined_library()
+    plain = [FeatureSet(s) for s in alone] + list(apart.values())
+    assert prints.match(plain) is None                       # 3 of 23: too little on its own
+    got = prints.match(plain + closures_of(apart))
+    assert got is not None and got[1] == 23
+
+
+def test_closures_alone_never_claim_a_library():
+    # A closure only extends a library some functions already anchor: without the three
+    # functions matched on their own, the same closures claim nothing.
+    prints, _, apart = _inlined_library()
+    assert prints.match(list(apart.values()) + closures_of(apart)) is None
+
+
+def test_a_match_inside_a_closure_does_not_vote_on_the_release():
+    alone = [_feats(f"a{i}", 4) for i in range(6)]
+    only_new = [_feats(f"n{i}", 4) for i in range(3)]
+    prints = FunctionPrints.build([("1.0", alone), ("1.1", alone + only_new)], min_features=2)
+    caller = FeatureSet(_feats("c", 2), calls={0x200})
+    image = {0x100: caller, 0x200: FeatureSet(set().union(*only_new))}
+    closure = closures_of(image)
+    for c in closure:                       # the 1.1-only functions are found in a closure
+        c.closure = True
+    got = prints.match([FeatureSet(s) for s in alone] + closure)
+    assert got is not None and got[4] == "1.0~1.1"           # so they do not narrow it to 1.1
 
 
 def test_a_dispatcher_gets_no_closure():

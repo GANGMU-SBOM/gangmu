@@ -102,14 +102,14 @@ fingerprints against every other library's images):
 
 | reference → images | recall | precision | version exact | exact or range containing truth | negative-control hits |
 | --- | --- | --- | --- | --- | --- |
-| Cortex-M3 → Cortex-M3 | 83.4% | 99.7% | 40.9% | 99.0% | 2 / 9,776 |
-| rv32imac → rv32imac | 78.0% | 99.8% | 36.1% | 98.7% | 1 / 9,776 |
-| AArch64 → AArch64 | 83.2% | 100% | 41.7% | 95.6% | 0 / 11,200 |
-| Xtensa → Xtensa | 77.2% | 100% | 43.3% | 99.6% | 0 / 9,118 |
+| Cortex-M3 → Cortex-M3 | 82.1% | 99.7% | 41.4% | 99.3% | 2 / 9,776 |
+| rv32imac → rv32imac | 77.6% | 99.8% | 37.1% | 99.1% | 1 / 9,776 |
+| AArch64 → AArch64 | 82.2% | 100% | 42.1% | 96.7% | 0 / 11,200 |
+| Xtensa → Xtensa | 76.9% | 100% | 43.7% | 99.6% | 0 / 9,118 |
 | Cortex-M3 → rv32imac (strings only) | 36.3% | 100% | – | 98.4% | 0 / 9,776 |
-| Cortex-M3 → AArch64 | 48.4% | 100% | – | 96.1% | 0 / 10,496 |
-| Cortex-M3 → Xtensa | 58.6% | 100% | – | 97.4% | 0 / 9,440 |
-| Xtensa → Cortex-M3 | 45.2% | 100% | – | 99.7% | 0 / 9,448 |
+| Cortex-M3 → AArch64 | 48.3% | 100% | – | 97.3% | 0 / 10,496 |
+| Cortex-M3 → Xtensa | 57.4% | 100% | – | 96.1% | 0 / 9,440 |
+| Xtensa → Cortex-M3 | 44.9% | 100% | – | 100% | 0 / 9,448 |
 
 Inside real trees (the census above): 15 prebuilt files were identified (Lua
 5.1.4 in premake4, libcurl 7.53.1 in premake5, zlib 1.3.1 and 1.2.3 in DLLs,
