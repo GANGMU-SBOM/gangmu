@@ -112,7 +112,7 @@ class Report:
 
 # JSON, not pickle: a corpus directory can come from someone else, and unpickling
 # its cache would run whatever code they put in it.
-FEATURES_CACHE = ".features.v2.json"   # v2: referenced data tables are features
+FEATURES_CACHE = ".features.v3.json"   # v3: data tables, and the Xtensa walk keeps step
 
 
 def load_corpus(directory: Path, use_cache: bool = True) -> Corpus:

@@ -121,6 +121,9 @@ class Memory:
             return None
         if all(32 <= c < 127 or c in (0, 9, 10, 13) for c in raw):
             return None
+        words = [int.from_bytes(raw[i:i + 4], "little") for i in range(0, TABLE_BYTES, 4)]
+        if sum(1 for w in words if self.is_address(w)) >= 2:
+            return None              # a table of pointers moves with the layout
         return raw
 
     def contains(self, addr: int) -> bool:
