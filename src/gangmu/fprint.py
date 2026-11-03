@@ -53,6 +53,7 @@ MIN_COVERAGE = 0.12       # share of the best release's fingerprintable function
 #                         unrelated library through in 1920 negative pairs on RISC-V)
 SMALL_MATCHES = 3         # fewer than MIN_MATCHES are enough when they are most of the release:
 SMALL_COVERAGE = 0.5      # a library with four fingerprintable functions could never reach five
+TABLE_BYTES = 16          # bytes of a referenced data object that stand for it (fprint.Memory.table)
 MAGNET_RATIO = 32         # a print is not found in a function this many times its size: an
 #                           error-string switch or a constant table holds hundreds of values and
 #                           so, by chance, small prints of unrelated libraries (Cortex-M corpus:
@@ -90,6 +91,8 @@ class Memory:
 
     regions: List[Tuple[int, bytes]] = field(default_factory=list)
     ranges: List[Tuple[int, int]] = field(default_factory=list)   # allocated, no bytes (.bss)
+    data: Optional[List[Tuple[int, int]]] = None   # read-only or initialised data, not code:
+    #                             None when the container does not say (a raw image)
     gp: Optional[int] = None    # MIPS global pointer: where ``$gp``-relative loads start from
     pic: bool = False           # position-independent (a shared object, linked at 0): code
     #                             reaches addresses relative to itself, so an immediate is a
@@ -104,6 +107,21 @@ class Memory:
             if start <= addr and addr + n <= start + len(blob):
                 return blob[addr - start:addr - start + n]
         return None
+
+    def table(self, addr: int) -> Optional[bytes]:
+        """The first bytes of a data object at *addr*: a constant table (a CRC table, a
+        Huffman table, an S-box) is the same in every build and at every optimisation level,
+        though where the linker puts it is not. None for code, for a container that does not
+        say what is code, and for bytes that tell nothing (zeros, or a short string, whose
+        neighbours depend on the layout)."""
+        if self.data is None or not any(lo <= addr < hi for lo, hi in self.data):
+            return None
+        raw = self.read(addr, TABLE_BYTES)
+        if raw is None or raw.count(0) > TABLE_BYTES // 2 or len(set(raw)) < 4:
+            return None
+        if all(32 <= c < 127 or c in (0, 9, 10, 13) for c in raw):
+            return None
+        return raw
 
     def contains(self, addr: int) -> bool:
         return any(start <= addr < start + len(blob) for start, blob in self.regions)
@@ -129,7 +147,9 @@ def memory_from_elf(data: bytes, info: ElfInfo) -> Memory:
                if s.flags & 2 and s.type == 1 and placed(s) and s.size]   # SHF_ALLOC, PROGBITS
     bss = [(s.addr, s.addr + s.size) for s in info.sections
            if s.flags & 2 and s.type == 8 and placed(s) and s.size]       # SHT_NOBITS
-    mem = Memory(regions, bss, pic=info.etype == ET_DYN)
+    tables = [(s.addr, s.addr + s.size) for s in info.sections            # not SHF_EXECINSTR
+              if s.flags & 2 and not s.flags & 4 and s.type == 1 and placed(s) and s.size]
+    mem = Memory(regions, bss, tables, pic=info.etype == ET_DYN)
     if info.machine == disasm.EM_MIPS:
         got = next((sec for sec in info.sections if sec.name == ".got"), None)
         if got is not None:
@@ -224,6 +244,8 @@ def function_features(mem: Memory, arch: str, address: int, size: int) -> "Featu
                 h = _hash(b"s", s)
                 out.add(h)
                 out.strings.add(h)
+            elif (table := mem.table(v)) is not None:
+                out.add(_hash(b"d", table))
         elif _distinctive(v):
             out.add(_hash(b"c", v.to_bytes(8, "big")))
 
