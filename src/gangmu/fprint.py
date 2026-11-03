@@ -61,6 +61,7 @@ MAGNET_RATIO = 16         # a print is not found in a function this many times i
 #                           so, by chance, small prints of unrelated libraries (Cortex-M corpus:
 #                           ~2,300 wrong-library matches above 32 times against ~170 in all
 #                           smaller sets; at 32 Brotli still matched two yyjson -O0 images)
+STRING_MAGNET_RATIO = 32  # the same when only strings are compared: a print has few of them
 TIE_SHARE = 0.85         # releases scoring within this share of the best are reported as a span
 #                         (0.95 asserted a wrong release in 3 of 48 real builds, 0.85 in none)
 CONTRA_FULL = 4.0         # features at which a matched print counts in full as evidence
@@ -788,7 +789,7 @@ class FunctionPrints:
             for i, hits in votes.items():
                 size = self.strings[i] if by_string else len(self.functions[i][1])
                 if hits >= min(floor, size) and hits >= MIN_CONTAINMENT * size \
-                        and len(feats) <= MAGNET_RATIO * size:
+                        and len(feats) <= (STRING_MAGNET_RATIO if by_string else MAGNET_RATIO) * size:
                     found.append(i)
             into.update(found)
             if not closure:
