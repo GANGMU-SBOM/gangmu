@@ -102,14 +102,14 @@ fingerprints against every other library's images):
 
 | reference → images | recall | precision | version exact | exact or range containing truth | negative-control hits |
 | --- | --- | --- | --- | --- | --- |
-| Cortex-M3 → Cortex-M3 | 82.1% | 99.7% | 41.2% | 99.3% | 2 / 9,776 |
-| rv32imac → rv32imac | 77.3% | 100% | 38.2% | 99.6% | 0 / 9,776 |
-| AArch64 → AArch64 | 81.7% | 100% | 43.8% | 97.0% | 0 / 11,200 |
-| Xtensa → Xtensa | 81.0% | 100% | 37.7% | 99.4% | 0 / 9,118 |
-| Cortex-M3 → rv32imac (strings only) | 36.3% | 100% | – | 98.4% | 0 / 9,776 |
-| Cortex-M3 → AArch64 | 47.5% | 100% | – | 96.9% | 0 / 10,496 |
-| Cortex-M3 → Xtensa | 59.9% | 100% | – | 97.7% | 0 / 9,440 |
-| Xtensa → Cortex-M3 | 53.6% | 100% | – | 99.2% | 0 / 9,448 |
+| Cortex-M3 → Cortex-M3 | 82.3% | 100% | 53.5% | 98.6% | 0 / 9,776 |
+| rv32imac → rv32imac | 77.2% | 100% | 53.9% | 99.8% | 0 / 9,776 |
+| AArch64 → AArch64 | 81.8% | 100% | 56.3% | 99.3% | 0 / 11,200 |
+| Xtensa → Xtensa | 81.0% | 100% | 60.8% | 100% | 0 / 9,118 |
+| Cortex-M3 → rv32imac (strings only) | 33.6% | 100% | – | 97.4% | 0 / 9,776 |
+| Cortex-M3 → AArch64 | 34.3% | 100% | – | 100% | 0 / 10,496 |
+| Cortex-M3 → Xtensa | 33.7% | 100% | – | 99.1% | 0 / 9,440 |
+| Xtensa → Cortex-M3 | 31.9% | 100% | – | 100% | 0 / 9,448 |
 
 Inside real trees (the census above): 15 prebuilt files were identified (Lua
 5.1.4 in premake4, libcurl 7.53.1 in premake5, zlib 1.3.1 and 1.2.3 in DLLs,
@@ -118,9 +118,10 @@ versions are coarse or absent.
 
 **In short:** from source the tool almost never names a component that is not
 there, finds nearly every one that is, and gives the exact version for most;
-from binaries what it names is almost always right, but about one image in five
-on the same architecture gets no answer (two thirds of those are two libraries
-with almost nothing to fingerprint) and most get a range rather than one version.
+from binaries what it names is right (no false positive in about 40,000 negative
+pairs), more than half of the recognised images get a single exact release, and
+about one image in five on the same architecture gets no answer (two thirds of
+those are two libraries with almost nothing to fingerprint).
 
 ## 1. Version accuracy on real lwIP releases
 
