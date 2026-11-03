@@ -112,7 +112,7 @@ class Report:
 
 # JSON, not pickle: a corpus directory can come from someone else, and unpickling
 # its cache would run whatever code they put in it.
-FEATURES_CACHE = ".features.json"
+FEATURES_CACHE = ".features.v4.json"   # v4: which features are strings is kept too
 
 
 def load_corpus(directory: Path, use_cache: bool = True) -> Corpus:
@@ -121,15 +121,17 @@ def load_corpus(directory: Path, use_cache: bool = True) -> Corpus:
     root = Path(directory)
     manifest = json.loads((root / "corpus.json").read_text())
     cache_path = root / FEATURES_CACHE
-    # path -> (mtime, size, feature sets, arch, how many of the sets are plain functions:
-    # with closures, the closures come after them)
-    cache: Dict[str, Tuple[int, int, List[Set[int]], str, int]] = {}
+    # path -> (mtime, size, feature sets, arch, how many of the sets are plain functions
+    # (with closures, the closures come after them), each set's string features). Without
+    # the strings, a comparison across architectures would use constants too, which a scan
+    # never does (fprint.FunctionPrints.match).
+    cache: Dict[str, Tuple[int, int, List[Set[int]], str, int, List[Set[int]]]] = {}
     if use_cache and cache_path.exists():
         try:
             raw = json.loads(cache_path.read_text(encoding="utf-8"))
             cache = {str(k): (int(v[0]), int(v[1]), [set(map(int, f)) for f in v[2]], str(v[3]),
-                              int(v[4]) if len(v) > 4 else len(v[2]))
-                     for k, v in raw.items() if len(v) > 4 or not str(k).endswith("#closures")}
+                              int(v[4]), [set(map(int, s)) for s in v[5]])
+                     for k, v in raw.items()}
         except (OSError, ValueError, TypeError, IndexError, AttributeError):
             cache = {}                                     # a bad cache is a miss
 
@@ -141,17 +143,15 @@ def load_corpus(directory: Path, use_cache: bool = True) -> Corpus:
         hit = cache.get(key)
         if hit and hit[:2] == (stat.st_mtime_ns, stat.st_size):
             arches.append(hit[3])
-            feats, plain = hit[2], hit[4]
+            feats, plain, strings = hit[2], hit[4], hit[5]
         else:
             feats, arch = image_features(path.read_bytes(), min_features=1, closures=closures)
             plain = sum(1 for f in feats if not getattr(f, "closure", False))
-            cache[key] = (stat.st_mtime_ns, stat.st_size, feats, arch or "", plain)
+            strings = [set(getattr(f, "strings", ())) for f in feats]
+            cache[key] = (stat.st_mtime_ns, stat.st_size, feats, arch or "", plain, strings)
             arches.append(arch or "")
-        if not closures:
-            return feats
-        # the cache is JSON and keeps no FeatureSet: mark the closures again
-        return [FeatureSet(s, getattr(s, "strings", ()), closure=i >= plain)
-                for i, s in enumerate(feats)]
+        # the cache is JSON and keeps no FeatureSet: put back the strings and the closures
+        return [FeatureSet(s, strings[i], closure=i >= plain) for i, s in enumerate(feats)]
 
     corpus = Corpus()
     for lib, releases in manifest.items():
@@ -170,7 +170,8 @@ def load_corpus(directory: Path, use_cache: bool = True) -> Corpus:
     if use_cache:
         try:
             cache_path.write_text(json.dumps(
-                {k: [v[0], v[1], [sorted(f) for f in v[2]], v[3], v[4]] for k, v in cache.items()},
+                {k: [v[0], v[1], [sorted(f) for f in v[2]], v[3], v[4], [sorted(s) for s in v[5]]]
+                 for k, v in cache.items()},
                 separators=(",", ":")), encoding="utf-8")
         except OSError:
             pass

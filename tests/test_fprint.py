@@ -247,6 +247,39 @@ def test_xtensa_entry_and_l32r():
     assert got == [0x1008, 0x12345678]
 
 
+def test_xtensa_padding_after_a_jump_does_not_put_the_walk_out_of_step():
+    from gangmu import xtensa
+    # From zstd 1.5.6 -Os (ESP32 gcc): `j` then two zero bytes of padding, then
+    # `l32i a9, a1, 76` (92 21 13). Read as an instruction, the padding swallowed the 0x92
+    # and the walk then decoded `21 13 01` as an l32r that does not exist.
+    code = bytes([0x86, 0x0E, 0x01,          # j
+                  0x00, 0x00,                # padding
+                  0x92, 0x21, 0x13,          # l32i a9, a1, 76
+                  0x82, 0xA0, 0x01,          # movi a8, 1
+                  0x81, 0xFF, 0xFF])         # l32r a8, -1 word
+    walked = [off for off, _ in xtensa._walk(code)]
+    assert walked == [0, 5, 8, 11]
+    assert list(xtensa.l32r_targets(code, 0x2000)) == [((0x2000 + 11 + 3) & ~3) - 4]
+
+
+def test_a_return_ends_the_flow_too():
+    from gangmu import xtensa
+    ret_n, retw = bytes([0x0D, 0xF0]), bytes([0x90, 0x00, 0x00])
+    assert [o for o, _ in xtensa._walk(ret_n + b"\0" + bytes([0x81, 0xFF, 0xFF]))] == [0, 3]
+    assert [o for o, _ in xtensa._walk(retw + b"\0\0" + bytes([0x81, 0xFF, 0xFF]))] == [0, 5]
+
+
+def test_a_referenced_data_table_is_a_feature_and_a_pointer_table_is_not():
+    crc = bytes.fromhex("0000000096300777 2c610eee ba510999".replace(" ", ""))
+    pointers = (0x2000).to_bytes(4, "little") * 2 + (0x2010).to_bytes(4, "little") * 2
+    mem = fprint.Memory([(0x1000, b"\x13" * 0x100), (0x2000, crc + pointers)],
+                        data=[(0x2000, 0x2020)])
+    assert mem.table(0x2000) == crc
+    assert mem.table(0x2010) is None                    # pointers move with the layout
+    assert mem.table(0x1000) is None                    # code, not data
+    assert fprint.Memory([(0x2000, crc)]).table(0x2000) is None   # container does not say
+
+
 def test_low_coverage_note():
     from types import SimpleNamespace
     from gangmu import binaries
