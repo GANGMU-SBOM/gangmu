@@ -158,7 +158,12 @@ def candidates_from_scan(result) -> List[Candidate]:
     return out
 
 
-def candidates_from_cyclonedx(bom: dict) -> List[Candidate]:
+def candidates_from_cyclonedx(bom: dict, purl_aliases=None) -> List[Candidate]:
+    """Candidates of a CycloneDX SBOM. *purl_aliases* (:class:`~.aliases.PurlAliases`, built
+    from the rules) adds the other purls of each component's upstream, so a record filed
+    under a mirror or a distribution package still reaches it; a distribution purl that
+    wrote the version into the name (``zlib-1.2.11``) also supplies a missing version."""
+    from .aliases import version_from_name
     out: List[Candidate] = []
     for component in bom.get("components", []) or []:
         props = {p.get("name"): p.get("value")
@@ -171,12 +176,17 @@ def candidates_from_cyclonedx(bom: dict) -> List[Candidate]:
         except (TypeError, ValueError):
             confidence = 1.0
         linked = props.get("gangmu:linkedIntoImage")
+        purls = [p for p in [component.get("purl")] if p]
+        version = component.get("version") or next(
+            (v for v in map(version_from_name, purls) if v), None)
+        if purl_aliases is not None:
+            purls += purl_aliases.expand(purls)
         out.append(Candidate(
             name=component.get("name", "?"),
             directory=props.get("gangmu:directory", ""),
-            version=component.get("version"),
+            version=version,
             cpes=cpes,
-            purls=[p for p in [component.get("purl")] if p],
+            purls=purls,
             is_fork=bool(pedigree.get("patches")),
             fork_note=pedigree.get("notes", ""),
             confidence=confidence,
