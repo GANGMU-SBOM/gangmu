@@ -71,6 +71,9 @@ def _package(finding: Finding) -> Dict[str, Any]:
     if finding.cpe:
         refs.append({"referenceCategory": "SECURITY",
                      "referenceType": "cpe23Type", "referenceLocator": finding.cpe})
+    for alias in finding.cpe_aliases:
+        refs.append({"referenceCategory": "SECURITY",
+                     "referenceType": "cpe23Type", "referenceLocator": alias})
 
     pkg: Dict[str, Any] = {
         "SPDXID": pkg_id,

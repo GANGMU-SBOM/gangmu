@@ -145,7 +145,7 @@ class Candidate:
 def candidates_from_scan(result) -> List[Candidate]:
     out: List[Candidate] = []
     for finding in result.findings:
-        cpes = [c for c in [finding.cpe] if c]
+        cpes = [c for c in [finding.cpe, *finding.cpe_aliases] if c]
         out.append(Candidate(
             name=finding.upstream_name, directory=finding.directory,
             version=finding.version, cpes=cpes,
