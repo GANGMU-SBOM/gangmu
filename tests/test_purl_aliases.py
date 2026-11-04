@@ -100,8 +100,21 @@ def test_the_echo_purl_reaches_a_git_record_filed_under_the_repository(tmp_path)
     assert aliased[0].version == "1.2.11"
     found = match(aliased, load_database(tmp_path, wanted_for(aliased)))
     assert [m.advisory.id for m in found] == ["TEST-Z-1"]
-    assert found[0].state is VexState.EXPLOITABLE
+    # a Debian-family package: the upstream version cannot say whether it is affected
+    assert found[0].state is VexState.IN_TRIAGE
+    assert "distribution package" in found[0].detail
     assert found[0].channel == "purl"
+
+
+def test_a_github_component_stays_exploitable_through_the_same_record(tmp_path):
+    record = {"id": "TEST-Z-3", "summary": "synthetic",
+              "affected": [{"ranges": [{"type": "GIT", "repo": "https://github.com/madler/zlib.git",
+                                        "events": [{"introduced": SHA_A}, {"fixed": SHA_B}]}],
+                            "versions": ["v1.2.11"]}]}
+    (tmp_path / "osv.json").write_text(json.dumps([record]))
+    cands = candidates_from_cyclonedx(_bom("pkg:github/madler/zlib", "1.2.11"), _aliases())
+    found = match(cands, load_database(tmp_path, wanted_for(cands)))
+    assert found[0].state is VexState.EXPLOITABLE
 
 
 def test_a_mirror_purl_reaches_the_same_record(tmp_path):
