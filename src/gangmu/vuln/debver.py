@@ -69,7 +69,7 @@ def compare(a: str, b: str, ignore_epoch: bool = False) -> int:
 
 
 def has_revision(version: Optional[str]) -> bool:
-    return bool(version) and bool(split_version(version)[2])
+    return version is not None and bool(split_version(version)[2])
 
 
 def upstream_version(version: str) -> str:
@@ -96,7 +96,7 @@ def _in(version: str, rng: Mapping, ignore_epoch: bool) -> bool:
     return True
 
 
-def verdict(version: str, ranges: Iterable[Mapping]) -> Optional[bool]:
+def verdict(version: str, candidates: Iterable[Mapping]) -> Optional[bool]:
     """Is the Debian package *version* affected, from one advisory's Debian ranges?
 
     ``None`` means it cannot be told. Each range names its release (``Debian:12``) in
@@ -105,7 +105,8 @@ def verdict(version: str, ranges: Iterable[Mapping]) -> Optional[bool]:
     version is affected only if every release's range says so, unaffected only if none does.
     A version without a revision never gets a verdict: the revision is the whole answer.
     """
-    ranges: List[Mapping] = [r for r in ranges if r.get("ecosystem", "").lower().startswith("debian")]
+    ranges: List[Mapping] = [r for r in candidates
+                             if str(r.get("ecosystem") or "").lower().startswith("debian")]
     if not ranges or not has_revision(version):
         return None
     ignore_epoch = not split_version(version)[3]

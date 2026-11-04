@@ -380,7 +380,7 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                     deb_done.add(vkey)
                     # Debian files a CVE per release across records (DEBIAN-CVE-..., DSA-...),
                     # so the ranges of every record of this vulnerability are read together.
-                    deb_ranges = [r for a, r in by_purl[key] if vulnerability_key(a) == vkey]
+                    deb_ranges = [r for a, r in by_purl.get(key or "", []) if vulnerability_key(a) == vkey]
                     verdict_deb = (debver.verdict(candidate.package_version, deb_ranges)
                                    if candidate.package_version else None)
                     if verdict_deb is not None:
