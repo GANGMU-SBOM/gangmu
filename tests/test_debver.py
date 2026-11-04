@@ -2,7 +2,7 @@
 
 import pytest
 
-from gangmu.vuln.debver import compare, has_revision, release_of, split_version, verdict
+from gangmu.vuln.debver import compare, has_revision, release_of, split_version
 
 
 @pytest.mark.parametrize("low,high", [
@@ -25,21 +25,6 @@ def test_parts():
     assert split_version("1.2.3")[1:3] == ("1.2.3", "")
     assert has_revision("1.2.11-1") and not has_revision("1.2.11")
     assert release_of("1.2.11.dfsg-2+deb11u2") == "11" and release_of("1.2-3") is None
-
-
-R = [{"ecosystem": "Debian:11", "introduced": "0", "fixed": "1:1.2.11.dfsg-2+deb11u2"},
-     {"ecosystem": "Debian:12", "introduced": "0", "fixed": "1:1.2.11.dfsg-4.1"}]
-
-
-def test_verdicts():
-    assert verdict("1.2.11.dfsg-2+deb11u1", R) is True      # own release, before its fix
-    assert verdict("1.2.11.dfsg-2+deb11u2", R) is False     # own release, fixed
-    assert verdict("1.2.11.dfsg-1", R) is True              # older than every release's fix
-    assert verdict("1.2.13.dfsg-1", R) is False             # newer than every release's fix
-    assert verdict("1.2.11.dfsg-3", R) is None              # between the fixes, release unknown
-    assert verdict("1.2.11", R) is None                     # no revision: no answer
-    assert verdict("1.2.11.dfsg-2+deb10u1", R) is None      # a release the advisory omits
-    assert verdict("1.2.11-1", [{"ecosystem": "npm", "fixed": "9"}]) is None
 
 
 def test_upstream_version_inside_a_package_version():

@@ -10,7 +10,7 @@ reading of an advisory's per-release ranges against one package version.
 from __future__ import annotations
 
 import re
-from typing import Iterable, List, Mapping, Optional, Tuple
+from typing import Optional, Tuple
 
 
 def split_version(version: str) -> Tuple[int, str, str, bool]:
@@ -83,37 +83,3 @@ def release_of(version: str) -> Optional[str]:
     """The Debian release a security-update revision belongs to: ``+deb11u2`` -> ``11``."""
     found = re.search(r"[+~]deb(\d+)u\d+", version)
     return found.group(1) if found else None
-
-
-def _in(version: str, rng: Mapping, ignore_epoch: bool) -> bool:
-    introduced, fixed, last = rng.get("introduced"), rng.get("fixed"), rng.get("last_affected")
-    if introduced and introduced != "0" and compare(version, introduced, ignore_epoch) < 0:
-        return False
-    if fixed and compare(version, fixed, ignore_epoch) >= 0:
-        return False
-    if last and compare(version, last, ignore_epoch) > 0:
-        return False
-    return True
-
-
-def verdict(version: str, candidates: Iterable[Mapping]) -> Optional[bool]:
-    """Is the Debian package *version* affected, from one advisory's Debian ranges?
-
-    ``None`` means it cannot be told. Each range names its release (``Debian:12``) in
-    ``ecosystem`` and Debian fixes each release separately, so a version that names its
-    own release (``+deb11u2``) is read against that release's ranges only. Otherwise the
-    version is affected only if every release's range says so, unaffected only if none does.
-    A version without a revision never gets a verdict: the revision is the whole answer.
-    """
-    ranges: List[Mapping] = [r for r in candidates
-                             if str(r.get("ecosystem") or "").lower().startswith("debian")]
-    if not ranges or not has_revision(version):
-        return None
-    ignore_epoch = not split_version(version)[3]
-    release = release_of(version)
-    if release is not None:
-        ranges = [r for r in ranges if r["ecosystem"].split(":", 1)[-1] == release]
-        if not ranges:
-            return None
-    verdicts = {_in(version, r, ignore_epoch) for r in ranges}
-    return verdicts.pop() if len(verdicts) == 1 else None
