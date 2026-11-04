@@ -126,3 +126,49 @@ def test_a_mirror_purl_reaches_the_same_record(tmp_path):
     cands = candidates_from_cyclonedx(_bom("pkg:github/madler/zlib", "1.2.3"), _aliases())
     found = match(cands, load_database(tmp_path, wanted_for(cands)))
     assert [m.advisory.id for m in found] == ["TEST-Z-2"]
+
+
+def _debian_record(rid, fixed11, fixed12):
+    return {"id": rid, "aliases": ["CVE-2099-0300"], "summary": "synthetic", "affected": [
+        {"package": {"ecosystem": "Debian:11", "name": "zlib", "purl": "pkg:deb/debian/zlib?distro=bullseye"},
+         "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": fixed11}]}]},
+        {"package": {"ecosystem": "Debian:12", "name": "zlib", "purl": "pkg:deb/debian/zlib?distro=bookworm"},
+         "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": fixed12}]}]}]}
+
+
+def _git_record():
+    return {"id": "TEST-Z-9", "aliases": ["CVE-2099-0300"], "summary": "synthetic", "affected": [
+        {"ranges": [{"type": "GIT", "repo": "https://github.com/madler/zlib.git",
+                     "events": [{"introduced": SHA_A}, {"fixed": SHA_B}]}], "versions": ["v1.2.11"]}]}
+
+
+def _states(tmp_path, purl, version=None):
+    (tmp_path / "osv.json").write_text(json.dumps([
+        _debian_record("DEBIAN-CVE-2099-0300", "1:1.2.11.dfsg-2+deb11u2", "1:1.2.11.dfsg-4.1"),
+        _git_record()]))
+    cands = candidates_from_cyclonedx(_bom(purl, version), _aliases())
+    found = match(cands, load_database(tmp_path, wanted_for(cands)), include_not_affected=True)
+    return {m.advisory.id: m.state for m in found}, found
+
+
+def test_a_debian_revision_before_the_fix_is_exploitable(tmp_path):
+    states, found = _states(tmp_path, "pkg:deb/debian/zlib@1.2.11.dfsg-2%2Bdeb11u1")
+    assert set(states.values()) == {VexState.EXPLOITABLE}
+    assert len(found) == 1, "one vulnerability, counted once"
+
+
+def test_a_debian_revision_with_the_fix_is_not_affected_despite_the_upstream_range(tmp_path):
+    states, _ = _states(tmp_path, "pkg:deb/debian/zlib@1:1.2.11.dfsg-4.1")
+    assert set(states.values()) == {VexState.NOT_AFFECTED}
+
+
+def test_the_release_in_the_revision_selects_the_release_range(tmp_path):
+    # deb11u2 fixes bullseye; read against bookworm's fix it would look vulnerable
+    states, _ = _states(tmp_path, "pkg:deb/debian/zlib@1.2.11.dfsg-2%2Bdeb11u2")
+    assert set(states.values()) == {VexState.NOT_AFFECTED}
+
+
+def test_a_package_without_a_revision_stays_in_triage(tmp_path):
+    states, found = _states(tmp_path, "pkg:deb/echo/zlib-1.2.11")
+    assert set(states.values()) == {VexState.IN_TRIAGE}
+    assert "revision" in found[0].detail

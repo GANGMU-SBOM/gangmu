@@ -27,6 +27,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from .model import Advisory, Match, VexState
+from . import debver
 from .version import in_event_ranges, in_range, in_tag_set, is_orderable
 from ..core.cpe import split_cpe
 
@@ -141,6 +142,9 @@ class Candidate:
     """The SBOM names this component by a distribution package (``pkg:deb/...``,
     ``pkg:rpm/...``). Distributions backport fixes without raising the upstream version,
     so an upstream version inside an advisory's range does not make the package affected."""
+    package_version: Optional[str] = None
+    """The version of the distribution package itself (``1:1.2.11.dfsg-2+deb11u2``), when the
+    SBOM gives one with a revision; what a Debian advisory's ranges are read against."""
     linked: Optional[bool] = None
     """False when a link map showed none of the component's objects in the image;
     None when no link map was used (unknown, not "linked")."""
@@ -167,7 +171,8 @@ def candidates_from_cyclonedx(bom: dict, purl_aliases=None) -> List[Candidate]:
     from the rules) adds the other purls of each component's upstream, so a record filed
     under a mirror or a distribution package still reaches it; a distribution purl that
     wrote the version into the name (``zlib-1.2.11``) also supplies a missing version."""
-    from .aliases import DISTRO_TYPES, version_from_name, _split
+    from .aliases import DISTRO_TYPES, version_from_name, _split, purl_version
+    from .debver import has_revision, upstream_version
     out: List[Candidate] = []
     for component in bom.get("components", []) or []:
         props = {p.get("name"): p.get("value")
@@ -181,8 +186,14 @@ def candidates_from_cyclonedx(bom: dict, purl_aliases=None) -> List[Candidate]:
             confidence = 1.0
         linked = props.get("gangmu:linkedIntoImage")
         purls = [p for p in [component.get("purl")] if p]
+        package_version = None
+        for source in (component.get("version"), *map(purl_version, purls)):
+            if source and has_revision(source):
+                package_version = source
+                break
         version = component.get("version") or next(
-            (v for v in map(version_from_name, purls) if v), None)
+            (v for v in map(version_from_name, purls) if v), None) or (
+            upstream_version(package_version) if package_version else None)
         distro = any((_split(p) or ("",))[0] in DISTRO_TYPES for p in purls)
         if purl_aliases is not None:
             purls += purl_aliases.expand(purls)
@@ -193,6 +204,7 @@ def candidates_from_cyclonedx(bom: dict, purl_aliases=None) -> List[Candidate]:
             cpes=cpes,
             purls=purls,
             distro_package=distro,
+            package_version=package_version if distro else None,
             is_fork=bool(pedigree.get("patches")),
             fork_note=pedigree.get("notes", ""),
             confidence=confidence,
@@ -350,9 +362,54 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                            matched_on=rng["cpe"], state=state, detail=detail,
                            component_confidence=candidate.confidence))
 
-        for purl in candidate.purls:
+        # A distribution package: Debian's own records settle it before upstream ranges
+        # are looked at, so they are read first.
+        deb_decided: set = set()
+        ordered = (sorted(candidate.purls, key=lambda p: not (purl_key(p) or "").startswith("pkg:deb/"))
+                   if candidate.distro_package else candidate.purls)
+        for purl in ordered:
             key = purl_key(purl)
+            deb_done: set = set()
             for advisory, rng in by_purl.get(key or "", []):
+                if candidate.distro_package and (key or "").startswith("pkg:deb/"):
+                    # Debian's own ranges, read with Debian's version order, one verdict
+                    # per advisory (each release has a range of its own).
+                    vkey = vulnerability_key(advisory)
+                    if vkey in deb_done or rng.get("type") == "GIT":
+                        continue
+                    deb_done.add(vkey)
+                    # Debian files a CVE per release across records (DEBIAN-CVE-..., DSA-...),
+                    # so the ranges of every record of this vulnerability are read together.
+                    deb_ranges = [r for a, r in by_purl[key] if vulnerability_key(a) == vkey]
+                    verdict_deb = (debver.verdict(candidate.package_version, deb_ranges)
+                                   if candidate.package_version else None)
+                    if verdict_deb is not None:
+                        deb_decided.add(vulnerability_key(advisory))
+                    if verdict_deb is None:
+                        why = ("the package version has no Debian revision, so it cannot be "
+                               "placed against the fixed revision; give the full package version"
+                               if not candidate.package_version else
+                               "the package version cannot be placed against the release "
+                               "ranges of this advisory")
+                        state, detail = VexState.IN_TRIAGE, why
+                    elif verdict_deb:
+                        state, detail = (VexState.EXPLOITABLE,
+                                         f"package {candidate.package_version} is older than "
+                                         f"the Debian fix")
+                    else:
+                        state, detail = (VexState.NOT_AFFECTED,
+                                         f"package {candidate.package_version} carries the "
+                                         f"Debian fix")
+                    if state is VexState.NOT_AFFECTED and not include_not_affected:
+                        continue
+                    keep((vulnerability_key(advisory), candidate.directory),
+                         Match(advisory=advisory, component=candidate.name,
+                               directory=candidate.directory, version=candidate.version,
+                               channel="purl", matched_on=rng["purl"], state=state,
+                               detail=detail, component_confidence=candidate.confidence))
+                    continue
+                if vulnerability_key(advisory) in deb_decided:
+                    continue            # Debian's revision verdict outranks upstream's range
                 verdict = None
                 if rng.get("type") == "GIT" and rng.get("extracted"):
                     verdict = in_event_ranges(candidate.version, rng["extracted"])

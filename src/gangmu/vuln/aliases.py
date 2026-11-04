@@ -63,6 +63,14 @@ def keys_for(purl: str) -> Set[str]:
     return keys
 
 
+def purl_version(purl: str) -> Optional[str]:
+    """The ``@version`` of a purl, percent-decoded (``1%3A1.2.11`` -> ``1:1.2.11``)."""
+    from urllib.parse import unquote
+    body = purl.split("#", 1)[0].split("?", 1)[0]
+    at = body.find("@", body.rfind("/") + 1)
+    return unquote(body[at + 1:]) or None if at != -1 else None
+
+
 def version_from_name(purl: str) -> Optional[str]:
     """The version a distribution purl wrote into its name (``zlib-1.2.11``), if any
     and if the purl carries no ``@version`` of its own."""
