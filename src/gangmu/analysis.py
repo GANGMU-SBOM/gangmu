@@ -56,7 +56,7 @@ from .functions import extract_functions
 from .core.globbing import compile_any
 from .normalize import tokenize
 
-MAX_FILE_BYTES = 4 * 1024 * 1024
+MAX_FILE_BYTES = 16 * 1024 * 1024   # a SQLite amalgamation is 9 MB
 WALK_SKIP = frozenset({".git", "__pycache__"})
 PARALLEL_FILE_THRESHOLD = 32       # below this a pool costs more than it saves
 BOTTOM_CAP = DEFAULT_SKETCH        # per-file fingerprints kept; see module docstring

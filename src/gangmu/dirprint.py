@@ -44,7 +44,7 @@ DEFAULT_EXCLUDE: Tuple[str, ...] = (
     "**/test/**", "**/tests/**", "**/doc/**", "**/docs/**",
     "**/example/**", "**/examples/**", "**/contrib/**", "**/.git/**",
 )
-MAX_FILE_BYTES = 4 * 1024 * 1024
+MAX_FILE_BYTES = 16 * 1024 * 1024   # a SQLite amalgamation is 9 MB
 PARALLEL_FILE_THRESHOLD = 64        # below this, process startup costs more than it saves
 
 

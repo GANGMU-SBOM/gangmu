@@ -121,6 +121,64 @@ def _opens_namespace(toks: Sequence[bytes], i: int) -> bool:
     return k >= 0 and toks[k] == b"namespace"
 
 
+_IF = frozenset((b"if", b"ifdef", b"ifndef"))
+
+
+def _brace_levels(toks: Sequence[bytes]) -> List[int]:
+    """Brace depth before each token, and after the last one (``n + 1`` values).
+
+    Every brace counts, in every preprocessor branch, so a function defined only in an
+    ``#else`` is still found. The one correction is for alternatives that each open
+    (or close) the same block::
+
+        #if SQLITE_OS_WINCE
+          if( winSeekFile(pFile, offset) ){ ... }
+          while( !osReadFile(...) ){
+        #else
+          while( !osReadFile(...) ){
+        #endif
+
+    A plain count sees two opening braces for one closing one, and every function after
+    it in the file is lost (SQLite's amalgamation lost three quarters of its functions at
+    ``winRead``; curl's ``multi.c``, lwIP's ``sockets.c`` and wolfSSL's ``internal.c``
+    lost dozens). So each ``#elif``/``#else`` branch starts from the depth its ``#if``
+    began at, and when two or more branches change the depth by the same non-zero amount
+    it is applied once. Any other mix keeps the plain count, which is right for the
+    common ``#ifdef X  for (...) {  #endif ... #ifdef X  }  #endif``: a block opened in one
+    conditional and closed in another. Code whose conditionals change no depth, which is
+    nearly all of it, gets exactly the plain count, so its functions and their hashes are
+    unchanged.
+    """
+    level = [0] * (len(toks) + 1)
+    depth = 0
+    stack: List[Tuple[int, List[int]]] = []    # (depth at #if, net change of each branch)
+    after_hash = False
+    for i, tok in enumerate(toks):
+        level[i] = depth
+        if tok == _OPEN:
+            depth += 1
+        elif tok == _CLOSE:
+            depth -= 1
+        elif after_hash:
+            if tok in _IF:
+                stack.append((depth, []))
+            elif stack and (tok == b"else" or tok == b"elif"):
+                entry, nets = stack[-1]
+                nets.append(depth - entry)
+                depth = entry
+            elif tok == b"endif" and stack:
+                entry, nets = stack.pop()
+                nets.append(depth - entry)
+                moved = [n for n in nets if n]
+                if len(moved) > 1 and len(set(moved)) == 1:
+                    depth = entry + moved[0]          # alternatives: one block, not several
+                else:
+                    depth = entry + sum(moved)        # what a plain count gives
+        after_hash = tok == b"#"
+    level[len(toks)] = depth
+    return level
+
+
 def extract_functions(data: bytes, tokens: Optional[List[bytes]] = None,
                       with_refs: bool = False,
                       min_tokens: int = MIN_BODY_TOKENS) -> List[Function]:
@@ -132,26 +190,23 @@ def extract_functions(data: bytes, tokens: Optional[List[bytes]] = None,
     toks = tokenize(data) if tokens is None else tokens
     out: List[Function] = []
     n = len(toks)
-    depth = 0
+    level = _brace_levels(toks)      # brace depth before each token, #else-aware
     wrappers = 0                    # open `extern "C" {` blocks around the file
     i = 0
     while i < n:
         tok = toks[i]
+        depth = level[i] - wrappers
         if tok == _OPEN:
             # `extern "C" {` wraps a whole header or source file in many C
             # libraries; the functions inside it are still at file scope.
             if depth == 0 and (i >= 2 and toks[i - 2] == b"extern"
                                and toks[i - 1] == b'"C"' or _opens_namespace(toks, i)):
                 wrappers += 1
-            else:
-                depth += 1
             i += 1
             continue
         if tok == _CLOSE:
             if depth == 0 and wrappers:
                 wrappers -= 1
-            else:
-                depth -= 1
             i += 1
             continue
         if depth != 0 or tok != _LPAREN or i == 0:
@@ -207,17 +262,15 @@ def extract_functions(data: bytes, tokens: Optional[List[bytes]] = None,
             i = j
             continue
 
-        # Balanced body.
-        body = 1
+        # Balanced body: it ends at the `}` that brings the depth back to where the
+        # `{` opened it, read through #if/#else as _brace_levels does.
+        base = level[k]
         end = k + 1
-        while end < n and body:
-            if toks[end] == _OPEN:
-                body += 1
-            elif toks[end] == _CLOSE:
-                body -= 1
+        while end < n and not (toks[end] == _CLOSE and level[end + 1] == base):
             end += 1
-        if body:
+        if end >= n:
             break
+        end += 1
 
         start = name_index
         span = toks[start:end]
