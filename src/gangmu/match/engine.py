@@ -834,6 +834,7 @@ class MatchEngine:
             upstream_name=rule.upstream_name,
             purl=rule.purl_with_version(version),
             cpe=rule.cpe_with_version(version),
+            cpe_aliases=rule.cpe_aliases_with_version(version),
             homepage=rule.homepage,
             declared_license=rule.license,
             version=version,

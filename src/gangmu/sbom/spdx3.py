@@ -125,9 +125,9 @@ def _package(doc: _Doc, finding: Finding) -> str:
     if finding.homepage:
         pkg["software_homePage"] = finding.homepage
     if finding.cpe:
-        pkg["externalIdentifier"] = [{"type": "ExternalIdentifier",
-                                      "externalIdentifierType": "cpe23",
-                                      "identifier": finding.cpe}]
+        pkg["externalIdentifier"] = [
+            {"type": "ExternalIdentifier", "externalIdentifierType": "cpe23", "identifier": cpe}
+            for cpe in (finding.cpe, *finding.cpe_aliases)]
     if finding.content_hash:
         # Same fileset digest as the CycloneDX writer: a vendored tree has no archive.
         pkg["verifiedUsing"] = [{"type": "Hash", "algorithm": "sha256",

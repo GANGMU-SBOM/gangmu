@@ -196,6 +196,12 @@ class Rule:
 
     purl: Optional[str] = None
     cpe: Optional[str] = None
+    identifiers: Tuple[str, ...] = ()
+    """Other purls of the same upstream (``upstream.identifiers``): the project's mirror
+    on another host (``pkg:gitlab/libtiff/libtiff``), the package a distribution ships it
+    as (``pkg:deb/debian/zlib``, ``pkg:rpm/fedora/zlib``). ``purl`` stays the name the SBOM
+    asserts; these only let a vulnerability filed under another name reach the component
+    (``gangmu.vuln.aliases``). No version: it comes from the scan."""
     cpe_aliases: Tuple[str, ...] = ()
     """Deprecated or alternative CPE names for the same product.
 
@@ -601,6 +607,14 @@ def rule_from_dict(data: Mapping[str, Any], source_path: str = "") -> Rule:
         raise RuleError(f"{source_path}: 'upstream.purl' must start with 'pkg:', "
                         f"got {purl!r}")
 
+    identifiers = _tuple(upstream.get("identifiers"))
+    for ident in identifiers:
+        if not ident.startswith("pkg:") or "/" not in ident[4:] or any(c.isspace() for c in ident):
+            raise RuleError(f"{source_path}: 'upstream.identifiers' entries are purls "
+                            f"(pkg:type/name), got {ident!r}")
+    if identifiers and not purl:
+        raise RuleError(f"{source_path}: 'upstream.identifiers' without a primary 'purl'")
+
     ceiling = float(data.get("confidence_ceiling", 0.95))
     if not 0.0 < ceiling <= 1.0:
         raise RuleError(f"{source_path}: confidence_ceiling must be in (0, 1]")
@@ -618,6 +632,7 @@ def rule_from_dict(data: Mapping[str, Any], source_path: str = "") -> Rule:
         config_gates=_config_gates(component.get("config_symbols"), source_path),
         purl=(str(upstream["purl"]) if upstream.get("purl") else None),
         cpe=(str(upstream["cpe"]) if upstream.get("cpe") else None),
+        identifiers=identifiers,
         cpe_aliases=aliases,
         cpe_evidence=evidence,
         cpe_status=(str(upstream["cpe_status"]) if upstream.get("cpe_status") else None),

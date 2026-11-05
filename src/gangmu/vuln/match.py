@@ -27,6 +27,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from .model import Advisory, Match, VexState
+from . import distver
 from .version import in_event_ranges, in_range, in_tag_set, is_orderable
 from ..core.cpe import split_cpe
 
@@ -104,8 +105,8 @@ def purl_from_repo(url: Optional[str]) -> Optional[str]:
 _ECOSYSTEM_PURL = {"pypi": "pypi", "npm": "npm", "maven": "maven", "go": "golang",
                    "crates.io": "cargo", "nuget": "nuget", "rubygems": "gem",
                    "packagist": "composer", "hex": "hex", "pub": "pub",
-                   "conancenter": "conan", "debian": "deb", "alpine": "apk"}
-_DISTRO_NAMESPACE = {"debian": "debian", "alpine": "alpine"}
+                   "conancenter": "conan", "debian": "deb", "ubuntu": "deb", "alpine": "apk"}
+_DISTRO_NAMESPACE = {"debian": "debian", "ubuntu": "ubuntu", "alpine": "alpine"}
 
 
 def purl_from_package(package: Optional[dict]) -> Optional[str]:
@@ -137,6 +138,19 @@ class Candidate:
     confidence: float = 1.0
     subsystem_advisories: bool = False
     """The component is an OS/SDK tree whose advisories each concern one subsystem."""
+    distro_package: bool = False
+    """The SBOM names this component by a distribution package (``pkg:deb/...``,
+    ``pkg:rpm/...``). Distributions backport fixes without raising the upstream version,
+    so an upstream version inside an advisory's range does not make the package affected."""
+    distro_family: Optional[str] = None
+    """``debian``, ``ubuntu`` or ``alpine`` when the SBOM names the component by one of their
+    packages: those distributions' own records, in their own version order, decide it."""
+    distro_release: Optional[str] = None
+    """The release it belongs to (``12``, ``22.04``, ``3.18``) when the purl's ``distro``
+    qualifier or the revision says so; each release has its own fixed revision."""
+    package_version: Optional[str] = None
+    """The version of the distribution package itself (``1:1.2.11.dfsg-2+deb11u2``), when the
+    SBOM gives one with a revision; what a Debian advisory's ranges are read against."""
     linked: Optional[bool] = None
     """False when a link map showed none of the component's objects in the image;
     None when no link map was used (unknown, not "linked")."""
@@ -145,7 +159,7 @@ class Candidate:
 def candidates_from_scan(result) -> List[Candidate]:
     out: List[Candidate] = []
     for finding in result.findings:
-        cpes = [c for c in [finding.cpe] if c]
+        cpes = [c for c in [finding.cpe, *finding.cpe_aliases] if c]
         out.append(Candidate(
             name=finding.upstream_name, directory=finding.directory,
             version=finding.version, cpes=cpes,
@@ -158,7 +172,14 @@ def candidates_from_scan(result) -> List[Candidate]:
     return out
 
 
-def candidates_from_cyclonedx(bom: dict) -> List[Candidate]:
+def candidates_from_cyclonedx(bom: dict, purl_aliases=None) -> List[Candidate]:
+    """Candidates of a CycloneDX SBOM. *purl_aliases* (:class:`~.aliases.PurlAliases`, built
+    from the rules) adds the other purls of each component's upstream, so a record filed
+    under a mirror or a distribution package still reaches it; a distribution purl that
+    wrote the version into the name (``zlib-1.2.11``) also supplies a missing version."""
+    from .aliases import DISTRO_TYPES, version_from_name, _split, purl_version
+    from .debver import has_revision, upstream_version
+    import re as _re
     out: List[Candidate] = []
     for component in bom.get("components", []) or []:
         props = {p.get("name"): p.get("value")
@@ -171,12 +192,35 @@ def candidates_from_cyclonedx(bom: dict) -> List[Candidate]:
         except (TypeError, ValueError):
             confidence = 1.0
         linked = props.get("gangmu:linkedIntoImage")
+        purls = [p for p in [component.get("purl")] if p]
+        family_purl = next((p for p in purls if distver.family_of_purl(p)), None)
+        family = distver.family_of_purl(family_purl) if family_purl else None
+        revised = family.has_revision if family else has_revision
+        package_version = None
+        for source in (component.get("version"), *map(purl_version, purls)):
+            if source and revised(source):
+                package_version = source
+                break
+        upstream = None
+        if package_version:
+            upstream = (_re.sub(r"-r[0-9]+$", "", package_version) if family and family.name == "alpine"
+                        else upstream_version(package_version))
+        version = component.get("version") or next(
+            (v for v in map(version_from_name, purls) if v), None) or upstream
+        distro = any((_split(p) or ("",))[0] in DISTRO_TYPES for p in purls)
+        if purl_aliases is not None:
+            purls += purl_aliases.expand(purls)
         out.append(Candidate(
             name=component.get("name", "?"),
             directory=props.get("gangmu:directory", ""),
-            version=component.get("version"),
+            version=version,
             cpes=cpes,
-            purls=[p for p in [component.get("purl")] if p],
+            purls=purls,
+            distro_package=distro,
+            package_version=package_version if distro else None,
+            distro_family=family.name if family else None,
+            distro_release=(distver.release_from_purl(family_purl, package_version)
+                            if family_purl else None),
             is_fork=bool(pedigree.get("patches")),
             fork_note=pedigree.get("notes", ""),
             confidence=confidence,
@@ -259,6 +303,12 @@ def _state_for(candidate: Candidate, verdict: Optional[bool],
                 f"version {candidate.version!r} cannot be ordered against the "
                 f"advisory's range, so neither affected nor unaffected can be "
                 f"established from the SBOM alone")
+    if candidate.distro_package:
+        return (VexState.IN_TRIAGE,
+                f"version {candidate.version!r} is inside the advisory's range, but this is a "
+                f"distribution package: distributions backport fixes without changing the "
+                f"upstream version (Debian fixed zlib CVE-2022-37434 in 1:1.2.11.dfsg-4.1). "
+                f"Compare the package revision with the distribution's own advisory")
     if candidate.is_fork:
         note = candidate.fork_note or "the vendor's copy differs from upstream"
         return (VexState.IN_TRIAGE,
@@ -328,9 +378,55 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                            matched_on=rng["cpe"], state=state, detail=detail,
                            component_confidence=candidate.confidence))
 
-        for purl in candidate.purls:
+        # A distribution package: its distribution's own records settle it before the
+        # upstream ranges are looked at, so they are read first.
+        decided: set = set()
+        ordered = (sorted(candidate.purls, key=lambda p: distver.family_of_purl(p) is None)
+                   if candidate.distro_package else candidate.purls)
+        for purl in ordered:
             key = purl_key(purl)
+            done: set = set()
+            range_family = distver.family_of_key(key) if candidate.distro_package else None
             for advisory, rng in by_purl.get(key or "", []):
+                if range_family is not None:
+                    if range_family.name != candidate.distro_family:
+                        continue        # another distribution's package: not this one
+                    vkey = vulnerability_key(advisory)
+                    if vkey in done or rng.get("type") == "GIT":
+                        continue
+                    done.add(vkey)
+                    # A distribution files a CVE per release across records (DEBIAN-CVE-...,
+                    # DSA-..., USN-...), so every record of this vulnerability is read together.
+                    group = [r for a, r in by_purl.get(key or "", []) if vulnerability_key(a) == vkey]
+                    package = candidate.package_version
+                    answer = (distver.verdict(range_family, package, group, candidate.distro_release)
+                              if package else None)
+                    name = range_family.name.capitalize()
+                    if answer is not None:
+                        decided.add(vkey)
+                    if answer is None:
+                        why = (f"the package version has no {name} revision, so it cannot be placed "
+                               f"against the fixed revision; give the full package version"
+                               if not package else
+                               f"the package version cannot be placed against {name}'s release "
+                               f"ranges for this advisory")
+                        state, detail = VexState.IN_TRIAGE, why
+                    elif answer:
+                        state, detail = (VexState.EXPLOITABLE,
+                                         f"package {package} is older than the {name} fix")
+                    else:
+                        state, detail = (VexState.NOT_AFFECTED,
+                                         f"package {package} carries the {name} fix")
+                    if state is VexState.NOT_AFFECTED and not include_not_affected:
+                        continue
+                    keep((vkey, candidate.directory),
+                         Match(advisory=advisory, component=candidate.name,
+                               directory=candidate.directory, version=candidate.version,
+                               channel="purl", matched_on=rng["purl"], state=state,
+                               detail=detail, component_confidence=candidate.confidence))
+                    continue
+                if vulnerability_key(advisory) in decided:
+                    continue            # the distribution's revision verdict outranks upstream's range
                 verdict = None
                 if rng.get("type") == "GIT" and rng.get("extracted"):
                     verdict = in_event_ranges(candidate.version, rng["extracted"])

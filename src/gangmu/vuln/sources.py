@@ -291,6 +291,8 @@ def load_osv(path: Path, wanted: Optional[Wanted] = None) -> List[Advisory]:
                     ranges.append({
                         "purl": purl,
                         "type": rng.get("type", "ECOSYSTEM"),
+                        # "Debian:12": a distribution fixes each release on its own
+                        "ecosystem": package.get("ecosystem"),
                         "introduced": introduced,
                         "fixed": fixed,
                         "last_affected": last_affected,
@@ -308,7 +310,10 @@ def load_osv(path: Path, wanted: Optional[Wanted] = None) -> List[Advisory]:
             references=[r.get("url") for r in record.get("references", []) or []
                         if r.get("url")],
             osv_ranges=ranges,
-            aliases=list(record.get("aliases") or [])))
+            # Debian and Ubuntu records name the CVE they repackage under ``upstream``
+            # (DEBIAN-CVE-2022-37434, DSA-5218-1 -> CVE-2022-37434), not ``aliases``.
+            aliases=list(dict.fromkeys([*(record.get("aliases") or []),
+                                        *(record.get("upstream") or [])]))))
     if wanted is not None:
         out = [a for a in out if any(purl_key(r["purl"]) in wanted.purl_keys
                                      for r in a.osv_ranges)]
