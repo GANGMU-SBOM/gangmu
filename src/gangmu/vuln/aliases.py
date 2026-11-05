@@ -71,6 +71,17 @@ def purl_version(purl: str) -> Optional[str]:
     return unquote(body[at + 1:]) or None if at != -1 else None
 
 
+def without_name_version(purl: str) -> Optional[str]:
+    """``pkg:deb/echo/zlib-1.2.11`` -> ``pkg:deb/echo/zlib``: a distribution purl whose
+    writer put the version into the name, given the name the distribution uses. ``None``
+    when there is nothing to take off."""
+    if version_from_name(purl) is None:
+        return None
+    body = strip_version(purl)
+    head, _, name = body.rpartition("/")
+    return f"{head}/{_VERSION_SUFFIX.sub('', name)}"
+
+
 def version_from_name(purl: str) -> Optional[str]:
     """The version a distribution purl wrote into its name (``zlib-1.2.11``), if any
     and if the purl carries no ``@version`` of its own."""

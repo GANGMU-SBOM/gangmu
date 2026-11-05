@@ -24,6 +24,8 @@ def _purl_aliases(args: argparse.Namespace):
     vulnerability step works without rules, and then names an upstream only as it is
     written."""
     from ..vuln.aliases import PurlAliases
+    if getattr(args, "no_purl_aliases", False):
+        return None
     try:
         return PurlAliases.from_rules(_load_rulebase(getattr(args, "rules", None)))
     except SystemExit:

@@ -867,6 +867,9 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("--rules", action="append", metavar="DIR",
                    help="rule directory whose patches/ holds patch records "
                         "(default: the installed rule packs); repeatable")
+    v.add_argument("--no-purl-aliases", action="store_true",
+                   help="match each component only under the purls the SBOM writes, "
+                        "without the other names rules list in upstream.identifiers")
     v.add_argument("--patch-near-vex", action="store_true",
                    help="with --patches: let an edited function that is a close "
                         "variant of the fixed (or the vulnerable) code change "

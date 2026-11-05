@@ -3,6 +3,10 @@
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
 ## Unreleased
+* **Echo packages are read against Echo's own OSV records.** OSV has an `Echo` ecosystem (Echo's hardened images are Debian-based: `pkg:deb/echo/<name>`, versions such as `1:1.3.dfsg+really1.3.1-1+e2`); it is now read in dpkg order like Debian and Ubuntu. A purl that put the version into the name (`pkg:deb/echo/zlib-1.2.11`) also gets the key without it, so it meets the distribution's records.
+* **A distribution package without a revision is first read by its upstream release.** Distributions backport a fix into a revision, never into an older upstream release: an upstream below every fix's upstream is affected, one above every fix's is not, and the same upstream as a fix still needs the revision. `pkg:deb/echo/zlib-1.2.11` is therefore exploitable for Echo's two zlib records, where it was in_triage.
+* **A match reached through a rule's alias says so.** The detail names the `upstream.identifiers` alias it went through; `gangmu vuln --no-purl-aliases` matches only the purls the SBOM writes.
+* **Fixed: OSV GIT records under kernel.org, savannah, sourceware and other repositories are no longer dropped.** The purl spec has no type for those hosts, and a record naming such a repository was skipped whole (OSV has records for tftp-hpa, gdbm, binutils and more). They now map to `pkg:generic/<host>/<path>`, which a rule can list in `upstream.identifiers`; GitLab subgroup repositories map to `pkg:gitlab/<group>/<subgroup>/<project>`.
 
 ## 0.18.0
 * **Requires gangmu-rules 2026.11.5.** Its 358 rebuilt function signatures were built with this version's function extractor, and 170 of its rules list `upstream.identifiers`; an older rule base's signatures partly disagree with the functions this version extracts. `pip install -U gangmu-sbom` upgrades the rule base too, and CI is pinned to v2026.11.5.

@@ -3,6 +3,10 @@
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
 ## 未发布
+* **Echo 发行版的包按 Echo 自己的 OSV 记录判定。** OSV 有 `Echo` 生态（Echo 的加固镜像基于 Debian，purl 为 `pkg:deb/echo/<包名>`，版本如 `1:1.3.dfsg+really1.3.1-1+e2`），现在和 Debian、Ubuntu 一样用 dpkg 顺序读它。把版本写进包名的 purl（`pkg:deb/echo/zlib-1.2.11`）会补上去掉版本的键，能对上发行版的记录。
+* **没有修订号的发行版包，先看上游版本。** 发行版把修复回移植进修订号，不会回移植进更旧的上游版本：上游版本低于每个修复的上游版本的，判为受影响；高于的判为不受影响；等于的仍要修订号才能判定。`pkg:deb/echo/zlib-1.2.11` 因此对 Echo 的两条 zlib 记录直接判为 exploitable，原来是 in_triage。
+* **经由规则别名命中的漏洞会注明。** 说明里写出经由哪个 `upstream.identifiers` 别名匹配；`gangmu vuln --no-purl-aliases` 只按 SBOM 写的 purl 匹配。
+* **修正：OSV 里挂在 kernel.org、savannah、sourceware 等仓库下的 GIT 记录不再被丢弃。** purl 规范没有这些主机的类型，原来读到这样的仓库地址就跳过整条记录（OSV 有 tftp-hpa、gdbm、binutils 等的记录）。现在映射成 `pkg:generic/<主机>/<路径>`，规则可以把它写进 `upstream.identifiers`；GitLab 子组的仓库映射成 `pkg:gitlab/<组>/<子组>/<项目>`。
 
 ## 0.18.0
 * **需要 gangmu-rules 2026.11.5。** 规则库里 358 条函数签名是用本版的函数抽取器重建的，170 条规则写了 `upstream.identifiers`；旧规则库的签名与本版抽取的函数对不上一部分。`pip install -U gangmu-sbom` 会一并升级规则库，CI 也固定到 v2026.11.5。
