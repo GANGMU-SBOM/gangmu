@@ -45,6 +45,10 @@ DEFAULT_EXCLUDE: Tuple[str, ...] = (
     "**/example/**", "**/examples/**", "**/contrib/**", "**/.git/**",
 )
 MAX_FILE_BYTES = 16 * 1024 * 1024   # a SQLite amalgamation is 9 MB
+# Files above this still give their functions, but stay out of the exact-copy hash
+# (fileset_sha256) and the winnowed sketch, which were defined over files up to 4 MiB:
+# rules record both, and raising the limit for functions must not change them.
+SKETCH_FILE_BYTES = 4 * 1024 * 1024
 PARALLEL_FILE_THRESHOLD = 64        # below this, process startup costs more than it saves
 
 
@@ -95,7 +99,8 @@ def _analyse_one(args) -> Tuple[str, List[int], List[int], List[int]]:
             functions.append(f.hash)
             if f.abstract_hash is not None:
                 abstract.append(f.abstract_hash)
-    fingerprints = list(winnow(kgram_hashes(tokens, k), window)) if want_fingerprints else []
+    fingerprints = (list(winnow(kgram_hashes(tokens, k), window))
+                    if want_fingerprints and len(data) <= SKETCH_FILE_BYTES else [])
     return path, functions, abstract, fingerprints
 
 
@@ -287,6 +292,14 @@ class SketchCache:
             pass          # a cache that cannot be written is not an error
 
 
+def _sketched(path_str: str) -> bool:
+    """Whether a file counts towards the fileset hash and the sketch."""
+    try:
+        return os.path.getsize(path_str) <= SKETCH_FILE_BYTES
+    except OSError:
+        return False
+
+
 def _hash_one(path_str: str) -> Tuple[str, str]:
     h = hashlib.sha256()
     try:
@@ -318,7 +331,7 @@ def print_directory(root: Path, include: Sequence[str] = DEFAULT_INCLUDE,
     else:
         results = [_hash_one(str(p)) for p in files]
     for path, digest in results:
-        if digest:
+        if digest and _sketched(path):
             out.file_hashes[Path(path).relative_to(root).as_posix()] = digest
     return out
 
@@ -367,7 +380,9 @@ def print_from_store(store: "AnalysisStore", directory: Path,
                          k=k, window=window, jobs=store.jobs,
                          store=store, rels=kept)
     for rel in kept:
-        out.file_hashes[rel[cut:]] = shas[rel]
+        st = store.index.stat(rel)
+        if st is not None and st.st_size <= SKETCH_FILE_BYTES:
+            out.file_hashes[rel[cut:]] = shas[rel]
     return out
 
 

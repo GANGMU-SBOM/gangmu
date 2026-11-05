@@ -122,7 +122,12 @@ def analyse_bytes(data: bytes, k: int, window: int,
         functions.add(f.hash)
         if f.abstract_hash is not None:
             abstract.add(f.abstract_hash)
-    bottom, total = sorted_fingerprints(tokens, k, window, cap)
+    from .dirprint import SKETCH_FILE_BYTES
+    if len(data) > SKETCH_FILE_BYTES:      # functions only: see dirprint.SKETCH_FILE_BYTES
+        bottom: Sequence[int] = []
+        total = 0
+    else:
+        bottom, total = sorted_fingerprints(tokens, k, window, cap)
     return FileAnalysis(array("Q", sorted(functions)), array("Q", sorted(abstract)),
                         array("Q", bottom), total)
 
