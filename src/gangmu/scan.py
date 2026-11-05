@@ -407,6 +407,7 @@ def _binary_findings(binaries, rulebase: RuleBase) -> List[Finding]:
             purl = emb.purl or (rule.purl_with_version(version) if rule
                                 else f"pkg:generic/{emb.name}"
                                 + (f"@{version}" if version and "~" not in version else ""))
+            cpe_aliases = rule.cpe_aliases_with_version(version) if rule else []
             cpe = emb.cpe or (rule.cpe_with_version(version) if rule
                               else _spliced(known[1], version) if known else None)
             if exact and version:
@@ -427,7 +428,7 @@ def _binary_findings(binaries, rulebase: RuleBase) -> List[Finding]:
                 directory=blob.path,
                 rule_id=f"binary/{emb.name}",
                 upstream_name=rule.upstream_name if rule else emb.display_name,
-                purl=purl, cpe=cpe,
+                purl=purl, cpe=cpe, cpe_aliases=cpe_aliases,
                 homepage=rule.homepage if rule else None,
                 declared_license=rule.license if rule else None,
                 version=version,
@@ -509,6 +510,7 @@ def _apply_declarations(root: Path, findings: List[Finding], rulebase: RuleBase,
                     if rule is not None:
                         existing.purl = rule.purl_with_version(decl.version)
                         existing.cpe = rule.cpe_with_version(decl.version)
+                        existing.cpe_aliases = rule.cpe_aliases_with_version(decl.version)
                 else:
                     existing.evidence.append(Evidence(
                         technique=Technique.OTHER, confidence=0.0,
@@ -569,6 +571,7 @@ def _declared_finding(rel: str, decl: Declaration, rulebase: RuleBase,
     version = decl.version
     purl = decl.purl
     cpe = _spliced(decl.cpe, version)
+    cpe_aliases: List[str] = []
     if rule is not None:
         # The upstream version is declared, so the rule's upstream identifiers
         # apply as they are. (An RT-Thread package version never reaches here:
@@ -576,12 +579,14 @@ def _declared_finding(rel: str, decl: Declaration, rulebase: RuleBase,
         # CVEs, or none.)
         purl = rule.purl_with_version(version) or purl
         cpe = rule.cpe_with_version(version)
+        cpe_aliases = rule.cpe_aliases_with_version(version)
     return Finding(
         directory=rel,
         rule_id=f"declared/{decl.ecosystem}/{decl.name}",
         upstream_name=rule.upstream_name if rule else (decl.display_name or decl.name),
         purl=purl,
         cpe=cpe,
+        cpe_aliases=cpe_aliases,
         homepage=decl.upstream_url or (rule.homepage if rule else None),
         declared_license=(rule.license if rule and rule.license else
                           _spdx_or_none(decl.license)),

@@ -27,6 +27,9 @@ class Finding:
     upstream_name: str
     purl: Optional[str] = None
     cpe: Optional[str] = None
+    cpe_aliases: List[str] = field(default_factory=list)
+    """Other CPE names of the same product, spliced with the version (``upstream.cpe_aliases``
+    of the rule): NVD files old CVEs under a vendor name it later dropped."""
     homepage: Optional[str] = None
     declared_license: Optional[str] = None
 

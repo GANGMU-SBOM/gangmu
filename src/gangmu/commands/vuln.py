@@ -16,7 +16,18 @@ from ..vuln import (apply_linkage, candidates_from_cyclonedx, enrich as cn_enric
                     load_database, match as match_vulns, wanted_for, summary as vex_summary,
                     to_vex, unmatched_components, without_cpe)
 
-from .common import (_build_macros, _resolve_jobs, _write)
+from .common import (_build_macros, _load_rulebase, _resolve_jobs, _write)
+
+
+def _purl_aliases(args: argparse.Namespace):
+    """Purl aliases from the rule base, or None when there is none to read: the
+    vulnerability step works without rules, and then names an upstream only as it is
+    written."""
+    from ..vuln.aliases import PurlAliases
+    try:
+        return PurlAliases.from_rules(_load_rulebase(getattr(args, "rules", None)))
+    except SystemExit:
+        return None
 
 
 def cmd_vuln(args: argparse.Namespace) -> int:
@@ -29,7 +40,7 @@ def cmd_vuln(args: argparse.Namespace) -> int:
         print("error: --sbom must be a CycloneDX document "
               "(gangmu scan --format cyclonedx)", file=sys.stderr)
         return 2
-    candidates = candidates_from_cyclonedx(bom)
+    candidates = candidates_from_cyclonedx(bom, _purl_aliases(args))
     try:
         # Only records naming one of this SBOM's products are built: a full
         # NVD mirror is a third of a million records.
@@ -499,7 +510,7 @@ def cmd_vuln_coverage(args: argparse.Namespace) -> int:
         print("error: the SBOM must be a CycloneDX document", file=sys.stderr)
         return 2
     try:
-        report = coverage(candidates_from_cyclonedx(bom), Path(args.db), args.cutoff)
+        report = coverage(candidates_from_cyclonedx(bom, _purl_aliases(args)), Path(args.db), args.cutoff)
     except FileNotFoundError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -567,7 +578,7 @@ def cmd_vuln_fetch(args: argparse.Namespace) -> int:
         except (OSError, json.JSONDecodeError) as exc:
             print(f"error: cannot read SBOM {args.sbom}: {exc}", file=sys.stderr)
             return 2
-        candidates = candidates_from_cyclonedx(bom)
+        candidates = candidates_from_cyclonedx(bom, _purl_aliases(args))
         wanted = wanted_for(candidates)
         products += sorted(wanted.cpe_keys)
         purls += sorted(wanted.purl_keys)

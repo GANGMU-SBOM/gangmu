@@ -33,6 +33,12 @@ upstream:
   name: lwIP                        # the thing it actually is
   purl: "pkg:generic/lwip"          # version is spliced in at scan time
   cpe: "cpe:2.3:a:lwip_project:lwip:*:*:*:*:*:*:*:*"
+  identifiers:                      # optional: other purls of the same upstream (no version).
+    - "pkg:gitlab/example/lwip"     # A mirror on another host, the package a distribution ships
+    - "pkg:deb/debian/lwip"         # it as. `purl` stays what the SBOM asserts; these only let a
+                                    # vulnerability filed under another name reach the component
+                                    # (`gangmu vuln`), and let an SBOM from another tool that names
+                                    # it `pkg:deb/vendor/lwip-2.1.2` meet the same records.
   homepage: "https://savannah.nongnu.org/projects/lwip/"
   license: BSD-3-Clause
   advisory_scope: subsystem         # optional; OS/SDK trees whose advisories each name one subsystem
