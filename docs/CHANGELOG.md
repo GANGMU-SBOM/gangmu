@@ -4,6 +4,10 @@
 
 ## 未发布
 
+## 0.18.0
+* **发行版包按发行版自己的记录判定。** 发行版回移植修复而不改上游版本（Debian 在 `1:1.2.11.dfsg-4.1` 修了 zlib 的 CVE-2022-37434，上游版本仍是 1.2.11），所以对 `pkg:deb`、`pkg:apk` 组件，上游的受影响范围说明不了什么。现在 Debian、Ubuntu 用 dpkg 的版本顺序、Alpine 用 apk 的版本顺序，读各自发行版的 OSV 记录，并按发布版分开（发布版取自 purl 的 `distro` 限定符，或修订号里的 `+deb11u2`、`~22.04`）：修订号早于修复的为 exploitable，含修复的为 not affected，没有修订号或判定不了的为 in_triage。别的发行版的记录不参与判定；同一个 CVE 以发行版自己的结论为准。OSV 的 Ubuntu 记录现在会映射成 purl；Debian、Ubuntu 记录的 `upstream` 字段与 CVE 合并（DEBIAN-CVE-*、DSA-* 与 CVE 视为同一个漏洞）。
+* **规则可以写同一上游的其他 purl（`upstream.identifiers`）。** 镜像仓库、Debian/Ubuntu/Alpine 的包名都可以写进来。`gangmu vuln` 会给每个组件补上同一上游的其他 purl，所以挂在仓库下的 OSV 记录能找到写成 `pkg:deb/<发行版>/zlib-1.2.11` 的组件，反过来也一样。发行版 purl 比较时去掉发行版命名空间和名字里的 `-<版本>` 后缀；只合并规则明写的名字，不做相似度猜测。需要规则库 2026.11.5 或更新版本，它为 170 条规则写了这些名字。
+* **修正：规则里的 `cpe_aliases` 现在会生效。** 原来别名停在规则里，旧厂商名下的 CVE（例如 cJSON 的 `davegamble:cjson`）永远匹配不上。现在 CycloneDX 写 `gangmu:cpeAlias`，SPDX 2.3/3.0 列出额外的 CPE，扫描结果的匹配也会用上它们。
 * **修正：函数抽取不再在各分支各开一个块的 `#if`/`#else` 处丢失后半个文件。** 抽取器把每个预处理分支里的大括号都计数，像 SQLite `winRead` 那样两个分支各写一个 `while (...) {`、只关一次的代码，就多出一层，从这里到文件末尾的函数全部找不到（SQLite 3.45.1 的 amalgamation 只抽出 676 个函数，止于第 48,962 行；现在 4,655 个）。现在每个 `#elif`/`#else` 分支从其 `#if` 处的深度开始，两个以上分支的深度变化相同且不为零时只算一次；其余情况（例如 `#ifdef X for (...) { #endif … #ifdef X } #endif`）仍按各分支相加。在 lwIP 2.2.0、Mbed TLS 3.6.2、FreeRTOS-Kernel 11.1.0、curl 8.11.0、libpng 1.6.44、cJSON 1.7.18、LVGL 9.2.2、wolfSSL 5.7.4、RT-Thread 5.1.0 上比较，旧版抽到的约 44 万个函数里有 34 个哈希变了，抽查都是旧版提前截断的函数（两个分支各写一个 `} while (...)`）；另外新找回约 7,600 个（curl `multi.c` 61 个，wolfSSL `internal.c` 395 个）。抽取耗时多约 35%，比分词少得多。**规则库里上游含这类代码的规则，函数签名要用新版重建**（GANGMU-SBOM/gangmu-rules），否则 `gangmu rules verify` 报不能复现。
 * **单个源文件的上限从 4 MiB 提到 16 MiB。** 超过上限的文件不读，SQLite 的 amalgamation（3.45.1 的 `sqlite3.c` 9 MB）原来整个被跳过。4 MiB 以上的文件只贡献函数，不计入整目录哈希（`fileset_sha256`）和 winnow 签名，所以规则里记录的这两项不变，不需要重建。
 
