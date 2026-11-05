@@ -5,6 +5,7 @@
 ## 未发布
 
 ## 0.18.0
+* **需要 gangmu-rules 2026.11.5。** 规则库里 358 条函数签名是用本版的函数抽取器重建的，170 条规则写了 `upstream.identifiers`；旧规则库的签名与本版抽取的函数对不上一部分。`pip install -U gangmu-sbom` 会一并升级规则库，CI 也固定到 v2026.11.5。
 * **发行版包按发行版自己的记录判定。** 发行版回移植修复而不改上游版本（Debian 在 `1:1.2.11.dfsg-4.1` 修了 zlib 的 CVE-2022-37434，上游版本仍是 1.2.11），所以对 `pkg:deb`、`pkg:apk` 组件，上游的受影响范围说明不了什么。现在 Debian、Ubuntu 用 dpkg 的版本顺序、Alpine 用 apk 的版本顺序，读各自发行版的 OSV 记录，并按发布版分开（发布版取自 purl 的 `distro` 限定符，或修订号里的 `+deb11u2`、`~22.04`）：修订号早于修复的为 exploitable，含修复的为 not affected，没有修订号或判定不了的为 in_triage。别的发行版的记录不参与判定；同一个 CVE 以发行版自己的结论为准。OSV 的 Ubuntu 记录现在会映射成 purl；Debian、Ubuntu 记录的 `upstream` 字段与 CVE 合并（DEBIAN-CVE-*、DSA-* 与 CVE 视为同一个漏洞）。
 * **规则可以写同一上游的其他 purl（`upstream.identifiers`）。** 镜像仓库、Debian/Ubuntu/Alpine 的包名都可以写进来。`gangmu vuln` 会给每个组件补上同一上游的其他 purl，所以挂在仓库下的 OSV 记录能找到写成 `pkg:deb/<发行版>/zlib-1.2.11` 的组件，反过来也一样。发行版 purl 比较时去掉发行版命名空间和名字里的 `-<版本>` 后缀；只合并规则明写的名字，不做相似度猜测。需要规则库 2026.11.5 或更新版本，它为 170 条规则写了这些名字。
 * **修正：规则里的 `cpe_aliases` 现在会生效。** 原来别名停在规则里，旧厂商名下的 CVE（例如 cJSON 的 `davegamble:cjson`）永远匹配不上。现在 CycloneDX 写 `gangmu:cpeAlias`，SPDX 2.3/3.0 列出额外的 CPE，扫描结果的匹配也会用上它们。
