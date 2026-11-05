@@ -172,3 +172,30 @@ def test_a_package_without_a_revision_stays_in_triage(tmp_path):
     states, found = _states(tmp_path, "pkg:deb/echo/zlib-1.2.11")
     assert set(states.values()) == {VexState.IN_TRIAGE}
     assert "revision" in found[0].detail
+
+
+def test_a_match_through_an_alias_says_so(tmp_path):
+    record = {"id": "TEST-Z-7", "summary": "synthetic",
+              "affected": [{"ranges": [{"type": "GIT", "repo": "https://github.com/madler/zlib.git",
+                                        "events": [{"introduced": SHA_A}, {"fixed": SHA_B}]}],
+                            "versions": ["v1.2.11"]}]}
+    (tmp_path / "osv.json").write_text(json.dumps([record]))
+    via = candidates_from_cyclonedx(_bom("pkg:deb/debian/zlib", "1.2.11"), _aliases())
+    found = match(via, load_database(tmp_path, wanted_for(via)))
+    assert "upstream.identifiers alias" in found[0].detail
+    direct = candidates_from_cyclonedx(_bom("pkg:github/madler/zlib", "1.2.11"), _aliases())
+    found = match(direct, load_database(tmp_path, wanted_for(direct)))
+    assert "alias" not in found[0].detail
+
+
+def test_aliases_can_be_switched_off():
+    import argparse
+    from gangmu.commands.vuln import _purl_aliases
+    assert _purl_aliases(argparse.Namespace(no_purl_aliases=True, rules=None)) is None
+
+
+def test_a_version_in_the_name_is_taken_off_for_the_key():
+    from gangmu.vuln.aliases import without_name_version
+    assert without_name_version("pkg:deb/echo/zlib-1.2.11") == "pkg:deb/echo/zlib"
+    assert without_name_version("pkg:deb/debian/zlib@1.2.11") is None
+    assert without_name_version("pkg:github/madler/zlib") is None

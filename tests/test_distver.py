@@ -77,7 +77,8 @@ def test_release_hints():
     assert release_from_purl("pkg:apk/alpine/zlib@1.2.12-r1?distro=alpine-3.15.4", "1.2.12-r1") == "3.15"
     assert release_from_purl("pkg:deb/debian/zlib@1.2-1?distro=debian-12", "1.2-1") == "12"
     assert release_from_purl("pkg:deb/debian/zlib@1.2-1%2Bdeb11u2", "1.2-1+deb11u2") == "11"
-    assert family_of_purl("pkg:deb/echo/zlib") is None
+    assert family_of_purl("pkg:deb/somevendor/zlib") is None
+    assert family_of_purl("pkg:deb/echo/zlib").name == "echo"
 
 
 def _record(rid, purl, ranges):
@@ -115,3 +116,27 @@ def test_another_distributions_records_never_decide_a_package(tmp_path):
                   [("Alpine:v3.15", [{"introduced": "0"}, {"fixed": "9.9-r0"}])])
     states, _ = _states(tmp_path, "pkg:deb/debian/zlib@1:1.0-1", [rec])
     assert states == set()
+
+
+ECHO_FIX = [{"ecosystem": "Echo", "introduced": "0", "fixed": "1:1.3.dfsg+really1.3.1-1+e2"}]
+
+
+def test_without_a_revision_the_upstream_release_decides_when_it_can():
+    ECHO = FAMILIES["echo"]
+    assert verdict(ECHO, "1.2.11", ECHO_FIX) is True            # 1.2.11 < 1.3.1: affected whatever the revision
+    assert verdict(ECHO, "1.3.2", ECHO_FIX) is False            # newer upstream than the fix
+    assert verdict(ECHO, "1.3.1", ECHO_FIX) is None             # the fix's own upstream: revision decides
+    assert verdict(DEB, "1.2.11", DEBIAN) is None               # Debian fixed it in a 1.2.11 revision
+    assert verdict(DEB, "1.2.8", DEBIAN) is True
+    assert verdict(APK, "1.2.11", ALPINE) is True
+    assert verdict(APK, "1.2.12", ALPINE) is None               # 3.15 fixed it in 1.2.12-r2
+
+
+def test_the_echo_purl_from_the_report_meets_echo_records(tmp_path):
+    rec = {"id": "ECHO-TEST-1", "upstream": ["CVE-2099-0500"], "summary": "synthetic",
+           "affected": [{"package": {"ecosystem": "Echo", "name": "zlib", "purl": "pkg:deb/echo/zlib"},
+                         "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"},
+                                                                       {"fixed": "1:1.3.dfsg+really1.3.1-1+e2"}]}]}]}
+    states, found = _states(tmp_path, "pkg:deb/echo/zlib-1.2.11", [rec])
+    assert states == {VexState.EXPLOITABLE}
+    assert "upstream release 1.2.11 is older" in found[0].detail

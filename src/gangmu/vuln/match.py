@@ -83,21 +83,38 @@ _MIRRORED_OWNERS = {("github.com", "openharmony")}
 
 def purl_from_repo(url: Optional[str]) -> Optional[str]:
     """``https://github.com/o/r.git`` -> ``pkg:github/o/r`` (lower-cased, as
-    :func:`purl_key` does), or ``None`` for a host with no purl type. Gitee and
-    the GitHub mirror of ``openharmony`` give ``pkg:generic/<owner>/<repo>``."""
+    :func:`purl_key` does). Gitee and the GitHub mirror of ``openharmony`` give
+    ``pkg:generic/<owner>/<repo>``. Any other host gives ``pkg:generic/<host>/<path>``
+    (``https://git.kernel.org/pub/scm/network/tftp/tftp-hpa.git`` ->
+    ``pkg:generic/git.kernel.org/pub/scm/network/tftp/tftp-hpa``): the purl spec has no
+    type for it, but OSV files real advisories under such repositories (kernel.org,
+    savannah, sourceware), and a rule can name the same key in ``upstream.identifiers``.
+    ``None`` only for what is not a repository URL."""
     if not url:
         return None
+    text = url.strip()
     m = re.match(r"^(?:https?|git|ssh)://(?:[^@/]+@)?(?:www\.)?([^/:]+)(?::\d+)?/"
-                 r"([^/]+)/([^/]+?)(?:\.git)?/*$", url.strip(), re.I)
+                 r"(.+?)(?:\.git)?/*$", text, re.I)
     if not m:
-        m = re.match(r"^git@([^:]+):([^/]+)/([^/]+?)(?:\.git)?/*$", url.strip(), re.I)
+        m = re.match(r"^git@([^:]+):(.+?)(?:\.git)?/*$", text, re.I)
     if not m:
         return None
-    host, owner, repo = m.group(1).lower(), m.group(2), m.group(3)
-    if host in _GENERIC_HOSTS or (host, owner.lower()) in _MIRRORED_OWNERS:
-        return f"pkg:generic/{owner}/{repo}".lower()
-    kind = _REPO_HOSTS.get(host)
-    return f"pkg:{kind}/{owner}/{repo}".lower() if kind else None
+    host, path = m.group(1).lower(), m.group(2).strip("/")
+    parts = [p for p in path.split("/") if p]
+    if not parts:
+        return None
+    if len(parts) == 2:
+        owner, repo = parts
+        if host in _GENERIC_HOSTS or (host, owner.lower()) in _MIRRORED_OWNERS:
+            return f"pkg:generic/{owner}/{repo}".lower()
+        kind = _REPO_HOSTS.get(host)
+        if kind:
+            return f"pkg:{kind}/{owner}/{repo}".lower()
+    elif host in _REPO_HOSTS or host in _GENERIC_HOSTS:
+        if host == "gitlab.com" and len(parts) > 2:      # gitlab subgroups
+            return f"pkg:gitlab/{'/'.join(parts[:-1])}/{parts[-1]}".lower()
+        return None
+    return f"pkg:generic/{host}/{'/'.join(parts)}".lower()
 
 
 # OSV ecosystem -> purl type. A record that gives no purl names its package by
@@ -151,6 +168,9 @@ class Candidate:
     package_version: Optional[str] = None
     """The version of the distribution package itself (``1:1.2.11.dfsg-2+deb11u2``), when the
     SBOM gives one with a revision; what a Debian advisory's ranges are read against."""
+    alias_keys: frozenset = frozenset()
+    """Purl keys added through rules' ``upstream.identifiers`` (not written in the SBOM):
+    a match reached through one of them says so, so a reviewer can tell it apart."""
     linked: Optional[bool] = None
     """False when a link map showed none of the component's objects in the image;
     None when no link map was used (unknown, not "linked")."""
@@ -208,8 +228,13 @@ def candidates_from_cyclonedx(bom: dict, purl_aliases=None) -> List[Candidate]:
         version = component.get("version") or next(
             (v for v in map(version_from_name, purls) if v), None) or upstream
         distro = any((_split(p) or ("",))[0] in DISTRO_TYPES for p in purls)
+        from .aliases import without_name_version
+        purls += [p for p in map(without_name_version, purls) if p and p not in purls]
+        alias_keys: frozenset = frozenset()
         if purl_aliases is not None:
-            purls += purl_aliases.expand(purls)
+            extra = purl_aliases.expand(purls)
+            alias_keys = frozenset(k for k in map(purl_key, extra) if k)
+            purls += extra
         out.append(Candidate(
             name=component.get("name", "?"),
             directory=props.get("gangmu:directory", ""),
@@ -217,6 +242,7 @@ def candidates_from_cyclonedx(bom: dict, purl_aliases=None) -> List[Candidate]:
             cpes=cpes,
             purls=purls,
             distro_package=distro,
+            alias_keys=alias_keys,
             package_version=package_version if distro else None,
             distro_family=family.name if family else None,
             distro_release=(distver.release_from_purl(family_purl, package_version)
@@ -318,6 +344,14 @@ def _state_for(candidate: Candidate, verdict: Optional[bool],
     return VexState.EXPLOITABLE, "version is inside the advisory's range"
 
 
+def _via_alias(detail: str, candidate: Candidate, key: Optional[str]) -> str:
+    """*detail*, saying so when the record was reached through a rule's alias rather than
+    a purl the SBOM wrote."""
+    if key and key in candidate.alias_keys:
+        return f"{detail} (matched through {key}, an upstream.identifiers alias of this component)"
+    return detail
+
+
 def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
           include_not_affected: bool = False, per_channel: bool = False) -> List[Match]:
     """Matches of *candidates* against *advisories*, one per vulnerability and component.
@@ -398,32 +432,41 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                     # A distribution files a CVE per release across records (DEBIAN-CVE-...,
                     # DSA-..., USN-...), so every record of this vulnerability is read together.
                     group = [r for a, r in by_purl.get(key or "", []) if vulnerability_key(a) == vkey]
-                    package = candidate.package_version
+                    package = candidate.package_version or candidate.version
                     answer = (distver.verdict(range_family, package, group, candidate.distro_release)
                               if package else None)
                     name = range_family.name.capitalize()
                     if answer is not None:
                         decided.add(vkey)
                     if answer is None:
-                        why = (f"the package version has no {name} revision, so it cannot be placed "
-                               f"against the fixed revision; give the full package version"
-                               if not package else
+                        why = ("the SBOM gives no version for this package" if not package else
+                               f"the package version {package} has no {name} revision, and its "
+                               f"upstream release alone does not decide it (it is that of a fix, "
+                               f"or {name}'s releases disagree); give the full package version"
+                               if not candidate.package_version else
                                f"the package version cannot be placed against {name}'s release "
                                f"ranges for this advisory")
                         state, detail = VexState.IN_TRIAGE, why
                     elif answer:
                         state, detail = (VexState.EXPLOITABLE,
-                                         f"package {package} is older than the {name} fix")
+                                         f"package {package} is older than the {name} fix"
+                                         if candidate.package_version else
+                                         f"upstream release {package} is older than every {name} "
+                                         f"fix's (a fix is backported into a revision, never into "
+                                         f"an older upstream release)")
                     else:
                         state, detail = (VexState.NOT_AFFECTED,
-                                         f"package {package} carries the {name} fix")
+                                         f"package {package} carries the {name} fix"
+                                         if candidate.package_version else
+                                         f"upstream release {package} is newer than every {name} fix's")
                     if state is VexState.NOT_AFFECTED and not include_not_affected:
                         continue
                     keep((vkey, candidate.directory),
                          Match(advisory=advisory, component=candidate.name,
                                directory=candidate.directory, version=candidate.version,
                                channel="purl", matched_on=rng["purl"], state=state,
-                               detail=detail, component_confidence=candidate.confidence))
+                               detail=_via_alias(detail, candidate, key),
+                               component_confidence=candidate.confidence))
                     continue
                 if vulnerability_key(advisory) in decided:
                     continue            # the distribution's revision verdict outranks upstream's range
@@ -448,7 +491,8 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                      Match(advisory=advisory, component=candidate.name,
                            directory=candidate.directory,
                            version=candidate.version, channel="purl",
-                           matched_on=rng["purl"], state=state, detail=detail,
+                           matched_on=rng["purl"], state=state,
+                           detail=_via_alias(detail, candidate, key),
                            component_confidence=candidate.confidence))
 
     out: List[Match] = list(found.values())

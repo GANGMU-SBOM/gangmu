@@ -30,6 +30,9 @@ FAMILIES = {
     "debian": Family("debian", "pkg:deb/debian/", "debian", debver.has_revision),
     "ubuntu": Family("ubuntu", "pkg:deb/ubuntu/", "ubuntu", debver.has_revision),
     "alpine": Family("alpine", "pkg:apk/alpine/", "alpine", apkver.has_revision),
+    # Echo's hardened images are Debian-based: pkg:deb/echo/<name>, dpkg versions such as
+    # 1:1.3.dfsg+really1.3.1-1+e2, one stream (the OSV ecosystem is plain "Echo").
+    "echo": Family("echo", "pkg:deb/echo/", "echo", debver.has_revision),
 }
 
 _DEBIAN = {"buster": "10", "bullseye": "11", "bookworm": "12", "trixie": "13", "forky": "14"}
@@ -117,12 +120,16 @@ def verdict(family: Family, version: str, candidates: Iterable[Mapping],
     a package whose *release* is known is read against that release's ranges only; if
     the advisory lists none for it, nothing can be said. Otherwise the package is affected
     only if every release's range says so, unaffected only if none does. A version without
-    a revision never gets a verdict: the revision is the whole answer.
+    a revision is read by its upstream release alone (:func:`_by_upstream`).
     """
     ranges: List[Mapping] = [r for r in candidates
                              if str(r.get("ecosystem") or "").lower().startswith(family.ecosystem)]
-    if not ranges or not family.has_revision(version):
+    if not ranges:
         return None
+    if not family.has_revision(version):
+        if release is not None:
+            ranges = [r for r in ranges if _release_of_ecosystem(str(r.get("ecosystem"))) == release]
+        return _by_upstream(family, version, ranges)
     if release is None and family.name == "debian":
         release = debver.release_of(version)            # +deb11u2 names its own release
     elif release is None and family.name == "ubuntu":
@@ -134,6 +141,51 @@ def verdict(family: Family, version: str, candidates: Iterable[Mapping],
             return None
     ignore_epoch = family.name != "alpine" and not debver.split_version(version)[3]
     verdicts = {_in(family, version, r, ignore_epoch) for r in ranges}
+    return verdicts.pop() if len(verdicts) == 1 else None
+
+
+def _upstream(family: Family, version: str) -> str:
+    """The upstream release a package version carries: no epoch, no revision, no
+    repackaging marker; ``1.3.dfsg+really1.3.1`` is 1.3.1."""
+    if family.name == "alpine":
+        return re.sub(r"-r[0-9]+$", "", version.strip())
+    upstream = debver.split_version(version)[1]
+    if "really" in upstream:
+        upstream = upstream.split("really", 1)[1]
+    return re.sub(r"[.+~](?:dfsg|ds|orig)\w*.*$", "", upstream)
+
+
+def _compare_upstream(family: Family, a: str, b: str) -> Optional[int]:
+    if family.name == "alpine":
+        return apkver.compare(a, b)
+    return debver.compare(a, b, ignore_epoch=True)
+
+
+def _by_upstream(family: Family, version: str, ranges: List[Mapping]) -> Optional[bool]:
+    """A verdict from the upstream release alone, for a package written without a revision
+    (``pkg:deb/echo/zlib-1.2.11``). A distribution backports a fix into a revision, never
+    into an older upstream release, so an upstream below every range's fixed upstream is
+    affected and one above every fixed upstream is not; the same upstream as a fix needs
+    the revision, and stays undecided."""
+    mine = _upstream(family, version)
+    verdicts = set()
+    for rng in ranges:
+        introduced, fixed, last = rng.get("introduced"), rng.get("fixed"), rng.get("last_affected")
+        if introduced and introduced != "0":
+            order = _compare_upstream(family, mine, _upstream(family, introduced))
+            if order is None:
+                return None
+            if order < 0:
+                verdicts.add(False)
+                continue
+        bound = fixed or last
+        if not bound:
+            verdicts.add(True)                       # unfixed: every revision is affected
+            continue
+        order = _compare_upstream(family, mine, _upstream(family, bound))
+        if order is None or order == 0:
+            return None
+        verdicts.add(order < 0)
     return verdicts.pop() if len(verdicts) == 1 else None
 
 

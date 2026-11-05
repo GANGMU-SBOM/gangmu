@@ -192,7 +192,29 @@ def test_gitee_and_the_openharmony_github_mirror_map_to_one_generic_purl():
                 "https://atomgit.com/openharmony/kernel_liteos_a.git",
                 "git@gitee.com:openharmony/kernel_liteos_a.git"):
         assert purl_from_repo(url) == want, url
-    # other GitHub owners keep their github purl; unknown hosts still have none
+    # other GitHub owners keep their github purl
     assert purl_from_repo("https://github.com/lwip-tcpip/lwip") == "pkg:github/lwip-tcpip/lwip"
-    assert purl_from_repo("https://example.invalid/o/r") is None
+
+
+def test_other_hosts_get_a_generic_purl_with_the_host_and_path():
+    """OSV files advisories under kernel.org, savannah and sourceware repositories; a
+    host with no purl type must still give a key, or every such record is dropped."""
+    from gangmu.vuln.match import purl_from_repo
+    assert (purl_from_repo("https://git.kernel.org/pub/scm/network/tftp/tftp-hpa.git")
+            == "pkg:generic/git.kernel.org/pub/scm/network/tftp/tftp-hpa")
+    assert purl_from_repo("https://git.savannah.gnu.org/git/gdbm.git") == \
+        "pkg:generic/git.savannah.gnu.org/git/gdbm"
+    assert purl_from_repo("https://example.invalid/o/r") == "pkg:generic/example.invalid/o/r"
+    assert purl_from_repo("https://gitlab.com/group/sub/proj") == "pkg:gitlab/group/sub/proj"
+    assert purl_from_repo("https://github.com/only-owner") is None
+    assert purl_from_repo("not a url") is None
+
+
+def test_a_record_under_a_kernel_org_repository_is_loaded_and_matched(tmp_path):
+    adv = _db(tmp_path, _record("TEST-K-1", "https://git.kernel.org/pub/scm/network/tftp/tftp-hpa.git",
+                                ["tftp-hpa-5.2"]))
+    cand = Candidate(name="tftp-hpa", directory="tftp", version="5.2", cpes=[],
+                     purls=["pkg:generic/git.kernel.org/pub/scm/network/tftp/tftp-hpa@5.2"])
+    found = match([cand], adv)
+    assert [m.advisory.id for m in found] == ["TEST-K-1"]
 
