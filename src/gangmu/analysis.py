@@ -56,7 +56,7 @@ from .functions import extract_functions
 from .core.globbing import compile_any
 from .normalize import tokenize
 
-MAX_FILE_BYTES = 4 * 1024 * 1024
+MAX_FILE_BYTES = 16 * 1024 * 1024   # a SQLite amalgamation is 9 MB
 WALK_SKIP = frozenset({".git", "__pycache__"})
 PARALLEL_FILE_THRESHOLD = 32       # below this a pool costs more than it saves
 BOTTOM_CAP = DEFAULT_SKETCH        # per-file fingerprints kept; see module docstring
@@ -122,7 +122,12 @@ def analyse_bytes(data: bytes, k: int, window: int,
         functions.add(f.hash)
         if f.abstract_hash is not None:
             abstract.add(f.abstract_hash)
-    bottom, total = sorted_fingerprints(tokens, k, window, cap)
+    from .dirprint import SKETCH_FILE_BYTES
+    if len(data) > SKETCH_FILE_BYTES:      # functions only: see dirprint.SKETCH_FILE_BYTES
+        bottom: Sequence[int] = []
+        total = 0
+    else:
+        bottom, total = sorted_fingerprints(tokens, k, window, cap)
     return FileAnalysis(array("Q", sorted(functions)), array("Q", sorted(abstract)),
                         array("Q", bottom), total)
 
