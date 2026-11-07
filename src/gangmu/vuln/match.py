@@ -171,6 +171,9 @@ class Candidate:
     alias_keys: frozenset = frozenset()
     """Purl keys added through rules' ``upstream.identifiers`` (not written in the SBOM):
     a match reached through one of them says so, so a reviewer can tell it apart."""
+    rule_cpes: frozenset = frozenset()
+    """CPEs taken from the rule that claims the component's purl, for a component the
+    SBOM gives no CPE: NVD's records are keyed by CPE, and a match through one says so."""
     linked: Optional[bool] = None
     """False when a link map showed none of the component's objects in the image;
     None when no link map was used (unknown, not "linked")."""
@@ -231,6 +234,10 @@ def candidates_from_cyclonedx(bom: dict, purl_aliases=None) -> List[Candidate]:
         from .aliases import without_name_version
         purls += [p for p in map(without_name_version, purls) if p and p not in purls]
         alias_keys: frozenset = frozenset()
+        rule_cpes: List[str] = []
+        if purl_aliases is not None and not cpes:
+            rule_cpes = purl_aliases.cpes_for(purls)
+            cpes = list(rule_cpes)
         if purl_aliases is not None:
             extra = purl_aliases.expand(purls)
             alias_keys = frozenset(k for k in map(purl_key, extra) if k)
@@ -243,6 +250,7 @@ def candidates_from_cyclonedx(bom: dict, purl_aliases=None) -> List[Candidate]:
             purls=purls,
             distro_package=distro,
             alias_keys=alias_keys,
+            rule_cpes=frozenset(rule_cpes),
             package_version=package_version if distro else None,
             distro_family=family.name if family else None,
             distro_release=(distver.release_from_purl(family_purl, package_version)
@@ -372,14 +380,41 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
         # Most serious state first; then the record filed under the CVE id itself.
         return (severity.get(m.state, 3), m.advisory.id.upper() != canonical)
 
-    def keep(token: tuple, new: Match) -> None:
+    # A distribution's verdict on its own package (from the package revision) outranks
+    # any upstream range; NVD's CPE range and an OSV record that contradict each other
+    # (one "affected", the other "not affected") leave it to a person.
+    settled: set = set()
+    disputed: set = set()
+
+    def source(m: Match) -> str:
+        return f"{m.advisory.id} ({'NVD CPE range' if m.channel == 'cpe' else 'OSV, by purl'})"
+
+    def keep(token: tuple, new: Match, authoritative: bool = False) -> None:
         if per_channel:
             token = (new.advisory.id.upper(), token[1], new.channel)
         old = found.get(token)
         if old is None:
             found[token] = new
+            if authoritative:
+                settled.add(token)
             return
-        best, other = (new, old) if rank(new, token[0]) < rank(old, token[0]) else (old, new)
+        if not per_channel and (token in settled) != authoritative:
+            best, other = (old, new) if token in settled else (new, old)
+            settled.add(token)
+            disputed.discard(token)
+        elif not per_channel and token in disputed:
+            best, other = old, new
+        elif (not per_channel and old.channel != new.channel
+              and {old.state, new.state} == {VexState.EXPLOITABLE, VexState.NOT_AFFECTED}):
+            hit, miss = (old, new) if old.state is VexState.EXPLOITABLE else (new, old)
+            best = replace(hit, state=VexState.IN_TRIAGE,
+                           detail=f"the sources disagree: {source(hit)} puts version "
+                                  f"{hit.version} in range ({hit.detail}), {source(miss)} "
+                                  f"does not ({miss.detail}); read the advisory")
+            other = miss
+            disputed.add(token)
+        else:
+            best, other = (new, old) if rank(new, token[0]) < rank(old, token[0]) else (old, new)
         if best.advisory is not other.advisory:
             best.advisory = _merged(best.advisory, other.advisory)
         found[token] = best
@@ -405,8 +440,9 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                             cmp = compare(candidate.version, pinned)
                             verdict = (cmp == 0) if cmp is not None else None
                 state, detail = _state_for(candidate, verdict)
-                if state is VexState.NOT_AFFECTED and not include_not_affected:
-                    continue
+                if cpe in candidate.rule_cpes:
+                    detail += (" (CPE taken from the rule that claims this component's purl; "
+                               "the SBOM gives none)")
                 keep((vulnerability_key(advisory), candidate.directory),
                      Match(advisory=advisory, component=candidate.name,
                            directory=candidate.directory,
@@ -469,14 +505,13 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                                          f"package {package} carries the {name} fix"
                                          if candidate.package_version else
                                          f"upstream release {package} is newer than every {name} fix's")
-                    if state is VexState.NOT_AFFECTED and not include_not_affected:
-                        continue
                     keep((vkey, candidate.directory),
                          Match(advisory=advisory, component=candidate.name,
                                directory=candidate.directory, version=candidate.version,
                                channel="purl", matched_on=rng["purl"], state=state,
                                detail=_via_alias(detail, candidate, key),
-                               component_confidence=candidate.confidence))
+                               component_confidence=candidate.confidence),
+                         authoritative=answer is not None)
                     continue
                 if vulnerability_key(advisory) in decided:
                     continue            # the distribution's revision verdict outranks upstream's range
@@ -505,8 +540,6 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                     candidate, verdict,
                     commit_only=(rng.get("type") == "GIT" and not rng.get("tags")
                                  and not rng.get("extracted")))
-                if state is VexState.NOT_AFFECTED and not include_not_affected:
-                    continue
                 keep((vulnerability_key(advisory), candidate.directory),
                      Match(advisory=advisory, component=candidate.name,
                            directory=candidate.directory,
@@ -527,7 +560,8 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                        detail=_via_alias(detail, candidate, key),
                        component_confidence=candidate.confidence))
 
-    out: List[Match] = list(found.values())
+    out: List[Match] = [m for m in found.values()
+                        if include_not_affected or m.state is not VexState.NOT_AFFECTED]
 
     order = {VexState.EXPLOITABLE: 0, VexState.IN_TRIAGE: 1,
              VexState.NOT_AFFECTED: 2}

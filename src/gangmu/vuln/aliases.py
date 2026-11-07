@@ -100,6 +100,8 @@ class PurlAliases:
     def __init__(self) -> None:
         self._classes: List[List[str]] = []
         self._index: Dict[str, List[int]] = {}
+        # purl key -> the CPEs of the rule that names it; None where rules disagree
+        self._cpes: Dict[str, Optional[Tuple[str, ...]]] = {}
 
     def __len__(self) -> int:
         return len(self._classes)
@@ -125,7 +127,35 @@ class PurlAliases:
             identifiers = getattr(rule, "identifiers", ())
             if identifiers and rule.purl:
                 built.add([rule.purl, *identifiers])
+            cpe = getattr(rule, "cpe", None)
+            if rule.purl and cpe:
+                cpes = (cpe, *getattr(rule, "cpe_aliases", ()))
+                for purl in (rule.purl, *identifiers):
+                    for key in keys_for(purl):
+                        if key in built._cpes and built._cpes[key] != cpes:
+                            built._cpes[key] = None      # two rules, two products: no guess
+                        else:
+                            built._cpes.setdefault(key, cpes)
         return built
+
+    def cpes_for(self, purls: Sequence[str]) -> List[str]:
+        """The CPEs of the rule these purls name, when exactly one product answers.
+
+        An SBOM from another tool often gives a purl and no CPE, which leaves NVD's
+        CPE-keyed records out of reach. The rule that claims the purl (as its own or in
+        ``upstream.identifiers``) says which CPE the upstream is filed under. Several
+        rules sharing a key with different CPEs, or purls pointing at two products,
+        give nothing.
+        """
+        found: Set[Tuple[str, ...]] = set()
+        for purl in purls:
+            for key in keys_for(purl):
+                if key in self._cpes:
+                    cpes = self._cpes[key]
+                    if cpes is None:
+                        return []
+                    found.add(cpes)
+        return list(next(iter(found))) if len(found) == 1 else []
 
     def expand(self, purls: Sequence[str]) -> List[str]:
         """The purls of the same upstream that *purls* do not already name."""

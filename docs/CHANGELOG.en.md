@@ -3,6 +3,10 @@
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
 ## Unreleased
+
+## 0.18.3
+* **A component with only a purl reaches NVD by CPE.** SBOMs from other tools often give a purl and no CPE, which leaves NVD's CPE-keyed records out of reach. `gangmu vuln` now gives a component without a CPE the `cpe` and `cpe_aliases` of the rule that claims its purl (its own or in `upstream.identifiers`); where rules give one purl different CPEs, none is added. A match through a rule's CPE says so, and `--no-purl-aliases` turns this off too. A user's 21-component purl-only firmware SBOM goes from 48 to 131 exploitable: OpenSSL, busybox and libevent vulnerabilities only NVD decides now have verdicts.
+* **An OSV record and NVD's CPE range that contradict each other leave it in_triage.** The most serious verdict used to win, so where OSV's GIT-derived tag lists are wrong (CVE-2024-6387 on OpenSSH 7.5p1, CVE-2021-4044 on OpenSSL 1.0.2l) the result was still exploitable. When one says affected and the other not affected, the result is now in_triage, with both records and their reasons. A distribution's verdict from its own package revision still outranks any upstream range (fixed: NVD's upstream range used to override Debian's not affected for a backported fix).
 * **Fixed: OpenSSH versions now meet OSV's GIT records.** openssh-portable tags read `V_7_5_P1` and its versions `7.5p1`; neither reduced to a comparable version, so every OpenSSH GIT record stayed in_triage. Both now normalise to `7.5p1`. For OpenSSH 7.5p1 in a user's firmware SBOM, 65 of 136 vulnerabilities are now decided, and only 4 of the 115 NVD also covers disagree with NVD's CPE verdict.
 
 ## 0.18.2
