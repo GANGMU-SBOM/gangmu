@@ -4,6 +4,10 @@
 
 ## 未发布
 
+## 0.18.2
+* **修正：发行版的记录不再判定上游组件。** 规则别名让 `pkg:github/openssl/openssl@1.0.2l` 这样的上游组件也能读到 Debian、Ubuntu、Alpine、Echo 的 OSV 记录，而发行版的范围从 `0` 开始、止于它自己的修复版本，拿上游版本去比，所有更旧的版本都落在范围内：Debian 记录的只影响 OpenSSL 3.0 的 CVE（如 CVE-2022-2274）因此把 1.0.2l 判成 exploitable，还盖过了 GIT 记录正确的 not affected。现在发行版的记录只判定该发行版的包；对上游组件，同一个漏洞有上游记录（GIT、NVD 等）时以上游记录为准，只有发行版记录的漏洞列为 in_triage 并说明原因。用户固件 SBOM 的 21 个组件读全部 OSV 数据时，exploitable 由 430 回到 48。
+* **修正：发行版包不再按同一发行版里另一个包的记录判定。** 规则别名把 `lua5.1` 和 `lua5.4` 归到同一个上游，`pkg:deb/debian/lua5.1@5.1.5-9` 原来会拿 lua5.4 的修复修订号比较；现在只读 SBOM 写的那个包自己的记录。
+
 ## 0.18.1
 * **需要 gangmu-rules 2026.11.7。** 规则库又补了 569 条 `upstream.identifiers`，为 33 条原先没有 purl、OSV 记录够不着的规则补了 purl，38 条规则补上 OSV 实际登记它们的仓库，38 条规则新增 CPE，12 条 CPE 由 `a:` 改为 NVD 使用的 `o:`。其中 `pkg:generic/<主机>/<路径>` 形式的别名要本版才能匹配 OSV 的 GIT 记录。CI 固定到 v2026.11.7。
 * **Echo 发行版的包按 Echo 自己的 OSV 记录判定。** OSV 有 `Echo` 生态（Echo 的加固镜像基于 Debian，purl 为 `pkg:deb/echo/<包名>`，版本如 `1:1.3.dfsg+really1.3.1-1+e2`），现在和 Debian、Ubuntu 一样用 dpkg 顺序读它。把版本写进包名的 purl（`pkg:deb/echo/zlib-1.2.11`）会补上去掉版本的键，能对上发行版的记录。

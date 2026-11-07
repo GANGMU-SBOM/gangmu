@@ -4,6 +4,10 @@ What each release added and what was measured at the time, newest first. For the
 
 ## Unreleased
 
+## 0.18.2
+* **Fixed: a distribution's records no longer decide an upstream component.** Rule aliases let an upstream component such as `pkg:github/openssl/openssl@1.0.2l` reach Debian, Ubuntu, Alpine and Echo OSV records, whose ranges start at `0` and end at the distribution's own fix: read against an upstream release, every older release fell inside. Debian's records of OpenSSL 3.0-only CVEs (CVE-2022-2274) made 1.0.2l exploitable, overriding the GIT record's correct not affected. A distribution's records now decide only that distribution's packages; for an upstream component, an upstream record (GIT, NVD ...) of the same vulnerability decides it, and a vulnerability only a distribution names is in_triage, with the reason. A user's 21-component firmware SBOM read against all of OSV goes from 430 exploitable back to 48.
+* **Fixed: a distribution package is no longer decided by another package of the same distribution.** Rule aliases put `lua5.1` and `lua5.4` under one upstream, and `pkg:deb/debian/lua5.1@5.1.5-9` was read against lua5.4's fix revisions; only the records of the package the SBOM names are read now.
+
 ## 0.18.1
 * **Requires gangmu-rules 2026.11.7.** It adds 569 `upstream.identifiers`, purls for 33 rules no OSV record could reach, the repositories OSV files 38 rules under, CPEs for 38 rules, and `o:` for 12 CPEs NVD files as `o:`. Its `pkg:generic/<host>/<path>` identifiers need this version to match OSV GIT records. CI is pinned to v2026.11.7.
 * **Echo packages are read against Echo's own OSV records.** OSV has an `Echo` ecosystem (Echo's hardened images are Debian-based: `pkg:deb/echo/<name>`, versions such as `1:1.3.dfsg+really1.3.1-1+e2`); it is now read in dpkg order like Debian and Ubuntu. A purl that put the version into the name (`pkg:deb/echo/zlib-1.2.11`) also gets the key without it, so it meets the distribution's records.
