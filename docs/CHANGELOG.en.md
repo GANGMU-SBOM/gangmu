@@ -3,6 +3,8 @@
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
 ## Unreleased
+
+## 0.18.2
 * **Fixed: a distribution's records no longer decide an upstream component.** Rule aliases let an upstream component such as `pkg:github/openssl/openssl@1.0.2l` reach Debian, Ubuntu, Alpine and Echo OSV records, whose ranges start at `0` and end at the distribution's own fix: read against an upstream release, every older release fell inside. Debian's records of OpenSSL 3.0-only CVEs (CVE-2022-2274) made 1.0.2l exploitable, overriding the GIT record's correct not affected. A distribution's records now decide only that distribution's packages; for an upstream component, an upstream record (GIT, NVD ...) of the same vulnerability decides it, and a vulnerability only a distribution names is in_triage, with the reason. A user's 21-component firmware SBOM read against all of OSV goes from 430 exploitable back to 48.
 * **Fixed: a distribution package is no longer decided by another package of the same distribution.** Rule aliases put `lua5.1` and `lua5.4` under one upstream, and `pkg:deb/debian/lua5.1@5.1.5-9` was read against lua5.4's fix revisions; only the records of the package the SBOM names are read now.
 
