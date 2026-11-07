@@ -3,6 +3,7 @@
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
 ## 未发布
+* **修正：发行版的记录不再判定上游组件。** 规则别名让 `pkg:github/openssl/openssl@1.0.2l` 这样的上游组件也能读到 Debian、Ubuntu、Alpine、Echo 的 OSV 记录，而发行版的范围从 `0` 开始、止于它自己的修复版本，拿上游版本去比，所有更旧的版本都落在范围内：Debian 记录的只影响 OpenSSL 3.0 的 CVE（如 CVE-2022-2274）因此把 1.0.2l 判成 exploitable，还盖过了 GIT 记录正确的 not affected。现在发行版的记录只判定该发行版的包；对上游组件，同一个漏洞有上游记录（GIT、NVD 等）时以上游记录为准，只有发行版记录的漏洞列为 in_triage 并说明原因。用户固件 SBOM 的 21 个组件读全部 OSV 数据时，exploitable 由 430 回到 48。
 
 ## 0.18.1
 * **需要 gangmu-rules 2026.11.7。** 规则库又补了 569 条 `upstream.identifiers`，为 33 条原先没有 purl、OSV 记录够不着的规则补了 purl，38 条规则补上 OSV 实际登记它们的仓库，38 条规则新增 CPE，12 条 CPE 由 `a:` 改为 NVD 使用的 `o:`。其中 `pkg:generic/<主机>/<路径>` 形式的别名要本版才能匹配 OSV 的 GIT 记录。CI 固定到 v2026.11.7。

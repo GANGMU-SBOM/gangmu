@@ -385,9 +385,11 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
         found[token] = best
 
     for candidate in candidates:
+        cpe_seen: set = set()
         for cpe in candidate.cpes:
             key = cpe_product_key(cpe)
             for advisory, rng in by_cpe.get(key or "", []):
+                cpe_seen.add(vulnerability_key(advisory))
                 verdict = None
                 if candidate.version and is_orderable(candidate.version):
                     verdict = in_range(
@@ -415,6 +417,10 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
         # A distribution package: its distribution's own records settle it before the
         # upstream ranges are looked at, so they are read first.
         decided: set = set()
+        # An upstream component reached by a distribution's record (through an alias):
+        # kept aside, and reported only for vulnerabilities no upstream record names.
+        distro_only: Dict[str, tuple] = {}
+        upstream_seen: set = set()
         ordered = (sorted(candidate.purls, key=lambda p: distver.family_of_purl(p) is None)
                    if candidate.distro_package else candidate.purls)
         for purl in ordered:
@@ -470,6 +476,16 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                     continue
                 if vulnerability_key(advisory) in decided:
                     continue            # the distribution's revision verdict outranks upstream's range
+                key_family = None if candidate.distro_package else distver.family_of_key(key)
+                if key_family is not None:
+                    # A distribution's range is in its own package versions and starts at
+                    # "0": it says when the distribution fixed it, not which upstream
+                    # releases are affected (Debian files OpenSSL 3.0-only CVEs that
+                    # 1.0.2 never had). It decides nothing for an upstream component.
+                    distro_only.setdefault(vulnerability_key(advisory),
+                                           (advisory, rng, key, key_family.name.capitalize()))
+                    continue
+                upstream_seen.add(vulnerability_key(advisory))
                 verdict = None
                 if rng.get("type") == "GIT" and rng.get("extracted"):
                     verdict = in_event_ranges(candidate.version, rng["extracted"])
@@ -494,6 +510,18 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                            matched_on=rng["purl"], state=state,
                            detail=_via_alias(detail, candidate, key),
                            component_confidence=candidate.confidence))
+
+        for vkey, (advisory, rng, key, name) in distro_only.items():
+            if vkey in upstream_seen or vkey in cpe_seen:
+                continue
+            detail = (f"only {name}'s records name this vulnerability, and a distribution's "
+                      f"ranges give its own package versions, not the upstream releases affected")
+            keep((vkey, candidate.directory),
+                 Match(advisory=advisory, component=candidate.name,
+                       directory=candidate.directory, version=candidate.version,
+                       channel="purl", matched_on=rng["purl"], state=VexState.IN_TRIAGE,
+                       detail=_via_alias(detail, candidate, key),
+                       component_confidence=candidate.confidence))
 
     out: List[Match] = list(found.values())
 
