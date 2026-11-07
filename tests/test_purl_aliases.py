@@ -218,3 +218,22 @@ def test_a_vulnerability_only_a_distribution_names_stays_in_triage_upstream(tmp_
     found = match(cands, load_database(tmp_path, wanted_for(cands)))
     assert [m.state for m in found] == [VexState.IN_TRIAGE]
     assert "only Debian's records" in found[0].detail
+
+
+def test_another_package_of_the_same_distribution_does_not_decide_it(tmp_path):
+    # lua5.1 and lua5.4 are separate Debian packages of one upstream: lua5.4's fix
+    # revision is no measure of a lua5.1 package.
+    rule = rule_from_dict({"id": "generic/lua", "upstream": {
+        "name": "Lua", "purl": "pkg:github/lua/lua",
+        "identifiers": ["pkg:deb/debian/lua5.1", "pkg:deb/debian/lua5.4"],
+        "source": {"kind": "git", "url": "https://github.com/lua/lua", "ref": "v5.4.6"}},
+        "identity": {"anchors": [{"path": "lua.h", "sha256": {"5.4.6": "0" * 64}}]}}, "lua.yaml")
+    record = {"id": "DEBIAN-CVE-2099-0400", "summary": "synthetic", "affected": [
+        {"package": {"ecosystem": "Debian:12", "name": "lua5.4", "purl": "pkg:deb/debian/lua5.4?distro=bookworm"},
+         "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "5.4.6-3"}]}]}]}
+    (tmp_path / "osv.json").write_text(json.dumps([record]))
+    bom = {"bomFormat": "CycloneDX", "components": [
+        {"type": "library", "name": "lua5.1", "purl": "pkg:deb/debian/lua5.1@5.1.5-9"}]}
+    cands = candidates_from_cyclonedx(bom, PurlAliases.from_rules([rule]))
+    found = match(cands, load_database(tmp_path, wanted_for(cands)))
+    assert all(m.state is not VexState.EXPLOITABLE for m in found)

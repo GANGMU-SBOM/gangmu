@@ -431,6 +431,10 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                 if range_family is not None:
                     if range_family.name != candidate.distro_family:
                         continue        # another distribution's package: not this one
+                    if key in candidate.alias_keys:
+                        # Another package of the same distribution, reached only through an
+                        # alias (lua5.1 -> lua5.4): its revisions say nothing of this one's.
+                        continue
                     vkey = vulnerability_key(advisory)
                     if vkey in done or rng.get("type") == "GIT":
                         continue
