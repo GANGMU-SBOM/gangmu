@@ -385,11 +385,16 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
     # (one "affected", the other "not affected") leave it to a person.
     settled: set = set()
     disputed: set = set()
+    # A record that cannot place the version in its range (no comparable versions,
+    # commits only) says nothing; a verdict from another record of the same
+    # vulnerability stands over it.
+    undecided: set = set()
 
     def source(m: Match) -> str:
         return f"{m.advisory.id} ({'NVD CPE range' if m.channel == 'cpe' else 'OSV, by purl'})"
 
-    def keep(token: tuple, new: Match, authoritative: bool = False) -> None:
+    def keep(token: tuple, new: Match, authoritative: bool = False,
+             unplaced: bool = False) -> None:
         if per_channel:
             token = (new.advisory.id.upper(), token[1], new.channel)
         old = found.get(token)
@@ -397,13 +402,21 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
             found[token] = new
             if authoritative:
                 settled.add(token)
+            elif unplaced:
+                undecided.add(token)
             return
         if not per_channel and (token in settled) != authoritative:
             best, other = (old, new) if token in settled else (new, old)
             settled.add(token)
             disputed.discard(token)
+            undecided.discard(token)
         elif not per_channel and token in disputed:
             best, other = old, new
+        elif not per_channel and unplaced and token not in undecided:
+            best, other = old, new          # a verdict already given stands
+        elif not per_channel and token in undecided and not unplaced:
+            best, other = new, old          # the first verdict replaces "cannot tell"
+            undecided.discard(token)
         elif (not per_channel and old.channel != new.channel
               and {old.state, new.state} == {VexState.EXPLOITABLE, VexState.NOT_AFFECTED}):
             hit, miss = (old, new) if old.state is VexState.EXPLOITABLE else (new, old)
@@ -426,6 +439,7 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
             for advisory, rng in by_cpe.get(key or "", []):
                 cpe_seen.add(vulnerability_key(advisory))
                 verdict = None
+                listed_only = False
                 if candidate.version and is_orderable(candidate.version):
                     verdict = in_range(
                         candidate.version,
@@ -439,6 +453,10 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                             from .version import compare
                             cmp = compare(candidate.version, pinned)
                             verdict = (cmp == 0) if cmp is not None else None
+                            # NVD naming releases one by one (openssl:1.0.2, :1.1.1,
+                            # :3.0.0 for CVE-2023-3446, meaning those lines): absent from
+                            # the list is no verdict another record could not override.
+                            listed_only = verdict is False
                 state, detail = _state_for(candidate, verdict)
                 if cpe in candidate.rule_cpes:
                     detail += (" (CPE taken from the rule that claims this component's purl; "
@@ -448,7 +466,8 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                            directory=candidate.directory,
                            version=candidate.version, channel="cpe",
                            matched_on=rng["cpe"], state=state, detail=detail,
-                           component_confidence=candidate.confidence))
+                           component_confidence=candidate.confidence),
+                     unplaced=verdict is None or listed_only)
 
         # A distribution package: its distribution's own records settle it before the
         # upstream ranges are looked at, so they are read first.
@@ -546,7 +565,14 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                            version=candidate.version, channel="purl",
                            matched_on=rng["purl"], state=state,
                            detail=_via_alias(detail, candidate, key),
-                           component_confidence=candidate.confidence))
+                           component_confidence=candidate.confidence),
+                     # "Not in the record's tag list" is inferred from what OSV listed,
+                     # and those lists miss releases of multi-branch projects (OpenSSH
+                     # 7.5p1 for CVE-2023-51767, "through 10.0"): it settles nothing
+                     # another record leaves open.
+                     unplaced=verdict is None or (
+                         verdict is False and rng.get("type") == "GIT"
+                         and not rng.get("extracted")))
 
         for vkey, (advisory, rng, key, name) in distro_only.items():
             if vkey in upstream_seen or vkey in cpe_seen:

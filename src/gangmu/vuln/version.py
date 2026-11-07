@@ -25,8 +25,9 @@ _PRERELEASE = re.compile(
     r"(?:[-.~_](dev|snapshot|rc|alpha|beta|pre|pr|a|b)|(?<=\d)(dev|rc|alpha|beta|a|b)(?=\d))"
     r"\.?(\d*)$|~([a-z]+)(\d*)$", re.I)
 # A single letter straight after the last digit is a *later* release, not an
-# earlier one: OpenSSL 1.1.1w follows 1.1.1, FatFs R0.14b follows R0.14a.
-_LETTER_RELEASE = re.compile(r"(?<=\d)([a-z])$", re.I)
+# earlier one: OpenSSL 1.1.1w follows 1.1.1, FatFs R0.14b follows R0.14a. OpenSSL's
+# 1.0.2 line ran past z to za ... zl: z<letter> follows z.
+_LETTER_RELEASE = re.compile(r"(?<=\d)(z[a-z]|[a-z])$", re.I)
 # A final release is 4. Maven puts SNAPSHOT between rc and the release; PEP 440 puts
 # dev below everything.
 _RANK = {"dev": -1, "alpha": 0, "a": 0, "beta": 1, "b": 1, "pre": 2, "pr": 2,
@@ -109,7 +110,10 @@ def _parts(version: str) -> Tuple[List[int], float, int]:
     numbers = [int(n) for n in _NUMERIC.findall(text)]
     letter = _LETTER_RELEASE.search(text)
     if letter and numbers:
-        numbers.append(ord(letter.group(1).lower()) - ord("a") + 1)
+        value = 0
+        for ch in letter.group(1).lower():          # a=1 ... z=26, za=703 ... (base 27)
+            value = value * 27 + ord(ch) - ord("a") + 1
+        numbers.append(value)
     return numbers, rank, pre_num
 
 
@@ -253,6 +257,8 @@ def normalize_tag(tag: Optional[str]) -> Optional[str]:
         return f"{core}-{word}{pre.group(4)}"
     if re.match(r"^[a-z](?![a-z])", rest):        # OpenSSL 1.1.1w style
         return core + rest[0]
+    if re.match(r"^z[a-z](?![a-z])", rest):       # OpenSSL 1.0.2za style
+        return core + rest[:2]
     return core
 
 

@@ -3,6 +3,8 @@
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
 ## 未发布
+* **修正：OpenSSL 1.0.2za 这类双字母版本按顺序比较。** OpenSSL 1.0.2 一直发到 1.0.2zl，z 之后是 za、zb……；原来只认单个字母，`1.0.2za` 被当成 `1.0.2`，于是 1.0.2l 看起来比每个修复版本都新。NVD 截止到 1.0.2zc、1.0.2zf、1.0.2zj 的范围因此全部判成 not affected：用户固件 SBOM 里 OpenSSL 1.0.2l 有 27 个漏洞（CVE-2022-0778、CVE-2023-0286、CVE-2024-0727 等）被漏报，现在判为 exploitable。
+* **一条记录判定不了的漏洞，以另一条记录的判定为准。** 版本放不进范围（OSV 只给提交、没有可比较的版本）时结果是 in_triage，原来它总盖过 NVD 等来源明确的 affected / not affected。现在明确的判定优先；但 OSV 由标签列表推出的“不在列表里”和 NVD 逐个列出版本时的“不在列表里”只是推断（列表常不全，CVE-2023-51767 写的是 OpenSSH “through 10.0”），不算判定。用户 SBOM 中有 23 个漏洞因此有了结论。
 
 ## 0.18.3
 * **只写了 purl 的组件也能按 CPE 匹配 NVD。** 别的工具生成的 SBOM 常常只有 purl 没有 CPE，NVD 按 CPE 登记的记录就够不着。现在 `gangmu vuln` 给没有 CPE 的组件补上认领它 purl（自身 purl 或 `upstream.identifiers`）的规则的 CPE 和 `cpe_aliases`；几条规则对同一 purl 给出不同 CPE 时不补。经由规则 CPE 的匹配会注明；`--no-purl-aliases` 一并关闭。用户固件 SBOM（21 个组件，全部 purl）的 exploitable 由 48 增至 131，OpenSSL、busybox、libevent 等只有 NVD 能判定的漏洞都有了结论。
