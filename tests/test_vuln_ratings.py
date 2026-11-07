@@ -161,13 +161,24 @@ def test_a_cve_and_the_ghsa_aliasing_it_are_one_finding(tmp_path):
     assert ghsa.aliases == ["CVE-2099-0001"]                 # shared record left alone
 
 
-def test_the_affected_record_wins_over_its_alias_that_says_not_affected(tmp_path):
+def test_an_osv_record_and_nvd_that_contradict_each_other_leave_it_in_triage(tmp_path):
     ghsa = _osv(tmp_path, fixed="3.0.0")                      # 2.1.3 affected
     nvd = _nvd(end_excluding="2.0.0")                         # 2.1.3 not affected
-    found = match([_lwip()], [nvd, ghsa], include_not_affected=True)
-    assert [(m.advisory.id, m.state.value) for m in found] == \
-        [("GHSA-test-0001", "exploitable")]
-    assert "CVE-2099-0001" in found[0].advisory.aliases
+    for order in ([nvd, ghsa], [ghsa, nvd]):
+        found = match([_lwip()], order, include_not_affected=True)
+        assert [(m.advisory.id, m.state.value) for m in found] == \
+            [("GHSA-test-0001", "in_triage")]
+        assert "CVE-2099-0001" in found[0].advisory.aliases
+        assert "disagree" in found[0].detail and "NVD CPE range" in found[0].detail
+    # the not-affected side counts even when not-affected results are not listed
+    assert [m.state.value for m in match([_lwip()], [nvd, ghsa])] == ["in_triage"]
+
+
+def test_records_that_agree_are_not_a_dispute(tmp_path):
+    ghsa = _osv(tmp_path, fixed="3.0.0")
+    nvd = _nvd(end_excluding="3.0.0")
+    found = match([_lwip()], [nvd, ghsa])
+    assert [m.state.value for m in found] == ["exploitable"]
 
 
 def test_records_without_a_shared_cve_stay_apart(tmp_path):

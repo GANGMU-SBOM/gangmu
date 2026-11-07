@@ -241,6 +241,9 @@ def normalize_tag(tag: Optional[str]) -> Optional[str]:
     rest = tag[found.end():]
     if _TAG_DATE_CORE.match(tag, found.start()):
         return None
+    portable = re.fullmatch(r"_?[pP](\d+)", rest)
+    if portable:                                    # OpenSSH portable: V_9_8_P1, 9.8p1
+        return f"{core}p{portable.group(1)}"
     pre = _TAG_PRE.match(rest)
     tail = rest[pre.end():] if pre else rest
     if _TAG_JUNK_REST.search(tail) and not _TAG_DATE_SUFFIX.match(tail):

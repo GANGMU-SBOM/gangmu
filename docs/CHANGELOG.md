@@ -4,6 +4,11 @@
 
 ## 未发布
 
+## 0.18.3
+* **只写了 purl 的组件也能按 CPE 匹配 NVD。** 别的工具生成的 SBOM 常常只有 purl 没有 CPE，NVD 按 CPE 登记的记录就够不着。现在 `gangmu vuln` 给没有 CPE 的组件补上认领它 purl（自身 purl 或 `upstream.identifiers`）的规则的 CPE 和 `cpe_aliases`；几条规则对同一 purl 给出不同 CPE 时不补。经由规则 CPE 的匹配会注明；`--no-purl-aliases` 一并关闭。用户固件 SBOM（21 个组件，全部 purl）的 exploitable 由 48 增至 131，OpenSSL、busybox、libevent 等只有 NVD 能判定的漏洞都有了结论。
+* **OSV 记录和 NVD 的 CPE 范围结论相反时，列为 in_triage。** 原来取最严重的结论，OSV 由 GIT 推出的受影响标签列表出错时（OpenSSH 7.5p1 的 CVE-2024-6387、OpenSSL 1.0.2l 的 CVE-2021-4044）照样判 exploitable。现在一方说受影响、另一方说不受影响时列为 in_triage，说明里写出两边的记录和理由。发行版按自己修订号作出的判定仍然优先于任何上游范围（修正：原来 NVD 的上游范围会盖过 Debian 对回移植修复的 not affected）。
+* **修正：OpenSSH 的版本能和 OSV 的 GIT 记录对上了。** openssh-portable 的标签写作 `V_7_5_P1`，版本写作 `7.5p1`，两者原来都化不成可比较的版本，OpenSSH 的 GIT 记录一律成了 in_triage；现在都规范成 `7.5p1`。用户固件 SBOM 里 OpenSSH 7.5p1 的 136 个漏洞有 65 个能直接判定，与 NVD 按 CPE 的结论在共有的 115 个里只有 4 个相左。
+
 ## 0.18.2
 * **修正：发行版的记录不再判定上游组件。** 规则别名让 `pkg:github/openssl/openssl@1.0.2l` 这样的上游组件也能读到 Debian、Ubuntu、Alpine、Echo 的 OSV 记录，而发行版的范围从 `0` 开始、止于它自己的修复版本，拿上游版本去比，所有更旧的版本都落在范围内：Debian 记录的只影响 OpenSSL 3.0 的 CVE（如 CVE-2022-2274）因此把 1.0.2l 判成 exploitable，还盖过了 GIT 记录正确的 not affected。现在发行版的记录只判定该发行版的包；对上游组件，同一个漏洞有上游记录（GIT、NVD 等）时以上游记录为准，只有发行版记录的漏洞列为 in_triage 并说明原因。用户固件 SBOM 的 21 个组件读全部 OSV 数据时，exploitable 由 430 回到 48。
 * **修正：发行版包不再按同一发行版里另一个包的记录判定。** 规则别名把 `lua5.1` 和 `lua5.4` 归到同一个上游，`pkg:deb/debian/lua5.1@5.1.5-9` 原来会拿 lua5.4 的修复修订号比较；现在只读 SBOM 写的那个包自己的记录。

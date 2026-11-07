@@ -237,3 +237,52 @@ def test_another_package_of_the_same_distribution_does_not_decide_it(tmp_path):
     cands = candidates_from_cyclonedx(bom, PurlAliases.from_rules([rule]))
     found = match(cands, load_database(tmp_path, wanted_for(cands)))
     assert all(m.state is not VexState.EXPLOITABLE for m in found)
+
+
+def _cpe_rule(rid="generic/zlib", purl="pkg:github/madler/zlib", cpe="cpe:2.3:a:zlib:zlib:*:*:*:*:*:*:*:*"):
+    return rule_from_dict({"id": rid, "upstream": {
+        "name": rid, "purl": purl, "cpe": cpe, "cpe_evidence": ["CVE-2099-0500"],
+        "source": {"kind": "git", "url": "https://github.com/madler/zlib", "ref": "v1.3"}},
+        "identity": {"anchors": [{"path": "zlib.h", "sha256": {"1.3": "0" * 64}}]}}, "z.yaml")
+
+
+def _nvd_zlib(tmp_path, end="1.2.12"):
+    item = {"cve": {"id": "CVE-2099-0500", "configurations": [{"nodes": [{"cpeMatch": [{
+        "vulnerable": True, "criteria": "cpe:2.3:a:zlib:zlib:*:*:*:*:*:*:*:*",
+        "versionEndExcluding": end}]}]}]}}
+    (tmp_path / "nvd.json").write_text(json.dumps({"vulnerabilities": [item]}))
+
+
+def test_a_purl_only_component_gets_its_rule_cpe_and_reaches_nvd(tmp_path):
+    _nvd_zlib(tmp_path)
+    aliases = PurlAliases.from_rules([_cpe_rule()])
+    cands = candidates_from_cyclonedx(_bom("pkg:github/madler/zlib", "1.2.3"), aliases)
+    assert cands[0].cpes == ["cpe:2.3:a:zlib:zlib:*:*:*:*:*:*:*:*"]
+    found = match(cands, load_database(tmp_path, wanted_for(cands)))
+    assert [(m.advisory.id, m.state) for m in found] == [("CVE-2099-0500", VexState.EXPLOITABLE)]
+    assert "CPE taken from the rule" in found[0].detail
+    # without aliases (--no-purl-aliases) nothing is added
+    assert candidates_from_cyclonedx(_bom("pkg:github/madler/zlib", "1.2.3"))[0].cpes == []
+
+
+def test_an_sbom_cpe_is_kept_and_two_products_give_no_cpe():
+    bom = _bom("pkg:github/madler/zlib", "1.2.3")
+    bom["components"][0]["cpe"] = "cpe:2.3:a:other:thing:1.2.3:*:*:*:*:*:*:*"
+    aliases = PurlAliases.from_rules([_cpe_rule()])
+    assert candidates_from_cyclonedx(bom, aliases)[0].cpes == ["cpe:2.3:a:other:thing:1.2.3:*:*:*:*:*:*:*"]
+    clash = PurlAliases.from_rules([_cpe_rule(), _cpe_rule("generic/zlib-fork", cpe="cpe:2.3:a:fork:zlib:*:*:*:*:*:*:*:*")])
+    assert candidates_from_cyclonedx(_bom("pkg:github/madler/zlib", "1.2.3"), clash)[0].cpes == []
+
+
+def test_a_distribution_verdict_outranks_nvds_upstream_range(tmp_path):
+    # Debian backported the fix into 1:1.2.11.dfsg-4.1: NVD's upstream range (< 1.2.12)
+    # would call 1.2.11 affected; the package's own revision says it is not.
+    _nvd_zlib(tmp_path)
+    (tmp_path / "osv.json").write_text(json.dumps([
+        dict(_debian_record("DEBIAN-CVE-2099-0500", "1:1.2.11.dfsg-2+deb11u2", "1:1.2.11.dfsg-4.1"),
+             aliases=["CVE-2099-0500"])]))
+    bom = _bom("pkg:deb/debian/zlib@1:1.2.11.dfsg-4.1")
+    bom["components"][0]["cpe"] = "cpe:2.3:a:zlib:zlib:1.2.11:*:*:*:*:*:*:*"
+    cands = candidates_from_cyclonedx(bom, _aliases())
+    found = match(cands, load_database(tmp_path, wanted_for(cands)), include_not_affected=True)
+    assert [m.state for m in found] == [VexState.NOT_AFFECTED]
