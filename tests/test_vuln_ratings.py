@@ -199,3 +199,67 @@ def test_csaf_names_an_aliased_cve_once(tmp_path):
                   publisher_url="https://example.invalid")
     cves = [v.get("cve") for v in doc["vulnerabilities"]]
     assert cves == ["CVE-2099-0001"]
+
+
+def _osv_commits_only(tmp_path, osv_id="OSV-test-0003"):
+    """An OSS-Fuzz-style record: GIT commits, no release tags: it cannot place a version."""
+    record = {"id": osv_id, "summary": "overflow", "aliases": ["CVE-2099-0001"],
+              "affected": [{"ranges": [{"type": "GIT", "repo": "https://github.com/lwip-tcpip/lwip",
+                                        "events": [{"introduced": "a" * 40}, {"fixed": "b" * 40}]}]}]}
+    path = tmp_path / f"{osv_id}.json"
+    path.write_text(json.dumps(record), encoding="utf-8")
+    return load_osv(path)[0]
+
+
+def test_a_verdict_stands_over_a_record_that_cannot_place_the_version(tmp_path):
+    undecided = _osv_commits_only(tmp_path)
+    for decisive, state in ((_nvd(end_excluding="2.0.0"), "not_affected"),     # 2.1.3 outside
+                            (_nvd(end_excluding="3.0.0"), "exploitable")):     # 2.1.3 inside
+        for order in ([decisive, undecided], [undecided, decisive]):
+            found = match([_lwip()], order, include_not_affected=True)
+            assert [m.state.value for m in found] == [state], (order, found)
+            assert "OSV-test-0003" in found[0].advisory.aliases or found[0].advisory.id == "OSV-test-0003"
+
+
+def test_records_that_all_cannot_place_the_version_leave_it_in_triage(tmp_path):
+    found = match([_lwip()], [_osv_commits_only(tmp_path)])
+    assert [m.state.value for m in found] == ["in_triage"]
+    assert "commit only" in found[0].detail
+
+
+def _osv_tag_list(tmp_path, tags, osv_id="OSV-test-0004"):
+    record = {"id": osv_id, "summary": "overflow", "aliases": ["CVE-2099-0001"],
+              "affected": [{"ranges": [{"type": "GIT", "repo": "https://github.com/lwip-tcpip/lwip",
+                                        "events": [{"introduced": "a" * 40}, {"fixed": "b" * 40}]}],
+                            "versions": tags}]}
+    path = tmp_path / f"{osv_id}.json"
+    path.write_text(json.dumps(record), encoding="utf-8")
+    return load_osv(path)[0]
+
+
+def _nvd_unbounded():
+    # NVD's lwip CPE with no version bounds: gangmu cannot place a version in it
+    return advisory_from_nvd({"cve": {"id": "CVE-2099-0001", "metrics": {},
+        "configurations": [{"nodes": [{"cpeMatch": [{"vulnerable": True, "criteria": LWIP_CPE}]}]}]}})
+
+
+def test_a_version_missing_from_an_osv_tag_list_settles_nothing_left_open(tmp_path):
+    # OSV lists 2.2.0 and 2.2.1 only; 2.1.3 below them is "not affected" by the list, but
+    # the list may just be incomplete, so NVD's open record keeps it in triage.
+    osv = _osv_tag_list(tmp_path, ["STABLE-2_2_0_RELEASE", "STABLE-2_2_1_RELEASE"])
+    for order in ([osv, _nvd_unbounded()], [_nvd_unbounded(), osv]):
+        found = match([_lwip()], order, include_not_affected=True)
+        assert [m.state.value for m in found] == ["in_triage"], order
+    # alone, the tag list still decides
+    assert [m.state.value for m in match([_lwip()], [osv], include_not_affected=True)] == ["not_affected"]
+
+
+def test_a_release_absent_from_nvds_list_settles_nothing_left_open(tmp_path):
+    # NVD names single releases (lwip:2.0.0, lwip:2.2.0): 2.1.3 is not among them, which is
+    # no verdict over a record that cannot place it.
+    nvd = advisory_from_nvd({"cve": {"id": "CVE-2099-0001", "metrics": {}, "configurations": [{"nodes": [{"cpeMatch": [
+        {"vulnerable": True, "criteria": LWIP_CPE.replace(":*:*:*:*:*:*:*:*", ":2.0.0:*:*:*:*:*:*:*")},
+        {"vulnerable": True, "criteria": LWIP_CPE.replace(":*:*:*:*:*:*:*:*", ":2.2.0:*:*:*:*:*:*:*")}]}]}]}})
+    undecided = _osv_commits_only(tmp_path)
+    for order in ([nvd, undecided], [undecided, nvd]):
+        assert [m.state.value for m in match([_lwip()], order, include_not_affected=True)] == ["in_triage"]
