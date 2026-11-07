@@ -3,6 +3,7 @@
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
 ## Unreleased
+* **Fixed: OpenSSH versions now meet OSV's GIT records.** openssh-portable tags read `V_7_5_P1` and its versions `7.5p1`; neither reduced to a comparable version, so every OpenSSH GIT record stayed in_triage. Both now normalise to `7.5p1`. For OpenSSH 7.5p1 in a user's firmware SBOM, 65 of 136 vulnerabilities are now decided, and only 4 of the 115 NVD also covers disagree with NVD's CPE verdict.
 
 ## 0.18.2
 * **Fixed: a distribution's records no longer decide an upstream component.** Rule aliases let an upstream component such as `pkg:github/openssl/openssl@1.0.2l` reach Debian, Ubuntu, Alpine and Echo OSV records, whose ranges start at `0` and end at the distribution's own fix: read against an upstream release, every older release fell inside. Debian's records of OpenSSL 3.0-only CVEs (CVE-2022-2274) made 1.0.2l exploitable, overriding the GIT record's correct not affected. A distribution's records now decide only that distribution's packages; for an upstream component, an upstream record (GIT, NVD ...) of the same vulnerability decides it, and a vulnerability only a distribution names is in_triage, with the reason. A user's 21-component firmware SBOM read against all of OSV goes from 430 exploitable back to 48.
