@@ -2,7 +2,7 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
-## Unreleased
+## 0.18.4
 * **Fixed: OpenSSL two-letter releases such as 1.0.2za order correctly.** OpenSSL 1.0.2 ran to 1.0.2zl, with za, zb ... after z; only one letter was read, so `1.0.2za` counted as `1.0.2` and 1.0.2l looked newer than every fix. NVD ranges ending at 1.0.2zc, 1.0.2zf or 1.0.2zj all read not affected: in a user's firmware SBOM 27 OpenSSL 1.0.2l vulnerabilities (CVE-2022-0778, CVE-2023-0286, CVE-2024-0727 ...) were missed and are now exploitable.
 * **A vulnerability one record cannot decide is decided by another.** A record that cannot place the version (OSV commits without comparable versions) gave in_triage, which used to outrank a clear affected / not affected from NVD or elsewhere. A clear verdict now stands; "absent from the list", inferred from an OSV tag list or from NVD naming releases one by one, is not one (the lists are often incomplete: CVE-2023-51767 says OpenSSH "through 10.0"). 23 vulnerabilities in the user's SBOM get a verdict.
 
