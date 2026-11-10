@@ -113,7 +113,8 @@ def _vulnerability(match: Match, bom: Optional[dict]) -> Dict[str, Any]:
 def to_vex(matches: Sequence[Match], bom: Optional[dict] = None,
            app_name: str = "firmware", timestamp: Optional[str] = None,
            serial: Optional[str] = None,
-           blind_spots: Sequence[str] = ()) -> Dict[str, Any]:
+           blind_spots: Sequence[str] = (),
+           purl_unreachable: Sequence[str] = ()) -> Dict[str, Any]:
     """A CycloneDX document carrying the components *and* the analysis.
 
     When an input BOM is given the vulnerabilities are added to it, so the
@@ -151,6 +152,17 @@ def to_vex(matches: Sequence[Match], bom: Optional[dict] = None,
             "value": ("These components carry neither a CPE nor a PURL, so no "
                       "advisory database could be queried for them. Absence of "
                       "findings here is absence of evidence."),
+        })
+    if purl_unreachable:
+        props = doc["metadata"].setdefault("properties", [])
+        for name in purl_unreachable:
+            props.append({"name": "gangmu:purlUnreachable", "value": name})
+        props.append({
+            "name": "gangmu:purlUnreachableNote",
+            "value": ("These components carry no CPE and only a name-only "
+                      "pkg:generic/<name> PURL, which no advisory database files "
+                      "records under, so none was found for them. Absence of findings "
+                      "here is absence of evidence."),
         })
     return repro.fill_document_id(doc)
 

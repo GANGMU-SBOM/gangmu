@@ -11,6 +11,7 @@ import pytest
 
 from gangmu.rules.schema import RuleError, rule_from_dict
 from gangmu.vuln import candidates_from_cyclonedx, load_database, match
+from gangmu.vuln.match import cpe_mismatches
 from gangmu.vuln.aliases import PurlAliases, keys_for, version_from_name
 from gangmu.vuln.match import wanted_for
 from gangmu.vuln.model import VexState
@@ -267,9 +268,11 @@ def test_a_purl_only_component_gets_its_rule_cpe_and_reaches_nvd(tmp_path):
 
 def test_an_sbom_cpe_is_kept_and_two_products_give_no_cpe():
     bom = _bom("pkg:github/madler/zlib", "1.2.3")
-    bom["components"][0]["cpe"] = "cpe:2.3:a:other:thing:1.2.3:*:*:*:*:*:*:*"
+    bom["components"][0]["cpe"] = "cpe:2.3:a:zlib:zlib:1.2.3:*:*:*:*:*:*:*"
     aliases = PurlAliases.from_rules([_cpe_rule()])
-    assert candidates_from_cyclonedx(bom, aliases)[0].cpes == ["cpe:2.3:a:other:thing:1.2.3:*:*:*:*:*:*:*"]
+    cand = candidates_from_cyclonedx(bom, aliases)[0]
+    assert cand.cpes == ["cpe:2.3:a:zlib:zlib:1.2.3:*:*:*:*:*:*:*"]
+    assert not cand.sbom_cpe_mismatch and not cand.rule_cpes
     clash = PurlAliases.from_rules([_cpe_rule(), _cpe_rule("generic/zlib-fork", cpe="cpe:2.3:a:fork:zlib:*:*:*:*:*:*:*:*")])
     assert candidates_from_cyclonedx(_bom("pkg:github/madler/zlib", "1.2.3"), clash)[0].cpes == []
 
@@ -286,3 +289,37 @@ def test_a_distribution_verdict_outranks_nvds_upstream_range(tmp_path):
     cands = candidates_from_cyclonedx(bom, _aliases())
     found = match(cands, load_database(tmp_path, wanted_for(cands)), include_not_affected=True)
     assert [m.state for m in found] == [VexState.NOT_AFFECTED]
+
+
+def test_an_sbom_cpe_of_another_product_also_asks_the_rules_cpe(tmp_path):
+    # ppp 2.4.7 written as ppp_project:ppp, which no NVD record carries: the rule's
+    # point-to-point_protocol_project CPE is asked too, and the mismatch is reported.
+    _nvd_zlib(tmp_path)
+    bom = _bom("pkg:github/madler/zlib", "1.2.3")
+    bom["components"][0]["cpe"] = "cpe:2.3:a:other:thing:1.2.3:*:*:*:*:*:*:*"
+    aliases = PurlAliases.from_rules([_cpe_rule()])
+    cands = candidates_from_cyclonedx(bom, aliases)
+    assert cands[0].cpes == ["cpe:2.3:a:other:thing:1.2.3:*:*:*:*:*:*:*",
+                             "cpe:2.3:a:zlib:zlib:*:*:*:*:*:*:*:*"]
+    assert [c.name for c in cpe_mismatches(cands)] == [cands[0].name]
+    found = match(cands, load_database(tmp_path, wanted_for(cands)))
+    assert [m.advisory.id for m in found] == ["CVE-2099-0500"]
+    assert "the SBOM's CPE names another product" in found[0].detail
+
+
+def test_an_sbom_cpe_the_rule_also_lists_is_not_a_mismatch():
+    # vsftpd: NVD files old CVEs under beasts:vsftpd, newer ones under vsftpd_project.
+    rule = rule_from_dict({"id": "generic/vsftpd", "upstream": {
+        "name": "vsftpd", "purl": "pkg:github/dagwieers/vsftpd",
+        "identifiers": ["pkg:generic/vsftpd"],
+        "cpe": "cpe:2.3:a:vsftpd_project:vsftpd:*:*:*:*:*:*:*:*",
+        "cpe_aliases": ["cpe:2.3:a:beasts:vsftpd:*:*:*:*:*:*:*:*"],
+        "cpe_evidence": ["CVE-2015-1419"],
+        "source": {"kind": "git", "url": "https://github.com/dagwieers/vsftpd", "ref": "3.0.2"}},
+        "identity": {"anchors": [{"path": "main.c", "sha256": {"3.0.2": "0" * 64}}]}}, "v.yaml")
+    bom = _bom("pkg:generic/vsftpd@3.0.2", "3.0.2")
+    bom["components"][0]["cpe"] = "cpe:2.3:a:beasts:vsftpd:3.0.2:*:*:*:*:*:*:*"
+    cand = candidates_from_cyclonedx(bom, PurlAliases.from_rules([rule]))[0]
+    assert cand.cpes == ["cpe:2.3:a:beasts:vsftpd:3.0.2:*:*:*:*:*:*:*",
+                         "cpe:2.3:a:vsftpd_project:vsftpd:*:*:*:*:*:*:*:*"]
+    assert not cand.sbom_cpe_mismatch

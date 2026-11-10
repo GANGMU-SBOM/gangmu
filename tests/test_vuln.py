@@ -11,7 +11,7 @@ import pytest
 
 from gangmu.vuln import (Candidate, candidates_from_cyclonedx, load_database,
                          match, summary, to_vex, unmatched_components)
-from gangmu.vuln.match import without_cpe
+from gangmu.vuln.match import without_cpe, purl_unreachable, purl_is_keyable
 from gangmu.vuln.model import VexState
 from gangmu.vuln.version import compare, in_range, is_orderable
 
@@ -265,3 +265,20 @@ def test_a_subsystem_scoped_component_is_not_reported_exploitable_on_version_alo
     apply_linkage(found, [c])
     assert not any(m.state is VexState.EXPLOITABLE for m in found)
     assert any("subsystem" in m.detail for m in found)
+
+
+def test_a_name_only_generic_purl_cannot_be_looked_up():
+    # OSV files C libraries by repository; pkg:generic/<name> is keyed by nothing.
+    assert not purl_is_keyable("pkg:generic/luabitop@1.0.1")
+    assert purl_is_keyable("pkg:generic/git.kernel.org/pub/scm/network/tftp/tftp-hpa")
+    assert purl_is_keyable("pkg:github/lualanes/lanes@2.0.10")
+    assert purl_is_keyable("pkg:deb/debian/lua-bitop")
+    luabitop = Candidate(name="LuaBitOp", directory="d", version="1.0.1",
+                         cpes=[], purls=["pkg:generic/luabitop@1.0.1"])
+    lanes = Candidate(name="lanes", directory="d", version="2.0.10",
+                      cpes=[], purls=["pkg:github/lualanes/lanes@2.0.10"])
+    with_cpe = Candidate(name="ppp", directory="d", version="2.4.7",
+                         cpes=["cpe:2.3:a:x:ppp:2.4.7:*:*:*:*:*:*:*"],
+                         purls=["pkg:generic/ppp@2.4.7"])
+    assert [c.name for c in purl_unreachable([luabitop, lanes, with_cpe])] == ["LuaBitOp"]
+    assert unmatched_components([luabitop]) == []

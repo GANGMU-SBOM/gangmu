@@ -173,7 +173,13 @@ class Candidate:
     a match reached through one of them says so, so a reviewer can tell it apart."""
     rule_cpes: frozenset = frozenset()
     """CPEs taken from the rule that claims the component's purl, for a component the
-    SBOM gives no CPE: NVD's records are keyed by CPE, and a match through one says so."""
+    SBOM gives no CPE or a CPE of another product: NVD's records are keyed by CPE, and a
+    match through one says so."""
+    sbom_cpe_mismatch: bool = False
+    """The SBOM gives a CPE, and the rule that claims the component's purl files the
+    upstream under another one (see :func:`cpe_mismatches`)."""
+    sbom_gave_cpe: bool = False
+    """The SBOM itself gives a CPE (before any is taken from a rule)."""
     linked: Optional[bool] = None
     """False when a link map showed none of the component's objects in the image;
     None when no link map was used (unknown, not "linked")."""
@@ -235,9 +241,23 @@ def candidates_from_cyclonedx(bom: dict, purl_aliases=None) -> List[Candidate]:
         purls += [p for p in map(without_name_version, purls) if p and p not in purls]
         alias_keys: frozenset = frozenset()
         rule_cpes: List[str] = []
-        if purl_aliases is not None and not cpes:
-            rule_cpes = purl_aliases.cpes_for(purls)
-            cpes = list(rule_cpes)
+        sbom_cpe_mismatch = False
+        sbom_gave_cpe = bool(cpes)
+        if purl_aliases is not None:
+            # The rule's CPE is added when the SBOM gives none, and also when the SBOM's
+            # CPE names another product: a hand-written or tool-guessed CPE
+            # (``ppp_project:ppp`` for what NVD files as
+            # ``point-to-point_protocol_project:point-to-point_protocol``) matches no
+            # record, and the SBOM's own CPE is still asked as written.
+            have = {cpe_product_key(c) for c in cpes}
+            claimed = purl_aliases.cpes_for(purls)
+            rule_cpes = [c for c in claimed if cpe_product_key(c) not in have]
+            # A mismatch only when none of the SBOM's CPEs is one the rule lists:
+            # ``beasts:vsftpd`` is NVD's older name for vsftpd, not a wrong one.
+            sbom_cpe_mismatch = (bool(cpes) and bool(claimed) and
+                                 not have & {cpe_product_key(c) for c in claimed})
+            sbom_gave_cpe = bool(cpes)
+            cpes = cpes + rule_cpes
         if purl_aliases is not None:
             extra = purl_aliases.expand(purls)
             alias_keys = frozenset(k for k in map(purl_key, extra) if k)
@@ -251,6 +271,8 @@ def candidates_from_cyclonedx(bom: dict, purl_aliases=None) -> List[Candidate]:
             distro_package=distro,
             alias_keys=alias_keys,
             rule_cpes=frozenset(rule_cpes),
+            sbom_cpe_mismatch=sbom_cpe_mismatch,
+            sbom_gave_cpe=sbom_gave_cpe,
             package_version=package_version if distro else None,
             distro_family=family.name if family else None,
             distro_release=(distver.release_from_purl(family_purl, package_version)
@@ -460,7 +482,10 @@ def match(candidates: Sequence[Candidate], advisories: Sequence[Advisory],
                 state, detail = _state_for(candidate, verdict)
                 if cpe in candidate.rule_cpes:
                     detail += (" (CPE taken from the rule that claims this component's purl; "
-                               "the SBOM gives none)")
+                               + ("the SBOM's CPE names another product)"
+                                  if candidate.sbom_cpe_mismatch else
+                                  "the SBOM gives another of the names NVD uses)"
+                                  if candidate.sbom_gave_cpe else "the SBOM gives none)"))
                 keep((vulnerability_key(advisory), candidate.directory),
                      Match(advisory=advisory, component=candidate.name,
                            directory=candidate.directory,
@@ -646,6 +671,35 @@ def apply_linkage(matches: Sequence[Match], candidates: Sequence[Candidate],
 def unmatched_components(candidates: Sequence[Candidate]) -> List[Candidate]:
     """Components no channel could even look up. These are the blind spots."""
     return [c for c in candidates if not c.cpes and not c.purls]
+
+
+def purl_is_keyable(purl: str) -> bool:
+    """Whether an advisory can be filed under *purl* at all.
+
+    OSV names a C library by the repository its fix lives in (``pkg:github/o/r``,
+    ``pkg:generic/<host>/<path>``) or by a package ecosystem. A ``pkg:generic/<name>``
+    with no namespace (``pkg:generic/luabitop@1.0.1``) is neither: no record is keyed
+    that way, so the PURL channel cannot reach it however old or new the project is.
+    """
+    key = purl_key(purl)
+    if not key:
+        return False
+    kind, _, rest = key[4:].partition("/")
+    return bool(rest) and (kind != "generic" or "/" in rest)
+
+
+def purl_unreachable(candidates: Sequence[Candidate]) -> List[Candidate]:
+    """Components with no CPE whose purls are all name-only ``pkg:generic/<name>``:
+    they have a PURL, so :func:`unmatched_components` does not list them, but no
+    advisory database files anything under it. As blind as having none."""
+    return [c for c in candidates
+            if not c.cpes and c.purls and not any(map(purl_is_keyable, c.purls))]
+
+
+def cpe_mismatches(candidates: Sequence[Candidate]) -> List[Candidate]:
+    """Components whose SBOM CPE names another product than the rule claiming their
+    purl: the rule's CPE was asked as well, and the SBOM is worth correcting."""
+    return [c for c in candidates if c.sbom_cpe_mismatch]
 
 
 def without_cpe(candidates: Sequence[Candidate]) -> List[Candidate]:
