@@ -2,7 +2,8 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
-## Unreleased
+## 0.18.5
+* **Requires gangmu-rules 2026.11.11.** It adds a vsftpd rule (CPE `vsftpd_project:vsftpd`, alias `beasts:vsftpd`), and ppp claims `pkg:generic/ppp`. CI is pinned to v2026.11.11.
 * **An SBOM CPE naming another product no longer hides NVD's records.** Hand-written or tool-guessed CPEs often miss NVD's names: ppp as `ppp_project:ppp` (NVD: `point-to-point_protocol_project:point-to-point_protocol`), lrzsz as `lrzsz:lrzsz` (NVD: `lrzsz_project:lrzsz`); only the SBOM's CPE was asked, nothing came back and the component looked clean. The CPE of the rule claiming the purl is now asked as well, alongside the SBOM's own; the table lists those components with the CPE to write instead, and JSON gives `cpeMismatch`. An SBOM CPE that is one of the rule's `cpe_aliases` (`beasts:vsftpd`) is not a mistake, but the rule's main CPE is asked too. In a user's SBOM this finds CVE-2020-8597 and CVE-2018-11574 on ppp 2.4.7, CVE-2018-10195 on lrzsz 0.12.20, and (with gangmu-rules' new vsftpd rule) CVE-2015-1419 and CVE-2021-3618 on vsftpd 3.0.2.
 * **Components with only a `pkg:generic/<name>` purl are reported as not looked up.** OSV files C libraries by repository or package ecosystem; `pkg:generic/luabitop`, with no namespace, keys no record. Such components were counted as "reachable only by PURL", which reads as checked; they are now listed apart, with absence of findings called absence of evidence, as `purlUnreachable` in JSON and `gangmu:purlUnreachable` in CycloneDX VEX. One a rule's `upstream.identifiers` ties to a repository purl (`pkg:generic/luabitop` -> `pkg:github/LuaDist/luabitop`) still counts as reachable.
 

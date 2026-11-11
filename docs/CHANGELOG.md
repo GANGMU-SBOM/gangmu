@@ -2,7 +2,8 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
-## 未发布
+## 0.18.5
+* **需要 gangmu-rules 2026.11.11。** 规则库新增 vsftpd 规则（CPE `vsftpd_project:vsftpd`，别名 `beasts:vsftpd`），ppp 规则认领 `pkg:generic/ppp`。CI 固定到 v2026.11.11。
 * **SBOM 写了别的产品的 CPE 时，也按规则的 CPE 查 NVD。** 手写或别的工具推出来的 CPE 常常对不上 NVD 的登记名：ppp 写成 `ppp_project:ppp`（NVD 用 `point-to-point_protocol_project:point-to-point_protocol`），lrzsz 写成 `lrzsz:lrzsz`（NVD 用 `lrzsz_project:lrzsz`），原来只按 SBOM 的 CPE 查，什么都查不到，看起来干净。现在认领该 purl 的规则的 CPE 一并查询，SBOM 原有的 CPE 仍照写查询；表格末尾列出这些组件和应改成的 CPE，JSON 输出 `cpeMismatch`。SBOM 的 CPE 是规则 `cpe_aliases` 里的旧名（`beasts:vsftpd`）时不算写错，但规则的主 CPE 也会补查。一份用户 SBOM 里 ppp 2.4.7 因此查出 CVE-2020-8597、CVE-2018-11574，lrzsz 0.12.20 查出 CVE-2018-10195，vsftpd 3.0.2（需 gangmu-rules 新增的 vsftpd 规则）查出 CVE-2015-1419、CVE-2021-3618。
 * **只有 `pkg:generic/<名字>` 的组件单独列为查不到。** OSV 按仓库地址或包生态登记 C 库，不带命名空间的 `pkg:generic/luabitop` 不对应任何记录。这类组件原来算在 “reachable only by PURL” 里，看起来像查过了；现在单独列出，注明“没有结果不代表没有漏洞”，JSON 输出 `purlUnreachable`，CycloneDX VEX 写 `gangmu:purlUnreachable`。规则 `upstream.identifiers` 能把它对到仓库 purl 的（如 `pkg:generic/luabitop` → `pkg:github/LuaDist/luabitop`）仍算可经 PURL 查询。
 
