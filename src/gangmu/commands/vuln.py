@@ -14,7 +14,8 @@ from ..vuln.match import vulnerability_key
 from ..vuln.model import VexState
 from ..vuln import (apply_linkage, candidates_from_cyclonedx, enrich as cn_enrich, load_cn_report,
                     load_database, match as match_vulns, wanted_for, summary as vex_summary,
-                    to_vex, unmatched_components, without_cpe)
+                    to_vex, unmatched_components, without_cpe, purl_unreachable,
+                    cpe_mismatches)
 
 from .common import (_build_macros, _load_rulebase, _resolve_jobs, _write)
 
@@ -129,7 +130,12 @@ def cmd_vuln(args: argparse.Namespace) -> int:
             print(f"note: {cve} 定级不一致 —— 国际 {intl} / 国内 {local}",
                   file=sys.stderr)
     blind = [c.name for c in unmatched_components(candidates)]
-    no_cpe = [c.name for c in without_cpe(candidates)]
+    unreachable = purl_unreachable(candidates)
+    name_only = [c.name for c in unreachable]
+    no_cpe = [c.name for c in without_cpe(candidates)
+              if not any(c is u for u in unreachable)]
+    mismatched = [(c.name, [x for x in c.cpes if x not in c.rule_cpes], sorted(c.rule_cpes))
+                  for c in cpe_mismatches(candidates)]
 
     counts = vex_summary(matches)
     print(f"{len(advisories)} advisory record(s) name these components, "
@@ -157,6 +163,19 @@ def cmd_vuln(args: argparse.Namespace) -> int:
                         f"and were reachable only by PURL: "
                         + ", ".join(no_cpe[:6])
                         + (" ..." if len(no_cpe) > 6 else ""))
+        if name_only:
+            tail.append(f"{len(name_only)} component(s) have no CPE and only a name-only "
+                        f"PURL (pkg:generic/<name>), which no advisory database files "
+                        f"anything under, so they were not looked up: "
+                        + ", ".join(name_only[:6])
+                        + (" ..." if len(name_only) > 6 else ""))
+            tail.append("Absence of findings for those is absence of evidence.")
+        if mismatched:
+            tail.append(f"{len(mismatched)} component(s) carry an SBOM CPE naming another "
+                        f"product than the rule for their PURL; the rule's CPE was asked "
+                        f"as well, correct the SBOM:")
+            for name, given, rule in mismatched[:10]:
+                tail.append(f"    {name}: {', '.join(given)} -> {', '.join(rule)}")
         if cn is not None and cn.candidates:
             tail.append(f"{len(cn.candidates)} 条国内库条目按产品名命中，"
                         f"没有 CVE 编号可对齐，需人工确认：")
@@ -172,7 +191,10 @@ def cmd_vuln(args: argparse.Namespace) -> int:
         _write("\n".join(lines + tail), args.output)
     elif args.format == "json":
         doc = {"matches": [m.to_dict() for m in matches],
-               "summary": counts, "notLookedUp": blind}
+               "summary": counts, "notLookedUp": blind,
+               "purlUnreachable": name_only,
+               "cpeMismatch": [{"component": n, "sbomCpe": g, "ruleCpe": r}
+                               for n, g, r in mismatched]}
         if cn is not None:
             doc["cn"] = _cn_json(cn, cn_report.parsed)
         _write(json.dumps(doc, indent=2, ensure_ascii=False), args.output)
@@ -193,7 +215,8 @@ def cmd_vuln(args: argparse.Namespace) -> int:
             return 2 if matches else 0
         _write(json.dumps(doc, indent=2, ensure_ascii=False), args.output)
     else:
-        _write(json.dumps(to_vex(matches, bom, blind_spots=blind),
+        _write(json.dumps(to_vex(matches, bom, blind_spots=blind,
+                                 purl_unreachable=name_only),
                           indent=2, ensure_ascii=False), args.output)
 
     if args.fail_on:
