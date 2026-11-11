@@ -10,7 +10,7 @@ env:
   # (https://github.com/GANGMU-SBOM/gangmu-rules), pinned to a commit so a rules
   # release cannot change this commit's CI result. Move it forward in its own
   # pull request; benchmarks/perf-baseline.json is measured with it.
-  GANGMU_RULES_REF: ee2a20c9c7036e560f439245b8def09855cb3d2d   # v2026.11.7
+  GANGMU_RULES_REF: 87eb26bd24f991ef9d8b014881e622c1636d29e7   # v2026.11.11
   # Tests that use the real rule base fail instead of skipping when it is missing.
   GANGMU_REQUIRE_RULES: "1"
 
