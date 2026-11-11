@@ -66,7 +66,9 @@ jobs:
       - run: mypy
 
   tool:
-    runs-on: ubuntu-latest
+    # ubuntu-latest is now 26.04, which setup-python has no 3.9 build for; 3.9 stays
+    # supported (requires-python >= 3.9), so that leg runs on 24.04.
+    runs-on: ${{ matrix.python == '3.9' && 'ubuntu-24.04' || 'ubuntu-latest' }}
     strategy:
       matrix:
         python: ["3.9", "3.11", "3.13"]
