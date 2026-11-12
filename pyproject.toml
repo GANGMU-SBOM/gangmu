@@ -38,6 +38,9 @@ fast = ["numpy>=1.22"]
 # Function boundaries in stripped firmware images (gangmu binary-functions; ARM/Thumb,
 # AArch64, RISC-V, x86). Without it the rest of the binary inventory still works.
 disasm = ["capstone>=5.0"]
+# SquashFS compressed with LZ4 or zstd inside firmware images (gzip, xz and LZMA need
+# nothing beyond the standard library).
+firmware = ["lz4>=4.0", "zstandard>=0.21"]
 
 [project.urls]
 Homepage = "https://github.com/GANGMU-SBOM/gangmu"
