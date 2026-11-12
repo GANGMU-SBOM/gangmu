@@ -2,7 +2,7 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
-## Unreleased
+## 0.19.0
 * **New: SquashFS root file systems inside firmware images are extracted and scanned.** A Linux-class image (an OpenWrt sysupgrade file, a camera's flash dump) keeps what it ships in a SquashFS file system: the package manager's database, the programs and libraries. None of it was read. `gangmu scan` now finds SquashFS 4.0 file systems in the tree's images (at any offset in `.bin`, `.img`, `.trx` and similar files; at the start of any other file, such as a `rootfs` partition), extracts each into a temporary directory and scans it like any other tree; findings are placed under `<image>!squashfs@<offset>/`. The reader is pure standard library for gzip, xz and LZMA (OpenWrt, Yocto and Buildroot defaults); LZ4 and zstd need `pip install 'gangmu-sbom[firmware]'`, and LZO `python-lzo`. Extraction is bounded (512 MiB and 50,000 files per file system, 64 MiB per file, 32 directory levels); names are written as single path components and links are not created. `--no-filesystems` turns it off. On OpenWrt 23.05.5's image for the Xiaomi Router 4A Gigabit: 0 components before, 139 now (the 137 packages of its opkg database, the kernel and BusyBox).
 * **New: `gangmu scan` takes a single file.** `gangmu scan firmware.bin` scans that file alone; a file used to give an empty result.
 * **New: the Linux kernel is named from its boot banner.** `Linux version 5.15.167 (builder@buildhost) (...)` gives a Linux kernel component (`cpe:2.3:o:linux:linux_kernel`); the source's `%s` format string and prose do not match.
