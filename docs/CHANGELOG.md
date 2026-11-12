@@ -2,7 +2,7 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
-## Unreleased
+## 0.19.0
 * **新增：解开固件镜像里的 SquashFS 根文件系统并扫描。** Linux 类固件（OpenWrt 的 sysupgrade 文件、摄像头的 Flash 镜像）把出厂内容放在 SquashFS 里：包管理器的数据库、各个程序和库。这些以前都读不到。现在 `gangmu scan` 会在树里的镜像中查找 SquashFS 4.0（`.bin`、`.img`、`.trx` 等文件里任意位置；其他文件只看开头，比如没有后缀的 `rootfs` 分区），逐个解到临时目录，当作普通目录树扫描，结果放在 `<镜像>!squashfs@<偏移>/` 下。gzip、xz、LZMA（OpenWrt、Yocto、Buildroot 的默认）只用标准库；LZ4 和 zstd 需要 `pip install 'gangmu-sbom[firmware]'`，LZO 需要 `python-lzo`。解包有上限（每个文件系统 512 MiB、5 万个文件，单个文件 64 MiB，目录 32 层）；文件名只按单级路径写出，不创建链接。`--no-filesystems` 关闭此功能。以 OpenWrt 23.05.5 的小米路由器 4A 千兆版镜像为例：以前识别 0 个组件，现在 139 个（opkg 数据库里的 137 个包，加内核和 BusyBox）。
 * **新增：`gangmu scan` 可以直接扫一个文件。** `gangmu scan firmware.bin` 只扫这个文件；以前传文件得到的是空结果。
 * **新增：从启动横幅识别 Linux 内核。** `Linux version 5.15.167 (builder@buildhost) (...)` 给出 Linux 内核组件（`cpe:2.3:o:linux:linux_kernel`）；源码里的 `%s` 格式串和普通文字不会匹配。
