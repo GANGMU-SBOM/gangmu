@@ -134,11 +134,41 @@ def _bounded(decompressor, data: bytes) -> Optional[bytes]:
     return out if len(out) >= MIN_STREAM else None
 
 
+# An .lzma stream (LZMA "alone") has no magic number, only a properties byte and a
+# dictionary size. Linux kernels are compressed with two settings: lc=3 lp=0 pb=2 (0x5d,
+# the default) and OpenWrt's lc=1 lp=2 pb=2 (0x6d). The dictionary is a power of two
+# from 64 KiB to 64 MiB. OpenWrt's lzma-loader also drops the 8-byte size that follows.
+_LZMA_HEADER = re.compile(
+    rb"[\x5d\x6d](?:\x00\x00[\x01\x02\x04\x08\x10\x20\x40\x80]\x00"
+    rb"|\x00\x00\x00[\x01\x02\x04])", re.DOTALL)
+MIN_LZMA = 64 * 1024        # what a header found by its properties alone must decode to
+MAX_LZMA_TRIES = 8
+
+
+def _lzma_raw(data: bytes, start: int) -> Optional[bytes]:
+    size = int.from_bytes(data[start + 5:start + 13], "little")
+    if size == (1 << 64) - 1 or size <= MAX_STREAM * 4:
+        out = _lzma_alone(data[start:])                       # a size field, or "unknown"
+        if out is not None and len(out) >= MIN_LZMA:
+            return out
+    # no size field: put "unknown" where the decoder expects one
+    out = _lzma_alone(data[start:start + 5] + b"\xff" * 8 + data[start + 5:])
+    return out if out is not None and len(out) >= MIN_LZMA else None
+
+
 def _streams(data: bytes) -> Iterator[Tuple[str, int, bytes]]:
-    tried = 0
+    # zlib's two-byte magic turns up everywhere in compressed data, so it has its own
+    # budget: an image full of false zlib starts must not use up the tries before a real
+    # gzip or xz stream later in it.
+    tried = {"strong": 0, "zlib": 0}
     for m in _MAGIC.finditer(data):
         kind = m.lastgroup
         start = m.start()
+        budget = "zlib" if kind == "zlib" else "strong"
+        if tried[budget] >= MAX_STREAMS:
+            if all(n >= MAX_STREAMS for n in tried.values()):
+                break
+            continue
         if kind == "gzip":
             out = _bounded(zlib.decompressobj(16 + zlib.MAX_WBITS), data[start:])
         elif kind == "zlib":
@@ -147,11 +177,17 @@ def _streams(data: bytes) -> Iterator[Tuple[str, int, bytes]]:
             out = _bounded(lzma.LZMADecompressor(), data[start:])
         else:
             out = _bounded(bz2.BZ2Decompressor(), data[start:])
-        tried += 1
+        tried[budget] += 1
         if out is not None:
             yield f"{kind}@{start:#x}", start, out
-        if tried >= MAX_STREAMS:
-            return
+    lzma_tries = 0
+    for m in _LZMA_HEADER.finditer(data):
+        if lzma_tries >= MAX_LZMA_TRIES:
+            break
+        lzma_tries += 1
+        out = _lzma_raw(data, m.start())
+        if out is not None:
+            yield f"lzma@{m.start():#x}", m.start(), out
 
 
 # U-Boot legacy image: a 64-byte big-endian header, then the (often compressed) payload.

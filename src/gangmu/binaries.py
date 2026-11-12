@@ -82,6 +82,11 @@ BANNERS = (
     ("lua", "Lua", rb"\$Lua(?:Version)?: Lua (\d+\.\d+\.\d+)"),
     ("libjpeg-turbo", "libjpeg-turbo", rb"libjpeg-turbo version (\d+\.\d+\.\d+)"),
     ("busybox", "BusyBox", rb"BusyBox v(\d+\.\d+\.\d+(?:\.\d+)?)"),
+    # The banner a Linux kernel prints at boot (init/version.c, linux_banner): "Linux version
+    # 5.15.167 (builder@buildhost) (gcc ...". The source holds "%s" there, so only a built
+    # kernel has digits after it. A vendor's EXTRAVERSION (-rt, -g1234abc) is not a release.
+    ("linux-kernel", "Linux kernel",
+     rb"Linux version (\d+\.\d+(?:\.\d+)?)[-+.~\w]* \([^)\x00]{1,80}@[^)\x00]{1,80}\) \("),
 )
 
 # Libraries that leave no banner but export a recognisable API. Names are matched as whole

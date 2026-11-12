@@ -2,6 +2,13 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
+## Unreleased
+* **新增：解开固件镜像里的 SquashFS 根文件系统并扫描。** Linux 类固件（OpenWrt 的 sysupgrade 文件、摄像头的 Flash 镜像）把出厂内容放在 SquashFS 里：包管理器的数据库、各个程序和库。这些以前都读不到。现在 `gangmu scan` 会在树里的镜像中查找 SquashFS 4.0（`.bin`、`.img`、`.trx` 等文件里任意位置；其他文件只看开头，比如没有后缀的 `rootfs` 分区），逐个解到临时目录，当作普通目录树扫描，结果放在 `<镜像>!squashfs@<偏移>/` 下。gzip、xz、LZMA（OpenWrt、Yocto、Buildroot 的默认）只用标准库；LZ4 和 zstd 需要 `pip install 'gangmu-sbom[firmware]'`，LZO 需要 `python-lzo`。解包有上限（每个文件系统 512 MiB、5 万个文件，单个文件 64 MiB，目录 32 层）；文件名只按单级路径写出，不创建链接。`--no-filesystems` 关闭此功能。以 OpenWrt 23.05.5 的小米路由器 4A 千兆版镜像为例：以前识别 0 个组件，现在 139 个（opkg 数据库里的 137 个包，加内核和 BusyBox）。
+* **新增：`gangmu scan` 可以直接扫一个文件。** `gangmu scan firmware.bin` 只扫这个文件；以前传文件得到的是空结果。
+* **新增：从启动横幅识别 Linux 内核。** `Linux version 5.15.167 (builder@buildhost) (...)` 给出 Linux 内核组件（`cpe:2.3:o:linux:linux_kernel`）；源码里的 `%s` 格式串和普通文字不会匹配。
+* **新增：解压没有魔数的 LZMA 流。** 内核常以裸 `.lzma` 流存放，没有魔数；OpenWrt 的 lzma-loader 还用 `lc=1 lp=2 pb=2`（属性字节 0x6d），并去掉了 8 字节的长度字段。属性字节为 0x5d 或 0x6d、字典大小为 64 KiB 到 64 MiB 之间 2 的幂的位置会被尝试，解出 64 KiB 以上才算。
+* **修复：假的 zlib 起始位置不再耗尽真正压缩流的尝试次数。** zlib 的两字节魔数在压缩数据里到处都是，镜像后部的 gzip、xz 流以前可能还没轮到，64 次尝试就用完了。现在 zlib 单独计数。
+
 ## 0.18.5
 * **需要 gangmu-rules 2026.11.11。** 规则库新增 vsftpd 规则（CPE `vsftpd_project:vsftpd`，别名 `beasts:vsftpd`），ppp 规则认领 `pkg:generic/ppp`。CI 固定到 v2026.11.11。
 * **SBOM 写了别的产品的 CPE 时，也按规则的 CPE 查 NVD。** 手写或别的工具推出来的 CPE 常常对不上 NVD 的登记名：ppp 写成 `ppp_project:ppp`（NVD 用 `point-to-point_protocol_project:point-to-point_protocol`），lrzsz 写成 `lrzsz:lrzsz`（NVD 用 `lrzsz_project:lrzsz`），原来只按 SBOM 的 CPE 查，什么都查不到，看起来干净。现在认领该 purl 的规则的 CPE 一并查询，SBOM 原有的 CPE 仍照写查询；表格末尾列出这些组件和应改成的 CPE，JSON 输出 `cpeMismatch`。SBOM 的 CPE 是规则 `cpe_aliases` 里的旧名（`beasts:vsftpd`）时不算写错，但规则的主 CPE 也会补查。一份用户 SBOM 里 ppp 2.4.7 因此查出 CVE-2020-8597、CVE-2018-11574，lrzsz 0.12.20 查出 CVE-2018-10195，vsftpd 3.0.2（需 gangmu-rules 新增的 vsftpd 规则）查出 CVE-2015-1419、CVE-2021-3618。

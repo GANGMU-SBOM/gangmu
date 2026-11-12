@@ -150,6 +150,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
                               declared=not args.no_declared,
                               licenses=not args.no_licenses,
                               binaries=not args.no_binaries,
+                              filesystems=not args.no_filesystems,
                               loose=not args.no_loose,
                               unknown=not args.no_unknown,
                               possible_below=0.0 if args.include_possible
@@ -490,9 +491,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--version", action="version", version=f"gangmu-sbom {__version__}")
     sub = p.add_subparsers(dest="command", required=True)
 
-    s = sub.add_parser("scan", help="identify components in a source tree")
+    s = sub.add_parser("scan", help="identify components in a source tree or firmware image")
     s.add_argument("root", nargs="?",
-                   help="source tree to scan (default: build.root from the config)")
+                   help="source tree, or one firmware image, to scan (default: build.root "
+                        "from the config)")
     s.add_argument("--rules", action="append", help=RULES_HELP)
     s.add_argument("--config", help=f"project configuration "
                                     f"(default: nearest {CONFIG_NAMES[0]})")
@@ -532,6 +534,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--min-confidence", type=float, default=0.35)
     s.add_argument("--no-binaries", action="store_true",
                    help="do not inventory prebuilt .a/.lib/.so files")
+    s.add_argument("--no-filesystems", action="store_true",
+                   help="do not extract and scan the SquashFS file systems inside firmware "
+                        "images")
     s.add_argument("--no-loose", action="store_true",
                    help="do not look for components copied in as loose files among the "
                         "project's own (app/lwprintf.c beside app/main.c); this reads "

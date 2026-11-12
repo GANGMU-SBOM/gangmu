@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import os
 import re
-from dataclasses import dataclass
+import shutil
+import tempfile
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -46,20 +49,83 @@ class ScanOptions:
     unknown: bool = True            # report code that looks vendored and that no rule names
     support: Optional[List[Any]] = None     # support.Override entries from --support
     kconfig: Optional[KconfigValues] = None  # sdkconfig / .config: drop components it turns off
+    filesystems: bool = True        # extract SquashFS file systems in images and scan them
     stats: Optional[Dict[str, int]] = None   # filled with work counters if given
 
 
 def scan(root: Path, rulebase: RuleBase,
          build_facts: Optional[BuildFacts] = None,
          options: Optional[ScanOptions] = None) -> ScanResult:
+    """Scan a tree, or a single file (a firmware image handed over on its own)."""
     options = options or ScanOptions()
     root = Path(root).resolve()
+    if root.is_file():
+        return _scan_file(root, rulebase, options)
+    return _scan_tree(root, rulebase, build_facts, options, 0)
+
+
+def _scan_tree(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
+               options: ScanOptions, depth: int) -> ScanResult:
     with AnalysisStore(root, *_store_params(rulebase), jobs=options.jobs,
                        cache_dir=options.cache_dir) as store:
         result = _scan(root, rulebase, build_facts, options, store)
         if options.stats is not None:
             options.stats.update(store.stats)
+    if options.binaries and options.filesystems and depth < MAX_FS_DEPTH:
+        _scan_filesystems(root, result, rulebase, options, depth)
     return result
+
+
+def _scan_file(path: Path, rulebase: RuleBase, options: ScanOptions) -> ScanResult:
+    """One file, scanned as a tree that holds only it: the file is linked (or copied,
+    where a link cannot be made) into an empty temporary directory."""
+    with tempfile.TemporaryDirectory(prefix="gangmu-file-") as tmp:
+        target = Path(tmp) / path.name
+        try:
+            os.link(path, target)
+        except OSError:
+            shutil.copyfile(path, target)
+        result = _scan_tree(Path(tmp), rulebase, None, options, 0)
+    result.root = str(path)
+    return result
+
+
+MAX_FS_DEPTH = 2        # a file system inside an image inside a file system, no further
+
+
+def _scan_filesystems(root: Path, result: ScanResult, rulebase: RuleBase,
+                      options: ScanOptions, depth: int) -> None:
+    """Extract the file systems inside the tree's firmware images and add what a scan of
+    them finds to *result*, under paths that name the image (``fw.bin!squashfs@0x.../``)."""
+    from .filesystems import extract_into
+    with tempfile.TemporaryDirectory(prefix="gangmu-fs-") as tmp:
+        extracted, notes = extract_into(root, Path(tmp))
+        result.notes.extend(notes)
+        if not extracted:
+            return
+        # The build configuration and build facts describe the tree, not what an image
+        # in it holds.
+        sub = _scan_tree(Path(tmp), rulebase, None, replace(options, kconfig=None), depth + 1)
+    inside = [e + "/" for e in extracted]
+    within: Dict[str, set] = {}
+    for f in sub.findings:
+        image = next((e.split("!squashfs@")[0] for e in inside if f.directory.startswith(e)),
+                     None)
+        if image is not None:
+            within.setdefault(image, set()).add((f.upstream_name, f.version))
+    # A banner the image's own scan read out of a file system's compressed blocks is
+    # the same component the file system's scan names at its own file: keep that one.
+    result.findings = [f for f in result.findings
+                       if not (f.rule_id.startswith("binary/") and f.directory in within
+                               and (f.upstream_name, f.version) in within[f.directory])]
+    result.findings.extend(sub.findings)
+    result.findings.sort(key=lambda f: (-f.confidence, f.directory))
+    result.possible.extend(sub.possible)
+    result.not_built.extend(sub.not_built)
+    result.unknown.extend(sub.unknown)
+    result.binaries.extend(sub.binaries)
+    result.unidentified = sorted(result.unidentified + sub.unidentified)
+    result.notes.extend(sub.notes)
 
 
 def _store_params(rulebase: RuleBase) -> Tuple[int, int]:
