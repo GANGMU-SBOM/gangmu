@@ -9,6 +9,11 @@
 * **新增：解压没有魔数的 LZMA 流。** 内核常以裸 `.lzma` 流存放，没有魔数；OpenWrt 的 lzma-loader 还用 `lc=1 lp=2 pb=2`（属性字节 0x6d），并去掉了 8 字节的长度字段。属性字节为 0x5d 或 0x6d、字典大小为 64 KiB 到 64 MiB 之间 2 的幂的位置会被尝试，解出 64 KiB 以上才算。
 * **修复：假的 zlib 起始位置不再耗尽真正压缩流的尝试次数。** zlib 的两字节魔数在压缩数据里到处都是，镜像后部的 gzip、xz 流以前可能还没轮到，64 次尝试就用完了。现在 zlib 单独计数。
 
+* **嵌入式 Linux 根文件系统里程序和库的版本。** 以四个 OpenWrt 镜像（21.02.7 ARM、22.03.7 MIPS、23.05.5 MIPS 小端、24.10.4 AArch64）的 opkg 数据库为准：能从自身二进制读出版本的包从 284 个里的 7 个增加到 39 个，没有读错的。剩下的多是 OpenWrt 自己的工具（ubox、procd、uci），版本是提交日期。在一个测试容器的 Debian/Ubuntu 二进制上，新增的命中只有 json-c，版本与打包版本一致。
+  * 用格式串打印版本的程序，把版本号单独存成一个字符串。格式串证明是哪个程序之后，文件里唯一一个符合该项目版本形状的字符串就是版本（多于一个或没有，都不报）：dnsmasq、dropbear、pppd、musl、hostapd 和 wpa_supplicant（`2.11-devel` 读作 `2.10~2.11`）、iw、json-c。
+  * U-Boot 从自身横幅（`U-Boot 2021.01 (...`）和它的环境变量工具（`Compiled with U-Boot 2021.01`）识别。
+  * Mbed TLS 从库的文件名（`libmbedtls.so.3.6.5`）识别，文件名必须与 SONAME 一致。
+* **修复：没有节表的库也能读到 SONAME。** OpenWrt 用 `sstrip` 去掉所有程序和库的节头，以前 SONAME 只从节头读，OpenWrt 的库一个也读不到（102 个里 0 个）。现在从动态段读（102 个里 95 个），程序和库也按 `PT_INTERP` 段区分。
 ## 0.18.5
 * **需要 gangmu-rules 2026.11.11。** 规则库新增 vsftpd 规则（CPE `vsftpd_project:vsftpd`，别名 `beasts:vsftpd`），ppp 规则认领 `pkg:generic/ppp`。CI 固定到 v2026.11.11。
 * **SBOM 写了别的产品的 CPE 时，也按规则的 CPE 查 NVD。** 手写或别的工具推出来的 CPE 常常对不上 NVD 的登记名：ppp 写成 `ppp_project:ppp`（NVD 用 `point-to-point_protocol_project:point-to-point_protocol`），lrzsz 写成 `lrzsz:lrzsz`（NVD 用 `lrzsz_project:lrzsz`），原来只按 SBOM 的 CPE 查，什么都查不到，看起来干净。现在认领该 purl 的规则的 CPE 一并查询，SBOM 原有的 CPE 仍照写查询；表格末尾列出这些组件和应改成的 CPE，JSON 输出 `cpeMismatch`。SBOM 的 CPE 是规则 `cpe_aliases` 里的旧名（`beasts:vsftpd`）时不算写错，但规则的主 CPE 也会补查。一份用户 SBOM 里 ppp 2.4.7 因此查出 CVE-2020-8597、CVE-2018-11574，lrzsz 0.12.20 查出 CVE-2018-10195，vsftpd 3.0.2（需 gangmu-rules 新增的 vsftpd 规则）查出 CVE-2015-1419、CVE-2021-3618。

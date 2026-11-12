@@ -18,6 +18,7 @@ SHF_EXECINSTR, SHT_PROGBITS = 4, 1
 EM_386, EM_ARM, EM_X86_64, EM_RISCV = 3, 40, 62, 243
 MAX_SECTIONS = 4096
 PT_LOAD, PT_DYNAMIC, DT_PLTGOT = 1, 2, 3
+PT_INTERP, DT_STRTAB, DT_STRSZ = 3, 5, 10
 SHT_NOBITS = 8
 SHT_NOTE = 7
 SHT_ARM_ATTRIBUTES = 0x70000003
@@ -52,12 +53,15 @@ class ElfInfo:
     got: int = 0                                        # DT_PLTGOT (MIPS: _gp is this + 0x7ff0)
     etype: int = 0                                      # e_type: 2 executable, 3 shared object
     arm_attributes: Dict[int, int] = field(default_factory=dict)   # ARM build attributes, by tag
+    interp: bool = False                                # a PT_INTERP segment (a program)
+    dynamic_soname: Optional[str] = None                # DT_SONAME read through the segments
 
     @property
     def is_executable(self) -> bool:
         """A program rather than a library: a fixed-address executable, or a position-independent
         one, which is told from a shared object by the interpreter it names."""
-        return self.etype == ET_EXEC or any(s.name == ".interp" for s in self.sections)
+        return (self.etype == ET_EXEC or self.interp
+                or any(s.name == ".interp" for s in self.sections))
 
 
 def parse_elf(data: bytes) -> Optional[ElfInfo]:
@@ -147,6 +151,7 @@ def _from_segments(data: bytes, info: ElfInfo) -> ElfInfo:
         if not phoff or phentsize < 32 or phnum > 64:
             return info
         dynamic = None
+        loads: List[Tuple[int, int, int]] = []          # (vaddr, offset, filesz)
         for i in range(phnum):
             o = phoff + i * phentsize
             if info.bits == 64:
@@ -155,10 +160,13 @@ def _from_segments(data: bytes, info: ElfInfo) -> ElfInfo:
                 typ, off, vaddr, _p, filesz, memsz, flg = struct.unpack_from(e + "IIIIIII", data, o)
             if typ == PT_DYNAMIC:
                 dynamic = (off, filesz)
+            if typ == PT_INTERP:
+                info.interp = True
             if typ != PT_LOAD or not memsz:
                 continue
             shf = 2 | (SHF_EXECINSTR if flg & 1 else 0) | (1 if flg & 2 else 0)
             filesz = min(filesz, max(0, len(data) - off))
+            loads.append((vaddr, off, filesz))
             info.sections.append(Section(f".load{i}", SHT_PROGBITS, shf, vaddr, off, filesz))
             if memsz > filesz:
                 info.sections.append(Section(f".load{i}.bss", SHT_NOBITS, shf,
@@ -166,15 +174,37 @@ def _from_segments(data: bytes, info: ElfInfo) -> ElfInfo:
         if dynamic is not None:
             width = 8 if info.bits == 64 else 4
             blob = data[dynamic[0]:dynamic[0] + dynamic[1]]
+            tags: Dict[int, int] = {}
             for o in range(0, len(blob) - 2 * width + 1, 2 * width):
                 tag, val = struct.unpack_from(e + ("QQ" if width == 8 else "II"), blob, o)
                 if tag == 0:
                     break
-                if tag == DT_PLTGOT:
-                    info.got = val
+                tags.setdefault(tag, val)
+            info.got = tags.get(DT_PLTGOT, 0)
+            info.dynamic_soname = _dynamic_string(data, loads, tags.get(DT_STRTAB),
+                                                  tags.get(DT_STRSZ), tags.get(DT_SONAME))
     except struct.error:
         pass
     return info
+
+
+def _dynamic_string(data: bytes, loads: List[Tuple[int, int, int]], strtab: Optional[int],
+                    strsz: Optional[int], at: Optional[int]) -> Optional[str]:
+    """A string of the dynamic string table, found by the address the dynamic segment gives
+    (``DT_STRTAB`` is an address, not a file offset: the loadable segments map it)."""
+    if strtab is None or at is None or not strsz or at >= strsz:
+        return None
+    for vaddr, off, filesz in loads:
+        if vaddr <= strtab < vaddr + filesz:
+            start = off + (strtab - vaddr) + at
+            end = data.find(b"\0", start, off + filesz)
+            if end < 0:
+                return None
+            try:
+                return data[start:end].decode("ascii")
+            except UnicodeDecodeError:
+                return None
+    return None
 
 
 def _uleb(data: bytes, at: int) -> Tuple[int, int]:
@@ -294,12 +324,13 @@ def build_id(data: bytes, info: ElfInfo) -> Optional[str]:
 
 
 def soname(data: bytes, info: ElfInfo) -> Optional[str]:
-    """The shared object's own name (``DT_SONAME``, ``libz.so.1``), or None."""
+    """The shared object's own name (``DT_SONAME``, ``libz.so.1``), or None. A file whose
+    section table was removed (``sstrip``, as OpenWrt does) is read through its segments."""
     e = "<" if info.little else ">"
     by_name = {sec.name: sec for sec in info.sections}
     dynamic, strings = by_name.get(".dynamic"), by_name.get(".dynstr")
     if dynamic is None or strings is None or dynamic.type != SHT_DYNAMIC:
-        return None
+        return info.dynamic_soname
     width = 8 if info.bits == 64 else 4
     table = data[dynamic.offset:dynamic.offset + dynamic.size]
     pool = data[strings.offset:strings.offset + strings.size]
