@@ -447,6 +447,11 @@ def _binary_summary(emb, version: Optional[str]) -> str:
         return (f"{emb.banner} were matched by the strings and constants they use; the "
                 "library is inside this binary, but a modified function can keep both, so "
                 "this is not proof of unmodified upstream code")
+    if emb.method == "anchored":
+        return (f"{emb.banner}: the program's own version format string names it, and that "
+                "release string is the only one of its version's shape in the file; the "
+                "code was not compared with upstream, and a distribution may carry fixes "
+                "backported from later releases")
     if emb.method == "strings":
         return (f"{emb.banner} appear in this prebuilt binary; the library is inside it, "
                 "but string constants survive a modified copy, so this is not proof of "

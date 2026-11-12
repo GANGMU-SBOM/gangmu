@@ -49,6 +49,8 @@ KNOWN: Dict[str, Tuple[str, Optional[str]]] = {
     "libzlib": ("zlib", "cpe:2.3:a:zlib:zlib:*:*:*:*:*:*:*:*"),
     "busybox": ("BusyBox", "cpe:2.3:a:busybox:busybox:*:*:*:*:*:*:*:*"),
     "linux-kernel": ("Linux kernel", "cpe:2.3:o:linux:linux_kernel:*:*:*:*:*:*:*:*"),
+    "hostapd": ("hostapd", "cpe:2.3:a:w1.fi:hostapd:*:*:*:*:*:*:*:*"),
+    "wpa_supplicant": ("wpa_supplicant", "cpe:2.3:a:w1.fi:wpa_supplicant:*:*:*:*:*:*:*:*"),
     "curl": ("curl", "cpe:2.3:a:haxx:curl:*:*:*:*:*:*:*:*"),
     "libcurl": ("curl", "cpe:2.3:a:haxx:curl:*:*:*:*:*:*:*:*"),
     "dropbear": ("Dropbear", "cpe:2.3:a:dropbear_ssh_project:dropbear_ssh:*:*:*:*:*:*:*:*"),

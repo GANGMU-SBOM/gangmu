@@ -85,9 +85,58 @@ BANNERS = (
     # The banner a Linux kernel prints at boot (init/version.c, linux_banner): "Linux version
     # 5.15.167 (builder@buildhost) (gcc ...". The source holds "%s" there, so only a built
     # kernel has digits after it. A vendor's EXTRAVERSION (-rt, -g1234abc) is not a release.
+    # U-Boot's own banner ("U-Boot 2021.01 (Jan 11 2021 - 18:11:43 +0000)") and the one its
+    # environment tools carry (fw_printenv: "Compiled with U-Boot 2021.01")
+    ("u-boot", "Das U-Boot",
+     rb"(?:Compiled with U-Boot |U-Boot )(20\d\d\.\d\d(?:\.\d{1,2})?)(?:-[\w.+-]{1,40})?(?: \(|\n|\x00)"),
     ("linux-kernel", "Linux kernel",
      rb"Linux version (\d+\.\d+(?:\.\d+)?)[-+.~\w]* \([^)\x00]{1,80}@[^)\x00]{1,80}\) \("),
 )
+
+# Programs that print their release through a format string ("Dnsmasq version %s") keep the
+# release itself as a separate string. The format string proves which program the file is;
+# the release is then the one string of the project's own version shape in the file: it ends
+# at a NUL, does not continue a word or number before it (a path such as /usr/lib/pppd/2.4.9
+# counts), and may carry a git suffix (5.9-8fab0c9e). More than one such string, or none,
+# names nothing: the version is never guessed between them.
+# (name, display name, identifying strings (any one), version shape)
+ANCHORED = (
+    ("dnsmasq", "dnsmasq", (b"Dnsmasq version %s",), rb"2\.\d{2,3}"),
+    ("dropbear", "dropbear", (b"SSH-2.0-dropbear", b"Dropbear SSH"), rb"20\d\d\.\d{2}"),
+    ("ppp", "ppp", (b"pppd version %s",), rb"2\.[45]\.\d{1,2}"),
+    ("musl", "musl", (b"musl libc (",), rb"1\.[0-2]\.\d{1,2}"),
+    # hostapd and wpa_supplicant (and OpenWrt's wpad, which is both) share a version string;
+    # "2.11-devel" is a snapshot after 2.10, before 2.11
+    ("hostapd", "hostapd", (b"hostapd v%s",), rb"2\.\d{1,2}(?:-devel)?"),
+    ("wpa_supplicant", "wpa_supplicant", (b"wpa_supplicant v%s",), rb"2\.\d{1,2}(?:-devel)?"),
+    ("iw", "iw", (b"iw version %s",), rb"[4-9]\.\d{1,2}"),
+    ("json-c", "json-c", (b"json_c_version_num",), rb"0\.1\d(?:\.\d{1,2})?"),
+)
+_ANCHORED = tuple(
+    (n, d, a, re.compile(rb"(?<![0-9A-Za-z._-])(" + v + rb")(?:-g?[0-9a-f]{7,12})?(?=\x00)"))
+    for n, d, a, v in ANCHORED)
+
+
+def _anchored_versions(data: bytes, known: Sequence["Embedded"]) -> List["Embedded"]:
+    found: List[Embedded] = []
+    for name, display, anchors, shape in _ANCHORED:
+        anchor = next((a for a in anchors if a in data), None)
+        if anchor is None or any(e.name == name and e.version for e in known):
+            continue
+        tokens = {m.group(1) for m in shape.finditer(data)}
+        if len(tokens) != 1:
+            continue
+        raw = tokens.pop().decode("ascii")
+        version = raw
+        if raw.endswith("-devel"):
+            # a development snapshot of the next release: after the previous one
+            major, minor = raw[:-len("-devel")].split(".")
+            version = f"{major}.{int(minor) - 1}~{major}.{minor}" if int(minor) else raw
+        found.append(Embedded(name, display, version,
+                              f"{anchor.decode('ascii')!r} with the release string {raw!r}",
+                              method="anchored"))
+    return found
+
 
 # Libraries that leave no banner but export a recognisable API. Names are matched as whole
 # NUL-delimited strings (the symbol table), so a short name inside a longer one does not
@@ -389,6 +438,7 @@ def _analyze(blob: Binary, data: bytes, suffix: str, sidecar: Optional[Path],
         pe = parse_pe(layer.data) if not layer.label and suffix in PE_SUFFIXES else None
         found = _banners(layer.data, elf, managed=pe is not None and pe.is_dotnet,
                          extra=banners)
+        found += _anchored_versions(layer.data, found + blob.embedded)
         if not layer.label:
             found += _toolchain_lists(blob, layer.data, pe, elf)
             found += _package_metadata(layer.data, elf)
@@ -619,6 +669,11 @@ _FILE_NAME_RELEASES = {
     "libzstd": ("zstd", "zstd", 3),
     "liblz4": ("lz4", "lz4", 3),
     "libxml2": ("libxml2", "libxml2", 3),
+    # Mbed TLS names its three libraries by release (libmbedtls.so.3.6.5, SONAME
+    # libmbedtls.so.21); a stripped build keeps no banner, so the name is all there is
+    "libmbedcrypto": ("mbedtls", "Mbed TLS", 3),
+    "libmbedtls": ("mbedtls", "Mbed TLS", 3),
+    "libmbedx509": ("mbedtls", "Mbed TLS", 3),
 }
 _SHARED_OBJECT = re.compile(r"(lib[a-z0-9_]+)\.so((?:\.\d+)+)")
 
