@@ -2,6 +2,15 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
+## Unreleased
+* **新增：解开固件镜像里的 JFFS2 和 UBIFS 并扫描，与 0.19.0 的 SquashFS 一样。** NOR Flash 上的老路由器、摄像头用 JFFS2；NAND 设备用 UBI，里面是 UBIFS 或 SquashFS 卷。
+  * JFFS2（两种字节序）：每个文件名和每段数据取版本号最新的节点，指向 inode 0 的目录项表示删除；每个节点头和数据段都校验 CRC。读得出原样、全零、rtime、zlib、LZO 存放的数据。
+  * UBI：按擦除块重建每个卷（每个逻辑块取序号最大的），按卷表取名。UBIFS 卷解到 `<镜像>!ubi@<偏移>/<卷名>/`；其他卷整卷写成 `<卷名>.bin`，下一轮就能找到里面的 SquashFS 或内核（OpenWrt 的 NAND 布局，或同时装着两者的 FIT 镜像）。
+  * UBIFS（在 UBI 里或单独的镜像）：扫描每个逻辑块的所有节点，每个键取序号最大的，所以在用设备的转储（最新节点还在日志里）也能读对。读得出 zlib、LZO；zstd 需要 `firmware` 可选依赖。
+  * LZO 由内置的纯 Python 解码器解（移植自 `lzo1x_decompress_safe`，带越界检查），SquashFS 也用它；不再需要 `python-lzo`。
+  * 实测：OpenWrt 22.03.7 的两个 UBIFS 镜像（at91 sama5d2-icp、oxnas MyCloud）分别识别 127 和 132 个组件；OpenWrt 24.10.4 的 OpenWrt One 出厂镜像识别 185 个，其中从 FIT 卷读出 Linux 6.6.110，从引导卷读出 U-Boot 2024.10（以前是 0 个：SquashFS 被擦除块头切碎了）。把一个真实的 OpenWrt 根文件系统用三种方式（zlib、LZO、大端）做成 JFFS2，1,012 个文件全部逐字节读回。在 748 MiB 不含这些文件系统的镜像和系统程序、库上，没有误检。
+* **修复：两个装着相同包的根文件系统，各自保留自己的包。** 以前包数据库在整棵树里去重，两个镜像里的第二个（A/B 双分区固件、根文件系统和它的 overlay）会丢掉它的包；现在每个数据库各自保留。
+
 ## 0.19.0
 * **新增：解开固件镜像里的 SquashFS 根文件系统并扫描。** Linux 类固件（OpenWrt 的 sysupgrade 文件、摄像头的 Flash 镜像）把出厂内容放在 SquashFS 里：包管理器的数据库、各个程序和库。这些以前都读不到。现在 `gangmu scan` 会在树里的镜像中查找 SquashFS 4.0（`.bin`、`.img`、`.trx` 等文件里任意位置；其他文件只看开头，比如没有后缀的 `rootfs` 分区），逐个解到临时目录，当作普通目录树扫描，结果放在 `<镜像>!squashfs@<偏移>/` 下。gzip、xz、LZMA（OpenWrt、Yocto、Buildroot 的默认）只用标准库；LZ4 和 zstd 需要 `pip install 'gangmu-sbom[firmware]'`，LZO 需要 `python-lzo`。解包有上限（每个文件系统 512 MiB、5 万个文件，单个文件 64 MiB，目录 32 层）；文件名只按单级路径写出，不创建链接。`--no-filesystems` 关闭此功能。以 OpenWrt 23.05.5 的小米路由器 4A 千兆版镜像为例：以前识别 0 个组件，现在 139 个（opkg 数据库里的 137 个包，加内核和 BusyBox）。
 * **新增：`gangmu scan` 可以直接扫一个文件。** `gangmu scan firmware.bin` 只扫这个文件；以前传文件得到的是空结果。

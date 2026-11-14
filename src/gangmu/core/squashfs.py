@@ -10,8 +10,8 @@ This module finds SquashFS 4.0 superblocks in a byte string and extracts the reg
 files below a directory, so the rest of the scan reads them like any other tree. Only
 the standard library is needed for gzip, xz and LZMA, which is what OpenWrt, Yocto and
 Buildroot use by default; LZ4 and zstd are read when the ``lz4`` and ``zstandard``
-packages are installed (``pip install 'gangmu-sbom[firmware]'``), LZO when
-``python-lzo`` is. Older SquashFS versions (2.x, 3.x) and vendor variants with changed
+packages are installed (``pip install 'gangmu-sbom[firmware]'``); LZO with the built-in
+decoder (``lzo``). Older SquashFS versions (2.x, 3.x) and vendor variants with changed
 magic numbers or LZMA settings are not read.
 
 Every limit is enforced while reading, so a corrupt or hostile image cannot exhaust
@@ -148,10 +148,8 @@ def decompressor(compression: int) -> Optional[Callable[[bytes, int], bytes]]:
             return None
         return lambda block, most: zstd.ZstdDecompressor().decompress(block, max_output_size=most)
     if compression == LZO:
-        lzo = _optional("lzo")
-        if lzo is None:
-            return None
-        return lambda block, most: lzo.decompress(block, False, most)
+        from . import lzo
+        return lzo.decompress
     return None
 
 

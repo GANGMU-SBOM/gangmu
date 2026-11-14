@@ -109,7 +109,7 @@ def _decl(ecosystem: str, name: str, version: Optional[str], source: str, where:
 
 def read_rootfs_packages(root: Path) -> List[Declaration]:
     root = Path(root).resolve()
-    out: Dict[Tuple[str, str, str], Declaration] = {}
+    out: Dict[Tuple[str, str, str, str], Declaration] = {}   # one per database and package
     for path, ecosystem in _find_databases(root):
         try:
             text = _read(path)
@@ -122,7 +122,7 @@ def read_rootfs_packages(root: Path) -> List[Declaration]:
                 name, version = fields.get("P"), fields.get("V")
                 if not name:
                     continue
-                out.setdefault((ecosystem, name, version or ""), _decl(
+                out.setdefault((source, ecosystem, name, version or ""), _decl(
                     ecosystem, name, version, source, where, upstream=False,
                     license=fields.get("L"), url=fields.get("U"),
                     note="Alpine package version, with the distribution's revision"))
@@ -135,11 +135,11 @@ def read_rootfs_packages(root: Path) -> List[Declaration]:
             raw = fields.get("Version", "")
             if ecosystem == ECOSYSTEM_OPKG:
                 version = _yocto_version(raw)
-                out.setdefault((ecosystem, name, version or ""), _decl(
+                out.setdefault((source, ecosystem, name, version or ""), _decl(
                     ecosystem, name, version, source, where, upstream=True,
                     note=None if version else f"{source} lists {raw!r}, not a release"))
             else:
-                out.setdefault((ecosystem, name, raw), _decl(
+                out.setdefault((source, ecosystem, name, raw), _decl(
                     ecosystem, name, raw or None, source, where, upstream=False,
                     note="Debian package version, with the distribution's revision"))
     return list(out.values())
