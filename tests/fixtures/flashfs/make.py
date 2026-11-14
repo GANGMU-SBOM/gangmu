@@ -40,6 +40,7 @@ def main() -> None:
         ubifs = ("mkfs.ubifs", "-r", "rootfs", "-m", "512", "-e", "15872", "-c", "64")
         run(*ubifs, "-x", "zlib", "-o", "zlib.ubifs", cwd=t)
         run(*ubifs, "-x", "lzo", "-o", "lzo.ubifs", cwd=t)
+        run(*ubifs, "-x", "zstd", "-o", "zstd.ubifs", cwd=t)
         shutil.copy(SQUASHFS / "rootfs-xz.sqfs", t / "rootfs.sqfs")
         (t / "ubi.cfg").write_text(
             "[data]\nmode=ubi\nimage=zlib.ubifs\nvol_id=0\nvol_type=dynamic\n"
@@ -49,7 +50,7 @@ def main() -> None:
         run("ubinize", "-o", "nand.ubi", "-p", "16KiB", "-m", "512", "-s", "512", "ubi.cfg",
             cwd=t)
         for name in ("le.jffs2", "be.jffs2", "lzo.jffs2", "zlib.ubifs", "lzo.ubifs",
-                     "nand.ubi"):
+                     "zstd.ubifs", "nand.ubi"):
             with gzip.GzipFile(HERE / f"{name}.gz", "wb", mtime=0) as fh:
                 fh.write((t / name).read_bytes())
 

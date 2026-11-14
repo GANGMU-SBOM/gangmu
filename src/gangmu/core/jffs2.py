@@ -8,8 +8,9 @@ each range says. This module scans the nodes (either byte order), keeps the newe
 writes the regular files below a directory.
 
 Data is read when stored uncompressed, as zeros, or compressed with rtime or zlib (what
-``mkfs.jffs2`` uses by default), or with LZO (the built-in decoder). Nodes compressed
-with rubin or with the LZMA patch some vendors carry are skipped and counted. Every node
+``mkfs.jffs2`` uses by default), with LZO (the built-in decoder), or with LZMA as OpenWrt's
+kernel and mtd-utils patches write it. Nodes compressed with rubin are skipped and
+counted. Every node
 header is checked against its CRC and every data range against its own, so stale or
 half-written flash is passed over rather than trusted. The limits and the naming rules
 are those of ``squashfs``.
@@ -17,6 +18,7 @@ are those of ``squashfs``.
 
 from __future__ import annotations
 
+import lzma
 import struct
 import zlib
 from dataclasses import dataclass, field
@@ -30,7 +32,10 @@ MAGIC = 0x1985
 DIRENT, INODE, CLEANMARKER, PADDING, SUMMARY = 0xE001, 0xE002, 0x2003, 0x2004, 0x2006
 HEADER = 12
 DIRENT_SIZE, INODE_SIZE = 40, 68
-NONE, ZERO, RTIME, COPY, ZLIB, LZO = 0, 1, 2, 4, 6, 7
+NONE, ZERO, RTIME, COPY, ZLIB, LZO, LZMA = 0, 1, 2, 4, 6, 7, 8
+# OpenWrt's LZMA compressor (target/linux/generic/pending-*/530-jffs2_make_lzma_available
+# .patch): a raw LZMA1 stream with fixed properties and no end marker
+_LZMA_FILTERS = [{"id": lzma.FILTER_LZMA1, "lc": 0, "lp": 0, "pb": 0, "dict_size": 0x2000}]
 ROOT = 1
 S_IFMT, S_IFDIR, S_IFREG = 0o170000, 0o040000, 0o100000
 MIN_NODES = 4               # a run of valid nodes this long is a file system, not chance
@@ -122,11 +127,17 @@ def _last_node_end(data: bytes, at: int, little: bool) -> int:
 def _nodes(data: bytes, start: int, little: bool):
     """(position, length, type) of every node with a right header CRC from *start*.
     Corrupt bytes are stepped over four at a time: one bad node does not hide the rest."""
+    magic = b"\x85\x19" if little else b"\x19\x85"
     at = start
     while at + HEADER <= len(data):
         node = _header(data, at, little)
         if node is None:
-            at += 4
+            # erased flash and corrupt bytes are skipped to the next aligned magic number
+            at = data.find(magic, at + 4)
+            while at > 0 and at % 4:
+                at = data.find(magic, at + 1)
+            if at < 0:
+                return
             continue
         yield at, node[1], node[0]
         at = (at + node[1] + 3) & ~3
@@ -165,6 +176,8 @@ def _inflate(kind: int, raw: bytes, size: int) -> Optional[bytes]:
         return d.decompress(raw, size)
     if kind == LZO:
         return lzo.decompress(raw, size)
+    if kind == LZMA:
+        return lzma.LZMADecompressor(lzma.FORMAT_RAW, filters=_LZMA_FILTERS).decompress(raw, size)
     return None
 
 

@@ -73,6 +73,16 @@ def _ec_header(data: bytes, at: int) -> Optional[Tuple[int, int]]:
     return vid, start
 
 
+def _vid_header(data: bytes, at: int) -> Optional[Tuple[int, int]]:
+    """(volume id, logical block) of a valid volume-identifier header at *at*."""
+    if data[at:at + 4] != VID_MAGIC or at + 64 > len(data):
+        return None
+    if crc(data[at:at + 60]) != struct.unpack_from(">I", data, at + 60)[0]:
+        return None
+    vol_id, lnum = struct.unpack_from(">II", data, at + 8)
+    return vol_id, lnum
+
+
 def find_ubi(data: bytes) -> Optional[int]:
     """Where the first UBI eraseblock with a valid header is, or None."""
     at = data.find(EC_MAGIC)

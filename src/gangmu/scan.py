@@ -90,7 +90,7 @@ def _scan_file(path: Path, rulebase: RuleBase, options: ScanOptions) -> ScanResu
     return result
 
 
-MAX_FS_DEPTH = 2        # a file system inside an image inside a file system, no further
+MAX_FS_DEPTH = 3        # a NAND dump, its UBI image, a volume holding a SquashFS; no further
 
 
 def _scan_filesystems(root: Path, result: ScanResult, rulebase: RuleBase,
