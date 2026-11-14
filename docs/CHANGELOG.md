@@ -2,7 +2,7 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
-## Unreleased
+## 0.20.0
 * **新增：解开固件镜像里的 JFFS2 和 UBIFS 并扫描，与 0.19.0 的 SquashFS 一样。** NOR Flash 上的老路由器、摄像头用 JFFS2；NAND 设备用 UBI，里面是 UBIFS 或 SquashFS 卷。
   * JFFS2（两种字节序）：每个文件名和每段数据取版本号最新的节点，指向 inode 0 的目录项表示删除；每个节点头和数据段都校验 CRC。读得出原样、全零、rtime、zlib、LZO、LZMA 存放的数据；LZMA 按 OpenWrt 的内核和 mtd-utils 补丁的写法（裸 LZMA1，`lc=0 lp=0 pb=0`，8 KiB 字典，没有结束标记）。
   * UBI：按擦除块重建每个卷（每个逻辑块取序号最大的），按卷表取名。UBIFS 卷解到 `<镜像>!ubi@<偏移>/<卷名>/`；其他卷整卷写成 `<卷名>.bin`，下一轮就能找到里面的 SquashFS 或内核（OpenWrt 的 NAND 布局，或同时装着两者的 FIT 镜像）。
