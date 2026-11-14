@@ -90,14 +90,14 @@ def _scan_file(path: Path, rulebase: RuleBase, options: ScanOptions) -> ScanResu
     return result
 
 
-MAX_FS_DEPTH = 2        # a file system inside an image inside a file system, no further
+MAX_FS_DEPTH = 3        # a NAND dump, its UBI image, a volume holding a SquashFS; no further
 
 
 def _scan_filesystems(root: Path, result: ScanResult, rulebase: RuleBase,
                       options: ScanOptions, depth: int) -> None:
     """Extract the file systems inside the tree's firmware images and add what a scan of
-    them finds to *result*, under paths that name the image (``fw.bin!squashfs@0x.../``)."""
-    from .filesystems import extract_into
+    them finds to *result*, under paths that name the image (``fw.bin!squashfs@0x.../``, ``nand.bin!ubi@0x0/rootfs/``)."""
+    from .filesystems import LABEL, extract_into
     with tempfile.TemporaryDirectory(prefix="gangmu-fs-") as tmp:
         extracted, notes = extract_into(root, Path(tmp))
         result.notes.extend(notes)
@@ -109,7 +109,7 @@ def _scan_filesystems(root: Path, result: ScanResult, rulebase: RuleBase,
     inside = [e + "/" for e in extracted]
     within: Dict[str, set] = {}
     for f in sub.findings:
-        image = next((e.split("!squashfs@")[0] for e in inside if f.directory.startswith(e)),
+        image = next((LABEL.split(e)[0] for e in inside if f.directory.startswith(e)),
                      None)
         if image is not None:
             within.setdefault(image, set()).add((f.upstream_name, f.version))
