@@ -2,7 +2,7 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
-## Unreleased
+## 0.20.0
 * **New: JFFS2 and UBIFS file systems inside firmware images are extracted and scanned, as SquashFS was in 0.19.0.** Older routers and cameras on NOR flash use JFFS2; NAND devices use UBI with UBIFS or SquashFS volumes.
   * JFFS2 (either byte order): the newest node wins for each name and data range, and a directory entry pointing to inode 0 deletes; every node header and data range is checked against its CRC. Data stored raw, as zeros, rtime, zlib, LZO or LZMA is read; LZMA as OpenWrt's kernel and mtd-utils patches write it (raw LZMA1, `lc=0 lp=0 pb=0`, 8 KiB dictionary, no end marker).
   * UBI: volumes are rebuilt from their eraseblocks (highest sequence number per logical block) and named from the volume table. A UBIFS volume is extracted into `<image>!ubi@<offset>/<volume>/`; any other volume is written whole as `<volume>.bin`, so a SquashFS or a kernel inside it (OpenWrt's NAND layout, or a FIT image holding both) is found by the next pass.
