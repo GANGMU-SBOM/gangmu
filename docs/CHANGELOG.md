@@ -2,6 +2,13 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
+## Unreleased
+* **新增：解开 SquashFS 2.x、3.x 以及老固件用过的厂商变种并扫描。** 大约 2010 年以前的路由器和机顶盒（OpenWrt White Russian、Kamikaze 和很多厂商 SDK）用的是这两个版本，x86 和 ARM 上是小端，MIPS 上是大端。布局按 squashfs-tools 3.4 的 `squashfs_fs.h`：inode 和目录项都是紧凑位域，小端镜像从最低位排起，大端镜像从最高位排起。
+  * 主线 2.x/3.x 用 zlib 压缩；多数固件改成了 LZMA，超级块里却没有标记。用哪种解码由第一个元数据块决定，看哪种封装能把它解成 inode 表：zlib、按编码器默认参数的裸 LZMA（OpenWrt）、带 `.lzma` 头的、带五字节参数的，或另外两组固定参数。以 zlib 头开始的块先按 zlib 解，因为 sqlzma 镜像两种混用。
+  * 厂商魔数（`shsq`、`qshs`、`sqlz`、`hsqt`、`tqsh`）在超级块其余部分一致时接受，字节序取能让它一致的那种。压缩类型 2 是裸 LZMA 或五字节参数（而不是 `.lzma` 流）的厂商 SquashFS 4.0 镜像也能读。
+  * 读取 `usr/lib/ipkg/status`（opkg 的前身 ipkg 存放包列表的位置），和 opkg 的一样处理。
+  * 在 OpenWrt 的归档镜像上实测：White Russian 0.9（2.1，LZMA）、Kamikaze 7.09 和 8.09 brcm（3.0 小端，LZMA）、Kamikaze 8.09 atheros 和 ar71xx（3.0 大端，LZMA）分别识别 27、25、53、53、50 个组件，以前都是 0。Kamikaze 8.09 atheros 把同一个根文件系统同时发布成 SquashFS 3.0 和 JFFS2（ubnt2 镜像），两个读取器写出的目录树完全相同。在 940 MiB 的其他镜像和系统二进制上没有误检。
+
 ## 0.20.0
 * **新增：解开固件镜像里的 JFFS2 和 UBIFS 并扫描，与 0.19.0 的 SquashFS 一样。** NOR Flash 上的老路由器、摄像头用 JFFS2；NAND 设备用 UBI，里面是 UBIFS 或 SquashFS 卷。
   * JFFS2（两种字节序）：每个文件名和每段数据取版本号最新的节点，指向 inode 0 的目录项表示删除；每个节点头和数据段都校验 CRC。读得出原样、全零、rtime、zlib、LZO、LZMA 存放的数据；LZMA 按 OpenWrt 的内核和 mtd-utils 补丁的写法（裸 LZMA1，`lc=0 lp=0 pb=0`，8 KiB 字典，没有结束标记）。

@@ -18,7 +18,7 @@ from functools import partial
 from typing import Callable, Iterator, List, Optional, Tuple
 
 from .binaries import SKIP_DIRS
-from .core import jffs2, squashfs, ubi
+from .core import jffs2, squashfs, squashfs3, ubi
 from .core.squashfs import Extracted
 
 # Files read whole and searched for a file system at any offset: flash images and the
@@ -36,7 +36,7 @@ MAX_IMAGE = 1024 * 1024 * 1024        # larger files are not searched
 # itself is not a power of two.
 NAND_LAYOUTS = ((2048, 64), (2048, 128), (4096, 128), (4096, 224), (4096, 256), (512, 16),
                 (8192, 448), (8192, 512))
-_START = (squashfs.MAGIC, b"\x85\x19", b"\x19\x85", ubi.EC_MAGIC,
+_START = (squashfs.MAGIC, *squashfs3.MAGICS, b"\x85\x19", b"\x19\x85", ubi.EC_MAGIC,
           ubi.UBIFS_MAGIC.to_bytes(4, "little"))
 # what names an extracted file system in a path: "!squashfs@0x2ae934", "!ubi@0x0"
 LABEL = re.compile(r"!(?:squashfs|jffs2|ubifs|ubi|nand)@0x[0-9a-f]+")
@@ -67,6 +67,10 @@ def _volume_name(name: str) -> str:
 
 def _squashfs(data: bytes, sb: squashfs.Superblock, dest: Path) -> Extracted:
     return squashfs.extract(data, sb, dest)
+
+
+def _squashfs3(data: bytes, sb: squashfs3.Superblock, dest: Path) -> Extracted:
+    return squashfs3.extract(data, sb, dest)
 
 
 def nand_layouts(size: int) -> List[Tuple[int, int]]:
@@ -157,6 +161,11 @@ def jobs(name: str, data: bytes, whole: bool) -> List[Job]:
         out.append(Job(f"SquashFS ({sb.compression_name})", sb.offset,
                        name + squashfs.label(sb.offset),
                        partial(_squashfs, data, sb)))
+    old = squashfs3.find(data[:end]) if whole else \
+        [sb3 for sb3 in [squashfs3.superblock_at(data, 0)] if sb3 is not None]
+    for sb3 in old:
+        out.append(Job(f"SquashFS {sb3.describe}", sb3.offset, name + squashfs3.label(sb3.offset),
+                       partial(_squashfs3, data, sb3)))
     leb = ubi.is_ubifs(data, 0)
     if leb is not None:
         out.append(Job("UBIFS", 0, f"{name}!ubifs@0x0",

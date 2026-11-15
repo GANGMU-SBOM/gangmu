@@ -2,6 +2,13 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
+## Unreleased
+* **New: SquashFS 2.x and 3.x, and the vendor variants older firmware used, are extracted and scanned.** Routers and set-top boxes built before about 2010 (OpenWrt White Russian and Kamikaze, many vendor SDKs) used them, little-endian on x86 and ARM and big-endian on MIPS. The layout follows squashfs-tools 3.4's `squashfs_fs.h`, whose inodes and directory entries are packed bit fields filled from the least significant bit in a little-endian image and from the most significant bit in a big-endian one.
+  * Mainline 2.x/3.x compresses with zlib; most firmware patched in LZMA with nothing in the superblock to say so. The decoder is chosen by which framing turns the first metadata block into an inode table: zlib, raw LZMA with the encoder's defaults (OpenWrt), an `.lzma` header, five property bytes, or two other fixed property sets. A block that starts like zlib is tried with zlib first, as sqlzma images mix the two.
+  * Vendor magic numbers (`shsq`, `qshs`, `sqlz`, `hsqt`, `tqsh`) are accepted when the rest of the superblock is consistent, in whichever byte order makes it so. SquashFS 4.0 images whose compression 2 is raw LZMA or five property bytes instead of an `.lzma` stream (vendor builds) are read too.
+  * `usr/lib/ipkg/status`, where opkg's predecessor ipkg kept the package list, is read like opkg's.
+  * Measured on OpenWrt's archive: White Russian 0.9 (2.1, LZMA), Kamikaze 7.09 and 8.09 brcm (3.0 little-endian, LZMA) and Kamikaze 8.09 atheros and ar71xx (3.0 big-endian, LZMA) give 27, 25, 53, 53 and 50 components, 0 before. Kamikaze 8.09 atheros ships the same root file system as SquashFS 3.0 and as JFFS2 (ubnt2 image): the two readers write identical trees. Nothing is detected over 940 MiB of other images and system binaries.
+
 ## 0.20.0
 * **New: JFFS2 and UBIFS file systems inside firmware images are extracted and scanned, as SquashFS was in 0.19.0.** Older routers and cameras on NOR flash use JFFS2; NAND devices use UBI with UBIFS or SquashFS volumes.
   * JFFS2 (either byte order): the newest node wins for each name and data range, and a directory entry pointing to inode 0 deletes; every node header and data range is checked against its CRC. Data stored raw, as zeros, rtime, zlib, LZO or LZMA is read; LZMA as OpenWrt's kernel and mtd-utils patches write it (raw LZMA1, `lc=0 lp=0 pb=0`, 8 KiB dictionary, no end marker).
