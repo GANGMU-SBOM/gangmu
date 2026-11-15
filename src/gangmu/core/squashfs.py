@@ -130,13 +130,10 @@ def decompressor(compression: int) -> Optional[Callable[[bytes, int], bytes]]:
                 raise SquashfsError("block larger than the file system allows")
             return out
         return gz
-    if compression in (XZ, LZMA):
-        fmt = lzma.FORMAT_XZ if compression == XZ else lzma.FORMAT_ALONE
-
-        def xz(block: bytes, most: int) -> bytes:
-            out = lzma.LZMADecompressor(fmt).decompress(block, most)
-            return out
-        return xz
+    if compression == XZ:
+        return lambda block, most: lzma.LZMADecompressor(lzma.FORMAT_XZ).decompress(block, most)
+    if compression == LZMA:
+        return _lzma_any()
     if compression == LZ4:
         lz4 = _optional("lz4.block")
         if lz4 is None:
@@ -151,6 +148,28 @@ def decompressor(compression: int) -> Optional[Callable[[bytes, int], bytes]]:
         from . import lzo
         return lzo.decompress
     return None
+
+
+def _lzma_any() -> Callable[[bytes, int], bytes]:
+    """Compression 2 is an ``.lzma`` stream per block in mainline SquashFS 4.0; vendor
+    builds (Broadcom, Realtek and others) write raw LZMA or five property bytes instead.
+    Each framing is tried, starting with the one that read the last block."""
+    from .squashfs3 import _alone, _props_only, _raw
+    order = [_alone, _props_only, _raw(3, 0, 2), _raw(0, 0, 0)]
+    last = [0]
+
+    def decode(block: bytes, most: int) -> bytes:
+        for i in range(len(order)):
+            which = (last[0] + i) % len(order)
+            try:
+                out = order[which](block, most)
+            except (lzma.LZMAError, ValueError, EOFError):
+                continue
+            if out:
+                last[0] = which
+                return out
+        raise SquashfsError("no LZMA framing reads this block")
+    return decode
 
 
 # ------------------------------------------------------------ reader

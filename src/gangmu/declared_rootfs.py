@@ -9,7 +9,8 @@ dpkg
     ``var/lib/dpkg/status``: ``Package`` / ``Version`` stanzas whose ``Status``
     ends in ``installed``.
 opkg (OpenWrt, Yocto)
-    ``var/lib/opkg/status`` or ``usr/lib/opkg/status``, the same stanza format.
+    ``var/lib/opkg/status`` or ``usr/lib/opkg/status``, the same stanza format; and
+    ``usr/lib/ipkg/status``, where opkg's predecessor ipkg kept it.
     Yocto's ``PV-PR`` (``1.36.1-r0``) is cut to the upstream release, as the Yocto
     reader does.
 apk (Alpine)
@@ -41,6 +42,9 @@ _DATABASES = (
     ("var/lib/dpkg/status", ECOSYSTEM_DPKG),
     ("var/lib/opkg/status", ECOSYSTEM_OPKG),
     ("usr/lib/opkg/status", ECOSYSTEM_OPKG),
+    # ipkg, opkg's predecessor (OpenWrt White Russian and Kamikaze 7.09): the same format
+    ("usr/lib/ipkg/status", ECOSYSTEM_OPKG),
+    ("var/lib/ipkg/status", ECOSYSTEM_OPKG),
     ("lib/apk/db/installed", ECOSYSTEM_APK),
 )
 _MAX_DEPTH = 6
