@@ -2,6 +2,13 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
+## Unreleased
+* **新增：解开 cpio 归档（包括内核里的 initramfs）并扫描。** OpenWrt 的 initramfs 镜像、恢复系统、Android 启动镜像和很多厂商内核，把整个用户空间放在 initramfs 里：一个 cpio 归档，通常压缩后藏在内核里。读得出 `newc` 和 `crc`（内核读写的格式）、可移植的 `odc` 格式，以及两种字节序的旧二进制 cpio；硬链接的每个名字都拿到数据，首尾相接的多个归档逐个找出，路径里带 `..` 的条目跳过。不含其他文件系统的镜像，还会搜索它的各个压缩层（uImage、OpenWrt lzma-loader 内核，再到其中的 initramfs）；名字像 ramdisk 的文件（`rootfs.cpio.gz`、`initrd.img`）即使只以压缩流开头也会打开。只有设备节点的归档（内核内置的 initramfs）不报告。
+  * OpenWrt 23.05.5 mt7621 的 `initramfs-kernel.bin` 识别 128 个组件，以前只有 1 个（内核本身）。它的 initramfs 是 LZMA 压缩的，放在 LZMA 压缩的内核里，是那里第 14 个 LZMA 头：每层尝试次数从 8 提高到 32（假的头几微秒就失败）。
+  * OpenWrt One 出厂镜像识别 361 个组件，以前是 185 个：它的 `recovery` 卷里有一个 FIT，其中的内核带着 1,162 个文件的 initramfs。
+* **新增：解开 cramfs 镜像并扫描。** 老式 IP 摄像头、机顶盒和开发板用的压缩只读文件系统，两种字节序都能读（`mkfs.cramfs -N big`），支持空洞和不压缩的块。把一个真实的 OpenWrt 根文件系统（1,012 个文件）用两种字节序做成 cramfs，全部逐字节读回。
+* 在 922 MiB 不含这些格式的镜像和系统程序、库上，没有误检出 cpio 归档或 cramfs。
+
 ## 0.21.0
 * **新增：解开 SquashFS 2.x、3.x 以及老固件用过的厂商变种并扫描。** 大约 2010 年以前的路由器和机顶盒（OpenWrt White Russian、Kamikaze 和很多厂商 SDK）用的是这两个版本，x86 和 ARM 上是小端，MIPS 上是大端。布局按 squashfs-tools 3.4 的 `squashfs_fs.h`：inode 和目录项都是紧凑位域，小端镜像从最低位排起，大端镜像从最高位排起。
   * 主线 2.x/3.x 用 zlib 压缩；多数固件改成了 LZMA，超级块里却没有标记。用哪种解码由第一个元数据块决定，看哪种封装能把它解成 inode 表：zlib、按编码器默认参数的裸 LZMA（OpenWrt）、带 `.lzma` 头的、带五字节参数的，或另外两组固定参数。以 zlib 头开始的块先按 zlib 解，因为 sqlzma 镜像两种混用。
