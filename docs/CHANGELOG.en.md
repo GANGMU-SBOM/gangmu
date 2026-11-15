@@ -2,7 +2,7 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
-## Unreleased
+## 0.21.0
 * **New: SquashFS 2.x and 3.x, and the vendor variants older firmware used, are extracted and scanned.** Routers and set-top boxes built before about 2010 (OpenWrt White Russian and Kamikaze, many vendor SDKs) used them, little-endian on x86 and ARM and big-endian on MIPS. The layout follows squashfs-tools 3.4's `squashfs_fs.h`, whose inodes and directory entries are packed bit fields filled from the least significant bit in a little-endian image and from the most significant bit in a big-endian one.
   * Mainline 2.x/3.x compresses with zlib; most firmware patched in LZMA with nothing in the superblock to say so. The decoder is chosen by which framing turns the first metadata block into an inode table: zlib, raw LZMA with the encoder's defaults (OpenWrt), an `.lzma` header, five property bytes, or two other fixed property sets. A block that starts like zlib is tried with zlib first, as sqlzma images mix the two.
   * Vendor magic numbers (`shsq`, `qshs`, `sqlz`, `hsqt`, `tqsh`) are accepted when the rest of the superblock is consistent, in whichever byte order makes it so. SquashFS 4.0 images whose compression 2 is raw LZMA or five property bytes instead of an `.lzma` stream (vendor builds) are read too.
