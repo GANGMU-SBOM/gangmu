@@ -2,7 +2,7 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
-## Unreleased
+## 0.22.0
 * **New: cpio archives, among them a kernel's initramfs, are extracted and scanned.** OpenWrt's initramfs images, recovery systems, Android boot images and many vendor kernels carry the whole userland in an initramfs: a cpio archive, usually compressed inside the kernel. `newc` and `crc` (what the kernel reads), the portable `odc` format and old binary cpio in either byte order are read; hard links get their data under every name, concatenated archives are each found, and an entry with `..` in its path is skipped. An image holding no other file system has its compressed layers searched too (uImage, the OpenWrt lzma-loader kernel, then the initramfs inside it), and a file named like a ramdisk (`rootfs.cpio.gz`, `initrd.img`) is opened even when it only starts with a compressed stream. An archive of device nodes only (a kernel's built-in initramfs) is not reported.
   * The OpenWrt 23.05.5 mt7621 `initramfs-kernel.bin` gives 128 components, 1 before (the kernel alone). Its initramfs is LZMA inside the LZMA-compressed kernel, and was the 14th LZMA header there: the tries per layer go from 8 to 32 (a false header fails in microseconds).
   * The OpenWrt One factory image gives 361 components, 185 before: its `recovery` volume holds a FIT whose kernel carries a 1,162-file initramfs.
