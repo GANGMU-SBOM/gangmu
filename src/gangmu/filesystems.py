@@ -18,7 +18,8 @@ from functools import partial
 from typing import Callable, Iterator, List, Optional, Tuple
 
 from .binaries import SKIP_DIRS
-from .core import jffs2, squashfs, squashfs3, ubi
+from .core import cpio, cramfs, jffs2, squashfs, squashfs3, ubi
+from .core.unpack import expand
 from .core.squashfs import Extracted
 
 # Files read whole and searched for a file system at any offset: flash images and the
@@ -26,7 +27,7 @@ from .core.squashfs import Extracted
 # at its start (an extracted ``rootfs`` partition often has no suffix).
 IMAGE_SUFFIXES = {".bin", ".img", ".squashfs", ".sqfs", ".sfs", ".trx", ".chk", ".fw",
                   ".ubi", ".ubifs", ".jffs2", ".itb", ".fit", ".pkg", ".upd", ".ota",
-                  ".rom", ".dat"}
+                  ".rom", ".dat", ".cramfs", ".cpio", ".initrd", ".uimage"}
 MIN_SIZE = 4096
 MAX_IMAGE = 1024 * 1024 * 1024        # larger files are not searched
 # A dump read off a NAND chip keeps each page's spare (OOB) bytes after it, so a 128 MiB
@@ -37,9 +38,17 @@ MAX_IMAGE = 1024 * 1024 * 1024        # larger files are not searched
 NAND_LAYOUTS = ((2048, 64), (2048, 128), (4096, 128), (4096, 224), (4096, 256), (512, 16),
                 (8192, 448), (8192, 512))
 _START = (squashfs.MAGIC, *squashfs3.MAGICS, b"\x85\x19", b"\x19\x85", ubi.EC_MAGIC,
-          ubi.UBIFS_MAGIC.to_bytes(4, "little"))
+          ubi.UBIFS_MAGIC.to_bytes(4, "little"), b"0707", b"\xc7\x71", b"\x71\xc7",
+          cramfs.MAGIC.to_bytes(4, "little"), cramfs.MAGIC.to_bytes(4, "big"))
 # what names an extracted file system in a path: "!squashfs@0x2ae934", "!ubi@0x0"
-LABEL = re.compile(r"!(?:squashfs|jffs2|ubifs|ubi|nand)@0x[0-9a-f]+")
+LABEL = re.compile(r"![a-z0-9]+(?:-[a-z0-9]+)*@0x[0-9a-f]+")
+# A cpio archive (an initramfs) usually sits compressed inside a kernel or a ramdisk, so
+# the compressed layers of an image holding no other file system are searched too.
+MIN_EXPAND = 256 * 1024
+MAX_EXPAND = 64 * 1024 * 1024
+# a file named like a ramdisk is opened even when it only starts with a compressed stream
+_RAMDISK = re.compile(r"cpio|initr|ramdisk|ramfs|rootfs", re.I)
+_COMPRESSED = (b"\x1f\x8b", b"\xfd7zXZ", b"\x5d\x00\x00", b"BZh")
 
 
 @dataclass
@@ -184,7 +193,31 @@ def jobs(name: str, data: bytes, whole: bool) -> List[Job]:
             out.append(Job("JFFS2" + (" (big-endian)" if not fs.little else ""), fs.offset,
                            f"{name}!jffs2@{fs.offset:#x}",
                            partial(jffs2.extract, data, fs)))
+    crams = cramfs.find(data[:end]) if whole else \
+        [c for c in (cramfs.superblock_at(data, 0), cramfs.superblock_at(data, 512)) if c]
+    for cram in crams:
+        out.append(Job(f"cramfs ({cram.describe})", cram.offset, name + cramfs.label(cram.offset),
+                       partial(cramfs.extract, data, cram)))
+    archives = cpio.find(data[:end]) if whole else \
+        [a for a in cpio.find(data[:1 << 20], limit=1) if a.offset == 0]
+    for archive in _with_files(data, archives):
+        out.append(Job(f"cpio archive ({archive.kind})", archive.offset,
+                       f"{name}!cpio@{archive.offset:#x}", partial(cpio.extract, data, archive)))
+    if not out and (whole or _RAMDISK.search(name)) and MIN_EXPAND <= len(data) <= MAX_EXPAND:
+        for layer in expand(data, ".bin")[1:]:
+            tag = re.sub(r"[^A-Za-z0-9@!._-]", "_", layer.label.replace(">", "!"))
+            for archive in _with_files(layer.data, cpio.find(layer.data)):
+                out.append(Job(f"cpio archive ({archive.kind}) in {layer.label}",
+                               archive.offset, f"{name}!{tag}!cpio@{archive.offset:#x}",
+                               partial(cpio.extract, layer.data, archive)))
     return out
+
+
+def _with_files(data: bytes, archives: List[cpio.Archive]) -> List[cpio.Archive]:
+    """The archives that hold at least one regular file (a kernel's built-in initramfs is
+    often only a few device nodes)."""
+    return [a for a in archives
+            if any(e.mode & cpio.S_IFMT == cpio.S_IFREG for e in cpio._walk(data, a.offset)[1])]
 
 
 def _extract_ubi(image: ubi.UbiImage, dest: Path) -> Extracted:
@@ -225,7 +258,9 @@ def find_images(root: Path) -> Iterator[Tuple[Path, List[Job]]]:
             if not whole:
                 with open(path, "rb") as fh:
                     head = fh.read(4)
-                if not any(head.startswith(m) for m in _START):
+                if not (any(head.startswith(m) for m in _START)
+                        or (_RAMDISK.search(path.name)
+                            and any(head.startswith(m) for m in _COMPRESSED))):
                     continue
             data = path.read_bytes()
         except OSError:

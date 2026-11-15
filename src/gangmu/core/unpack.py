@@ -142,7 +142,8 @@ _LZMA_HEADER = re.compile(
     rb"[\x5d\x6d](?:\x00\x00[\x01\x02\x04\x08\x10\x20\x40\x80]\x00"
     rb"|\x00\x00\x00[\x01\x02\x04])", re.DOTALL)
 MIN_LZMA = 64 * 1024        # what a header found by its properties alone must decode to
-MAX_LZMA_TRIES = 8
+MAX_LZMA_TRIES = 32      # a false header fails in microseconds; a kernel holds dozens (its
+                         # initramfs was the 14th in OpenWrt 23.05's mt7621 initramfs kernel)
 
 
 def _lzma_raw(data: bytes, start: int) -> Optional[bytes]:
