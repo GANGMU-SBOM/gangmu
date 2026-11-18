@@ -15,7 +15,7 @@ from .licenses import observe
 from .core.globbing import matches_suffix
 from .build.kconfig import KconfigValues, disabled_by
 from .declared import Declaration, collect_declarations
-from .binaries import collect_binaries
+from .binaries import collect_binaries, kernel_modules
 from .discover import discover_roots, empty_submodules
 from .analysis import AnalysisStore
 from .fingerprint import DEFAULT_K, DEFAULT_WINDOW
@@ -251,6 +251,7 @@ def _scan(root: Path, rulebase: RuleBase, build_facts: Optional[BuildFacts],
             facts_map.link_map_stem if facts_map else "",
             _banner_patterns(rulebase))
         findings.extend(_binary_findings(binaries, rulebase))
+        findings.extend(_module_kernel_findings(kernel_modules(root)))
         opaque = [b.path for b in binaries if b.opaque and b.linked is not False]
         if opaque:
             shown = ", ".join(opaque[:4]) + (f" and {len(opaque) - 4} more"
@@ -521,6 +522,32 @@ def _binary_findings(binaries, rulebase: RuleBase) -> List[Finding]:
                 content_hash=blob.sha256,
                 linked=blob.linked,
             ))
+    return out
+
+
+def _module_kernel_findings(kernels) -> List[Finding]:
+    """The Linux kernel a root file system's modules were built for (their vermagic)."""
+    from .declared_linux import KNOWN
+    out: List[Finding] = []
+    cpe_any = KNOWN["linux-kernel"][1]
+    for k in kernels:
+        summary = (f"the vermagic of {k.modules} kernel module(s) here names kernel "
+                   f"{k.release}; the kernel refuses a module built for another release, so "
+                   "this is the kernel that runs them, though a vendor kernel carries its own "
+                   "patches and its version alone does not say which fixes it has")
+        out.append(Finding(
+            directory=k.directory,
+            rule_id="binary/linux-kernel",
+            upstream_name="Linux kernel",
+            purl=f"pkg:generic/linux@{k.version}",
+            cpe=_spliced(cpe_any, k.version),
+            version=k.version,
+            version_source="binary-string",
+            identity_confidence=BINARY_IDENTITY,
+            version_confidence=BINARY_VERSION,
+            evidence=[Evidence(technique=Technique.OTHER, confidence=BINARY_IDENTITY,
+                               summary=summary, locator=k.directory)],
+        ))
     return out
 
 
