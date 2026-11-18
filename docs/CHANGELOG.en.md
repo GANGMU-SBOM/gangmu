@@ -2,7 +2,7 @@
 
 What each release added and what was measured at the time, newest first. For the current capabilities see the [README](../README.en.md); for Chinese-ecosystem coverage see [CHINA.md](CHINA.md).
 
-## Unreleased
+## 0.23.0
 * **New: firmware inside a zip or tar is scanned.** Vendors publish firmware in a zip (Netgear's R7000 download holds the `.chk` image and release notes) or a tar (OpenWrt sysupgrade). The members that look like firmware (a flash image suffix, or a file system's or ramdisk's first bytes) are taken out and scanned like any image; an archive of sources or documents in a project tree is left alone. Member paths are cut into safe components, and sizes and member counts are bounded.
 * **New: the kernel release from the modules.** A kernel module records the release it was built for (`vermagic=2.6.36.4brcmarm+ ...`) and the kernel refuses any other, so a root file system's modules name the kernel that runs them, also when the kernel image is encrypted or in a form the scan cannot unwrap. One Linux kernel component is reported per release, at the module directory that holds most of them.
 * **New: versions vendor builds keep, read from the binaries.** dnsmasq's `dnsmasq-2.85`, miniupnpd's `MiniUPnPd/2.0` server string, iptables' release beside its usage text (`1.4.12.2`), libevent's `2.1.8-stable`, and uClibc's release in its loader's file name (`ld-uClibc-0.9.33.2.so`; uClibc before 1.0 under NVD's `uclibc:uclibc`, uClibc-ng after). The Linux boot banner now keeps a four-part release (`2.6.32.71`).
