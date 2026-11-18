@@ -2,6 +2,12 @@
 
 这里记录各版本新增的能力和当时的评测结果，按版本倒序。当前能力总览见 [README](../README.md)，各家国产生态的覆盖见 [CHINA.md](CHINA.md)。
 
+## Unreleased
+* **新增：扫描 zip、tar 里的固件。** 厂商常把固件放在 zip 里发布（Netgear R7000 的下载包里是 `.chk` 镜像和发布说明），或放在 tar 里（OpenWrt sysupgrade）。像固件的成员（后缀是 Flash 镜像后缀，或开头是文件系统、ramdisk 的魔数）会被取出，像其他镜像一样扫描；项目树里装源码或文档的压缩包不动。成员路径只按安全的单级组件写出，大小和成员数都有上限。
+* **新增：从内核模块读内核版本。** 内核模块记录着它所针对的内核版本（`vermagic=2.6.36.4brcmarm+ ...`），内核拒绝加载版本不符的模块，所以根文件系统里的模块能说明运行它们的是哪个内核；内核镜像加密了或解不开时也一样。每个版本报一个 Linux 内核组件，位置是模块最多的那个目录。
+* **新增：从二进制读出厂商构建保留的版本。** dnsmasq 的 `dnsmasq-2.85`、miniupnpd 的 `MiniUPnPd/2.0` 服务器标识、iptables 用法说明旁边的版本号（`1.4.12.2`）、libevent 的 `2.1.8-stable`，以及 uClibc 加载器文件名里的版本（`ld-uClibc-0.9.33.2.so`；1.0 以前的 uClibc 用 NVD 的 `uclibc:uclibc`，之后是 uClibc-ng）。Linux 启动横幅现在保留四段式版本号（`2.6.32.71`）。
+* 在没有包数据库的厂商固件上实测：Netgear R7000 V1.0.11.136（直接用下载的 zip）识别 20 个组件，以前是 0 个（Linux 2.6.36.4、BusyBox、OpenSSL 1.0.2h、curl、iptables、zlib、Mbed TLS、ppp）；Ubiquiti AirOS XM 6.3.11 识别 15 个，以前是 9 个（新增 Linux 2.6.32.71、dnsmasq 2.85、iptables 1.4.7、miniupnpd 2.0、libevent 2.1.8、uClibc 0.9.33.2）。在一个测试容器的 Debian/Ubuntu 程序和库上，新增的命中只有 libevent 2.1.12，与打包版本一致。
+
 ## 0.22.0
 * **新增：解开 cpio 归档（包括内核里的 initramfs）并扫描。** OpenWrt 的 initramfs 镜像、恢复系统、Android 启动镜像和很多厂商内核，把整个用户空间放在 initramfs 里：一个 cpio 归档，通常压缩后藏在内核里。读得出 `newc` 和 `crc`（内核读写的格式）、可移植的 `odc` 格式，以及两种字节序的旧二进制 cpio；硬链接的每个名字都拿到数据，首尾相接的多个归档逐个找出，路径里带 `..` 的条目跳过。不含其他文件系统的镜像，还会搜索它的各个压缩层（uImage、OpenWrt lzma-loader 内核，再到其中的 initramfs）；名字像 ramdisk 的文件（`rootfs.cpio.gz`、`initrd.img`）即使只以压缩流开头也会打开。只有设备节点的归档（内核内置的 initramfs）不报告。
   * OpenWrt 23.05.5 mt7621 的 `initramfs-kernel.bin` 识别 128 个组件，以前只有 1 个（内核本身）。它的 initramfs 是 LZMA 压缩的，放在 LZMA 压缩的内核里，是那里第 14 个 LZMA 头：每层尝试次数从 8 提高到 32（假的头几微秒就失败）。

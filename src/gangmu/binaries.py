@@ -28,7 +28,7 @@ import zlib
 from urllib.parse import quote
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, List, Optional, Sequence, Set
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 from . import disasm
 from .carve import carve, mask
@@ -82,6 +82,10 @@ BANNERS = (
     ("lua", "Lua", rb"\$Lua(?:Version)?: Lua (\d+\.\d+\.\d+)"),
     ("libjpeg-turbo", "libjpeg-turbo", rb"libjpeg-turbo version (\d+\.\d+\.\d+)"),
     ("busybox", "BusyBox", rb"BusyBox v(\d+\.\d+\.\d+(?:\.\d+)?)"),
+    # dnsmasq's own name-version string (Ubiquiti AirOS 6.3: "dnsmasq-2.85"), and the
+    # Server header miniupnpd sends ("MiniUPnPd/2.0")
+    ("dnsmasq", "dnsmasq", rb"(?<![\w.-])dnsmasq-(2\.\d{2,3})(?![\d.])"),
+    ("miniupnpd", "miniupnpd", rb"MiniUPnPd/(\d+\.\d+(?:\.\d+)?)(?![\d.])"),
     # The banner a Linux kernel prints at boot (init/version.c, linux_banner): "Linux version
     # 5.15.167 (builder@buildhost) (gcc ...". The source holds "%s" there, so only a built
     # kernel has digits after it. A vendor's EXTRAVERSION (-rt, -g1234abc) is not a release.
@@ -90,7 +94,7 @@ BANNERS = (
     ("u-boot", "Das U-Boot",
      rb"(?:Compiled with U-Boot |U-Boot )(20\d\d\.\d\d(?:\.\d{1,2})?)(?:-[\w.+-]{1,40})?(?: \(|\n|\x00)"),
     ("linux-kernel", "Linux kernel",
-     rb"Linux version (\d+\.\d+(?:\.\d+)?)[-+.~\w]* \([^)\x00]{1,80}@[^)\x00]{1,80}\) \("),
+     rb"Linux version (\d+\.\d+(?:\.\d+){0,2})[-+.~\w]* \([^)\x00]{1,80}@[^)\x00]{1,80}\) \("),
 )
 
 # Programs that print their release through a format string ("Dnsmasq version %s") keep the
@@ -111,6 +115,13 @@ ANCHORED = (
     ("wpa_supplicant", "wpa_supplicant", (b"wpa_supplicant v%s",), rb"2\.\d{1,2}(?:-devel)?"),
     ("iw", "iw", (b"iw version %s",), rb"[4-9]\.\d{1,2}"),
     ("json-c", "json-c", (b"json_c_version_num",), rb"0\.1\d(?:\.\d{1,2})?"),
+    # iptables keeps its release beside its usage text (Netgear R7000: "1.4.12.2")
+    ("iptables", "iptables", (b"This is the IPv4 version of iptables.",
+                              b"iptables multi-purpose version"),
+     rb"1\.[2-8]\.\d{1,2}(?:\.\d{1,2})?"),
+    # libevent's version string is "2.1.8-stable"; the suffix says which kind of release
+    ("libevent", "libevent", (b"event_get_version_number",),
+     rb"[12]\.\d\.\d{1,2}-(?:stable|beta|alpha|rc)"),
 )
 _ANCHORED = tuple(
     (n, d, a, re.compile(rb"(?<![0-9A-Za-z._-])(" + v + rb")(?:-g?[0-9a-f]{7,12})?(?=\x00)"))
@@ -127,7 +138,7 @@ def _anchored_versions(data: bytes, known: Sequence["Embedded"]) -> List["Embedd
         if len(tokens) != 1:
             continue
         raw = tokens.pop().decode("ascii")
-        version = raw
+        version = re.sub(r"-(?:stable|beta|alpha|rc)$", "", raw)
         if raw.endswith("-devel"):
             # a development snapshot of the next release: after the previous one
             major, minor = raw[:-len("-devel")].split(".")
@@ -393,6 +404,67 @@ def collect_binaries(root: Path, linked_archives: Optional[Set[str]] = None,
     return out
 
 
+# A kernel module records the kernel release it was built for (``vermagic=2.6.36.4brcmarm+
+# SMP preempt mod_unload ARMv7``), and the kernel refuses a module whose vermagic differs:
+# the modules of a root file system name the kernel that runs them, even when the kernel
+# image itself is encrypted or in a form the scan cannot unwrap.
+_VERMAGIC = re.compile(rb"vermagic=(\d+\.\d+(?:\.\d+){0,2})([^\s\x00]{0,40})[ \x00]")
+MAX_MODULE = 16 * 1024 * 1024
+
+
+@dataclass
+class ModuleKernel:
+    directory: str          # lib/modules/<release> (the one with most modules), or their dir
+    version: str            # 2.6.36.4
+    release: str            # 2.6.36.4brcmarm+, as the modules spell it
+    modules: int
+
+
+def kernel_modules(root: Path) -> List[ModuleKernel]:
+    """The kernel release named by the ``.ko`` modules below *root*, one per directory
+    (``lib/modules/<release>`` when the modules sit there) and release."""
+    root = Path(root).resolve()
+    groups: Dict[Tuple[str, str], List[str]] = {}
+    for here, dirs, files in os.walk(root):
+        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
+        for name in files:
+            if not name.endswith(".ko"):
+                continue
+            path = Path(here) / name
+            try:
+                if path.is_symlink() or path.stat().st_size > MAX_MODULE:
+                    continue
+                data = path.read_bytes()
+            except OSError:
+                continue
+            if data[:4] != b"\x7fELF":
+                continue
+            m = _VERMAGIC.search(data)
+            if not m:
+                continue
+            parts = path.relative_to(root).parts[:-1]
+            key = parts
+            for i in range(len(parts) - 1):
+                if parts[i] == "lib" and parts[i + 1] == "modules":
+                    key = parts[:i + 3]          # lib/modules/<release>
+                    break
+            version = m.group(1).decode("ascii")
+            release = (m.group(1) + m.group(2)).decode("ascii", "replace")
+            groups.setdefault(("/".join(key), version), []).append(release)
+    # one kernel runs all of a root file system's modules, wherever they sit (MikroTik
+    # keeps some in package bundles): one entry per release, at its largest directory
+    by_version: Dict[str, List[Tuple[str, List[str]]]] = {}
+    for (directory, version), releases in groups.items():
+        by_version.setdefault(version, []).append((directory, releases))
+    out = []
+    for version, places in sorted(by_version.items()):
+        directory, _ = max(places, key=lambda p: (len(p[1]), -len(p[0])))
+        releases = [r for _, rs in places for r in rs]
+        release = max(set(releases), key=releases.count)
+        out.append(ModuleKernel(directory or ".", version, release, len(releases)))
+    return out
+
+
 def _inspect(path: Path, root: Path, linked_archives: Optional[Set[str]],
              string_signatures: Sequence = (), function_prints: Sequence = (),
              product_stem: str = "", banners: Sequence = ()) -> List[Binary]:
@@ -446,6 +518,7 @@ def _analyze(blob: Binary, data: bytes, suffix: str, sidecar: Optional[Path],
                 blob.build_id = build_id(layer.data, elf)
                 if sidecar is not None:
                     found += _file_name_release(sidecar, layer.data, elf, found + blob.embedded)
+                    found += _uclibc_release(sidecar, elf, found + blob.embedded)
         if pe is not None:
             found += _pe_evidence(blob, pe, found + blob.embedded, layer.data)
             if sidecar is not None:
@@ -700,6 +773,26 @@ def _file_name_release(path: Path, data: bytes, elf: ElfInfo, known: Sequence[Em
         return []
     return [Embedded(name, display, version,
                      f"shared object {path.name} (SONAME {own})", method="file-name")]
+
+
+# uClibc names its loader and libc by release (ld-uClibc-0.9.33.2.so, libuClibc-0.9.33.2.so).
+# uClibc-ng continued it from 1.0, under its own CPE; NVD files uClibc 0.9 as uclibc:uclibc.
+_UCLIBC = re.compile(r"(?:ld-uClibc|libuClibc)-(\d+\.\d+\.\d+(?:\.\d+)?)\.so")
+
+
+def _uclibc_release(path: Path, elf: ElfInfo, known: Sequence[Embedded]) -> List[Embedded]:
+    m = _UCLIBC.fullmatch(path.name)
+    if not m or elf.is_executable or elf.etype != 3:
+        return []
+    version = m.group(1)
+    ng = int(version.split(".")[0]) >= 1
+    name = "uclibc-ng" if ng else "uclibc"
+    if any(e.name == name and e.version for e in known):
+        return []
+    return [Embedded(name, "uClibc-ng" if ng else "uClibc", version,
+                     f"shared object {path.name}", method="file-name",
+                     cpe=None if ng else "cpe:2.3:a:uclibc:uclibc:" + version
+                     + ":*:*:*:*:*:*:*")]
 
 
 def _by_strings(data: bytes, known: Sequence[Embedded], signatures: Sequence

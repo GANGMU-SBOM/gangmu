@@ -10,8 +10,11 @@ and the offset (``firmware.bin!squashfs@0x2ae934``, ``flash.bin!jffs2@0x7c0000``
 
 from __future__ import annotations
 
+import io
 import os
 import re
+import tarfile
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from functools import partial
@@ -42,6 +45,11 @@ _START = (squashfs.MAGIC, *squashfs3.MAGICS, b"\x85\x19", b"\x19\x85", ubi.EC_MA
           cramfs.MAGIC.to_bytes(4, "little"), cramfs.MAGIC.to_bytes(4, "big"))
 # what names an extracted file system in a path: "!squashfs@0x2ae934", "!ubi@0x0"
 LABEL = re.compile(r"![a-z0-9]+(?:-[a-z0-9]+)*@0x[0-9a-f]+")
+# Vendors publish firmware inside a zip or a tar (Netgear: R7000-V1.0.11.136_10.2.120.zip
+# holding the .chk). Only the members that look like firmware are taken out, so an archive
+# of sources or documents in a project tree is left alone.
+ARCHIVE_SUFFIXES = (".zip", ".tar", ".tgz", ".tar.gz", ".tar.xz", ".txz", ".tar.bz2", ".tbz2")
+MAX_MEMBERS = 256
 # A cpio archive (an initramfs) usually sits compressed inside a kernel or a ramdisk, so
 # the compressed layers of an image holding no other file system are searched too.
 MIN_EXPAND = 256 * 1024
@@ -146,9 +154,92 @@ def _write(body: bytes, name: str, dest: Path) -> Extracted:
     return result
 
 
+def _archive_kind(name: str) -> Optional[str]:
+    low = name.lower()
+    if low.endswith(".zip"):
+        return "zip"
+    return "tar" if low.endswith(ARCHIVE_SUFFIXES) else None
+
+
+def _firmware_like(member: str, head: bytes) -> bool:
+    suffix = Path(member).suffix.lower()
+    return suffix in IMAGE_SUFFIXES or any(head.startswith(m) for m in _START) \
+        or bool(_RAMDISK.search(Path(member).name)) and any(head.startswith(m) for m in _COMPRESSED)
+
+
+def archive_members(name: str, data: bytes) -> List[Tuple[str, bytes]]:
+    """The members of a zip or tar archive that look like firmware: a flash image suffix,
+    or a file system's or ramdisk's first bytes. Sizes are bounded as for any image."""
+    kind = _archive_kind(name)
+    out: List[Tuple[str, bytes]] = []
+    total = 0
+    try:
+        if kind == "zip":
+            zipped = zipfile.ZipFile(io.BytesIO(data))
+            for info in zipped.infolist()[:MAX_MEMBERS]:
+                if info.is_dir() or not MIN_SIZE <= info.file_size <= MAX_IMAGE:
+                    continue
+                if total + info.file_size > MAX_IMAGE:
+                    break
+                with zipped.open(info) as member_fh:
+                    head = member_fh.read(4)
+                if not _firmware_like(info.filename, head):
+                    continue
+                body = zipped.read(info)
+                total += len(body)
+                out.append((info.filename, body))
+        elif kind == "tar":
+            with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as tar:
+                for i, member in enumerate(tar):
+                    if i >= MAX_MEMBERS:
+                        break
+                    if not member.isfile() or not MIN_SIZE <= member.size <= MAX_IMAGE:
+                        continue
+                    if total + member.size > MAX_IMAGE:
+                        break
+                    fh = tar.extractfile(member)
+                    if fh is None:
+                        continue
+                    body = fh.read()
+                    if not _firmware_like(member.name, body[:4]):
+                        continue
+                    total += len(body)
+                    out.append((member.name, body))
+    except (zipfile.BadZipFile, tarfile.TarError, OSError, EOFError, ValueError,
+            RuntimeError, NotImplementedError):
+        return out
+    return out
+
+
+def _write_members(members: List[Tuple[str, bytes]], dest: Path) -> Extracted:
+    """Each member at its path inside the archive, cut into safe components."""
+    result = Extracted(0, "archive")
+    dest.mkdir(parents=True, exist_ok=True)
+    for member, body in members:
+        parts = [p for p in member.replace("\\", "/").split("/") if p not in ("", ".")]
+        if not parts or any(not squashfs._safe(p) for p in parts):
+            result.skipped.append(f"{member}: unsafe path")
+            continue
+        target = dest.joinpath(*parts)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with open(target, "wb") as fh:
+            fh.write(body)
+        result.files += 1
+        result.bytes += len(body)
+    return result
+
+
 def jobs(name: str, data: bytes, whole: bool) -> List[Job]:
     """The file systems in one file's bytes. *whole*: search the whole file, not only
     its start."""
+    kind = _archive_kind(name)
+    if kind is not None:
+        members = archive_members(name, data)
+        if not members:
+            return []
+        # the members are written out as files; the next pass reads what they hold
+        return [Job(f"{kind} archive, {len(members)} firmware file(s) in it", 0,
+                    f"{name}!{kind}@0x0", partial(_write_members, members))]
     layout = nand_layout(data) if whole and nand_layouts(len(data)) else None
     if layout is not None:
         page, spare = layout
@@ -255,7 +346,9 @@ def find_images(root: Path) -> Iterator[Tuple[Path, List[Job]]]:
             if size < MIN_SIZE or size > MAX_IMAGE:
                 continue
             whole = path.suffix.lower() in IMAGE_SUFFIXES
-            if not whole:
+            if _archive_kind(path.name) is not None:
+                whole = True
+            elif not whole:
                 with open(path, "rb") as fh:
                     head = fh.read(4)
                 if not (any(head.startswith(m) for m in _START)
